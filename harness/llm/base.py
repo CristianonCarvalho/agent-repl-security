@@ -21,13 +21,27 @@ class Mensagem(BaseModel):
 
 
 class RespostaLLM(BaseModel):
-    """Resposta do modelo: o texto cru e a contagem de tokens de entrada e de saída."""
+    """Resposta do modelo: o texto cru e a contagem de tokens de entrada e de saída.
+
+    `modelo`, `provedor` e `custo` são informativos (para a trace e os evals). Só o cliente
+    real os preenche; o LLMFalso deixa None. `provedor` é o provedor efetivo que atendeu.
+    """
 
     model_config = ConfigDict(frozen=True)
 
     texto: str
     tokens_entrada: int = Field(ge=0)
     tokens_saida: int = Field(ge=0)
+    modelo: str | None = None
+    provedor: str | None = None
+    custo: float | None = None
+
+
+class ErroLLM(Exception):
+    """Falha do modelo que não se resolveu. O loop a trata como ERRO_LLM.
+
+    A mensagem é curta e genérica: não traz o corpo da resposta, headers nem credenciais.
+    """
 
 
 class ModeloLLM(Protocol):

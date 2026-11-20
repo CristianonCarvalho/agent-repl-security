@@ -473,6 +473,9 @@ class Orquestrador:
             texto=resposta.texto,
             tokens_entrada=resposta.tokens_entrada,
             tokens_saida=resposta.tokens_saida,
+            modelo=resposta.modelo,
+            provedor=resposta.provedor,
+            custo=resposta.custo,
         )
 
     def _encerrar(

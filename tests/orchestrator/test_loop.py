@@ -537,6 +537,40 @@ def test_callback_que_levanta_excecao_nao_derruba_o_loop() -> None:
     assert sandbox.fechamentos == 1
 
 
+def test_turno_modelo_traz_modelo_provedor_e_custo_da_resposta() -> None:
+    resposta = RespostaLLM(
+        texto=FINAL_OK,
+        tokens_entrada=4,
+        tokens_saida=2,
+        modelo="deepseek/deepseek-v4.1-flash",
+        provedor="Novita",
+        custo=0.00021,
+    )
+    modelo = LLMFalso([resposta])
+    sandbox = SandboxFalso([Celula(final=RESPOSTA_FINAL)])
+    recebidos: list[Evento] = []
+    _pedido(modelo, sandbox, eventos=recebidos.append)
+
+    turno = next(e for e in recebidos if e.tipo == "turno_modelo")
+    assert turno.dados["modelo"] == "deepseek/deepseek-v4.1-flash"
+    assert turno.dados["provedor"] == "Novita"
+    assert turno.dados["custo"] == 0.00021
+
+
+def test_turno_modelo_sem_metadados_registra_none() -> None:
+    modelo = LLMFalso([FINAL_OK])
+    sandbox = SandboxFalso([Celula(final=RESPOSTA_FINAL)])
+    recebidos: list[Evento] = []
+    _pedido(modelo, sandbox, eventos=recebidos.append)
+
+    turno = next(e for e in recebidos if e.tipo == "turno_modelo")
+    assert (turno.dados["modelo"], turno.dados["provedor"], turno.dados["custo"]) == (
+        None,
+        None,
+        None,
+    )
+
+
 # --- Propriedades (Hypothesis) --------------------------------------------------------------
 
 
