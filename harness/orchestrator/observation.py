@@ -143,6 +143,20 @@ def envolver_nao_confiavel(texto: str, limite: int) -> str:
     )
 
 
+def neutralizar_descricao(texto: str, limite: int) -> str:
+    """Descrição de uma ferramenta externa (MCP), em uma linha, neutralizada e limitada a `limite`.
+
+    As quebras e os espaços repetidos viram um espaço só. A neutralização roda depois disso,
+    sobre o texto final, e a truncagem só remove caracteres: nenhuma tentativa de abrir ou
+    fechar o delimitador sobrevive a ela. O texto termina com `…` quando foi truncado.
+    """
+    linha = " ".join(_preparar(texto).split())
+    neutralizada = _neutralizar(linha)
+    if len(neutralizada) <= limite:
+        return neutralizada
+    return neutralizada[: limite - 1].rstrip() + "…"
+
+
 def _nome_seguro(nome: str) -> str:
     """Nome de ferramenta sem quebras de linha, sem controles e sem delimitadores.
 

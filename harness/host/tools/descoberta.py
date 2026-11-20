@@ -80,11 +80,19 @@ def _visiveis(registro: Registro, perfil: Perfil) -> tuple[Ferramenta, ...]:
     )
 
 
+def _nomes_de_parametros(ferramenta: Ferramenta) -> list[str]:
+    """Nomes dos parâmetros como o modelo os escreve: o original, no caso de ferramenta MCP."""
+    if ferramenta.esquema is None:
+        return list(ferramenta.args.model_fields)
+    propriedades = ferramenta.esquema.get("properties")
+    return [str(nome) for nome in propriedades] if isinstance(propriedades, dict) else []
+
+
 def _pontuacao(ferramenta: Ferramenta, termos: set[str]) -> int:
     """Soma, por termo da consulta, os pesos dos campos que contêm o termo como palavra."""
     nome = _palavras(ferramenta.nome)
     descricao = _palavras(ferramenta.descricao)
-    parametros = _palavras(" ".join(ferramenta.args.model_fields))
+    parametros = _palavras(" ".join(_nomes_de_parametros(ferramenta)))
     pontos = 0
     for termo in termos:
         if termo in nome:
@@ -122,11 +130,18 @@ def buscar(args: BuscarArgs, perfil: Perfil, registro: Registro) -> list[dict[st
     ]
 
 
-def _tipo(propriedade: dict[str, Any]) -> str:
-    """Tipo curto de um campo do JSON Schema: 'string', 'integer', 'string|null' etc."""
+def _tipo(propriedade: Any) -> str:
+    """Tipo curto de um campo do JSON Schema: 'string', 'integer', 'string|null' etc.
+
+    Esquemas de ferramentas MCP não são confiáveis na forma: o que não for dicionário ou lista
+    válida cai em 'qualquer', sem levantar exceção.
+    """
+    if not isinstance(propriedade, dict):
+        return "qualquer"
     if "anyOf" in propriedade:
+        opcoes = propriedade["anyOf"]
         tipos: list[str] = []
-        for opcao in propriedade["anyOf"]:
+        for opcao in opcoes if isinstance(opcoes, list) else []:
             nome = _tipo(opcao)
             if nome not in tipos:
                 tipos.append(nome)
@@ -139,11 +154,22 @@ def _tipo(propriedade: dict[str, Any]) -> str:
 
 def _parametros(modelo: type[BaseModel]) -> list[dict[str, Any]]:
     """Resumo dos argumentos de um modelo, a partir do JSON Schema dele."""
-    esquema = modelo.model_json_schema()
-    propriedades: dict[str, Any] = esquema.get("properties", {})
-    obrigatorios = set(esquema.get("required", []))
+    return _parametros_de_esquema(modelo.model_json_schema())
+
+
+def _parametros_de_esquema(esquema: dict[str, Any]) -> list[dict[str, Any]]:
+    """Resumo dos argumentos a partir de um JSON Schema de objeto (modelo ou ferramenta MCP)."""
+    propriedades = esquema.get("properties")
+    requeridos = esquema.get("required")
+    obrigatorios: set[str] = (
+        {nome for nome in requeridos if isinstance(nome, str)}
+        if isinstance(requeridos, list)
+        else set()
+    )
     itens: list[dict[str, Any]] = []
-    for nome, propriedade in propriedades.items():
+    for nome, propriedade in propriedades.items() if isinstance(propriedades, dict) else []:
+        if not isinstance(propriedade, dict):
+            propriedade = {}
         item: dict[str, Any] = {
             "nome": nome,
             "tipo": _tipo(propriedade),
@@ -175,7 +201,12 @@ def descrever(args: DescreverArgs, perfil: Perfil, registro: Registro) -> dict[s
         "nome": ferramenta.nome,
         "nivel": ferramenta.nivel.value,
         "descricao": " ".join(ferramenta.descricao.split()),
-        "parametros": _parametros(ferramenta.args),
+        # Ferramenta MCP mostra o esquema original do servidor; as do host, o modelo pydantic.
+        "parametros": (
+            _parametros_de_esquema(ferramenta.esquema)
+            if ferramenta.esquema is not None
+            else _parametros(ferramenta.args)
+        ),
         "exemplo": ferramenta.exemplo,
     }
 

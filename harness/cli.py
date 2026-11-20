@@ -21,6 +21,10 @@ Decisões deste módulo (não estão na spec):
   ou acima do teto de `LIMITE_CONTEXTO_BYTES` sai com código 2, antes de iniciar o sandbox. Para
   o teto, o arquivo inteiro conta: um JSON com muito espaço em branco pode ser recusado mesmo
   que o valor canônico coubesse.
+- `--mcp ARQUIVO`: configuração dos servidores MCP (stdio). Arquivo ausente, inválido ou com
+  nome de grupo repetido sai com código 2, antes de iniciar o sandbox. Os servidores sobem
+  depois do sandbox e são SEMPRE fechados ao fim do pedido (try/finally), inclusive em erro. Um
+  servidor que não inicia vira um aviso e não impede o pedido.
 """
 
 import argparse
@@ -32,6 +36,8 @@ from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import Final, Protocol, TextIO
 
+from harness.host.mcp.adaptador import GerenteMcp, registrar_servidores_mcp, verificar_nomes_mcp
+from harness.host.mcp.config import ConfigMcp, ErroConfigMcp, carregar_config_mcp
 from harness.host.perfil import PERFIS, montagens_do_perfil, perfil_por_nome
 from harness.host.registry import Registro
 from harness.host.tools import registrar_todas
@@ -173,6 +179,12 @@ def _parser() -> argparse.ArgumentParser:
         default=None,
         help="arquivo de entrada do pedido: .json vira objeto ou lista; outro tipo, texto",
     )
+    parser.add_argument(
+        "--mcp",
+        type=Path,
+        default=None,
+        help="arquivo JSON com os servidores MCP (stdio) cujas ferramentas ficam disponíveis",
+    )
     return parser
 
 
@@ -193,6 +205,17 @@ def _modelo_de_ambiente() -> ModeloLLM:
             f"{ARQUIVO_ENV}."
         )
     return ClienteOpenRouter(configuracao, chave)
+
+
+def _avisar_mcp(saida: TextIO, gerente: GerenteMcp) -> None:
+    """Uma linha por servidor que não subiu e uma com as ferramentas ignoradas, se houver."""
+    for nome, motivo in gerente.falhas.items():
+        saida.write(f"aviso: o servidor MCP '{nome}' não foi iniciado: {motivo}\n")
+    if gerente.ignoradas:
+        saida.write(
+            f"aviso: {len(gerente.ignoradas)} ferramenta(s) MCP ignorada(s) por nome fora do "
+            "padrão ou repetido\n"
+        )
 
 
 def _imprimir(
@@ -247,6 +270,14 @@ def main(
             saida.write(f"{erro}\n")
             return CODIGO_USO
 
+    mcp_config: ConfigMcp | None = None
+    if args.mcp is not None:
+        try:
+            mcp_config = carregar_config_mcp(args.mcp)
+        except ErroConfigMcp as erro:
+            saida.write(f"{erro}\n")
+            return CODIGO_USO
+
     if modelo is None:
         try:
             modelo = _modelo_de_ambiente()
@@ -256,6 +287,12 @@ def main(
 
     registro = Registro()
     registrar_todas(registro, args.dados)
+    if mcp_config is not None:
+        try:
+            verificar_nomes_mcp(registro, mcp_config)
+        except ErroConfigMcp as erro:
+            saida.write(f"{erro}\n")
+            return CODIGO_USO
     fabrica: Callable[..., SandboxIniciavel] = (
         fabrica_sandbox if fabrica_sandbox is not None else DockerSandbox
     )
@@ -278,9 +315,26 @@ def main(
     if args.max_iteracoes is not None:
         limites["max_iteracoes"] = args.max_iteracoes
     orcamento = Orcamento(**limites)
-    # O Orquestrador fecha o sandbox ao fim do pedido, inclusive em erro.
-    resultado = Orquestrador(
-        modelo, sandbox, registro, perfil, orcamento=orcamento, eventos=coletor
-    ).executar_pedido(args.pedido, contexto=contexto)
-    _imprimir(saida, resultado, coletor, trace.caminho)
+    # Os servidores MCP sobem só agora, e são fechados no finally, inclusive se algo falhar.
+    gerente: GerenteMcp | None = None
+    try:
+        if mcp_config is not None:
+            gerente = registrar_servidores_mcp(registro, mcp_config)
+            _avisar_mcp(saida, gerente)
+    except BaseException:
+        # Sem Orquestrador, ninguém mais fecharia o sandbox nem os servidores já iniciados.
+        if gerente is not None:
+            gerente.fechar()
+        with contextlib.suppress(Exception):
+            sandbox.close()
+        raise
+    try:
+        # O Orquestrador fecha o sandbox ao fim do pedido, inclusive em erro.
+        resultado = Orquestrador(
+            modelo, sandbox, registro, perfil, orcamento=orcamento, eventos=coletor
+        ).executar_pedido(args.pedido, contexto=contexto)
+        _imprimir(saida, resultado, coletor, trace.caminho)
+    finally:
+        if gerente is not None:
+            gerente.fechar()
     return CODIGO_COMPLETO if resultado.completo else CODIGO_NAO_COMPLETO

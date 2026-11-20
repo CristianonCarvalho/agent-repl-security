@@ -76,6 +76,36 @@ uv run python -m harness "Quantos pedidos há no arquivo e qual o maior valor?" 
 
 O limite do contexto é de 2 MiB (JSON canônico). Acima disso, o código de saída é 2.
 
+### Servidores MCP (`--mcp`)
+
+`--mcp ARQUIVO.json` liga servidores MCP por stdio. Cada ferramenta de um servidor vira `servidor.ferramenta` no REPL (`tools.eco.eco(texto="oi")`), e o nome do servidor é também o grupo que aparece no prompt. O arquivo tem um objeto `servidores`:
+
+```json
+{
+  "servidores": {
+    "eco": {
+      "comando": "uv",
+      "args": ["run", "servidor.py"],
+      "env": {"EXEMPLO": "1"},
+      "leitura": ["eco"],
+      "timeout_chamada_s": 30,
+      "timeout_inicio_s": 15
+    }
+  }
+}
+```
+
+- `comando` e `args`: o processo do servidor. Ele recebe só `PATH`, `HOME` e as variáveis de `env`; o ambiente do harness (inclusive a chave do OpenRouter) não é repassado.
+- `leitura`: nomes de ferramentas tratadas como leitura. As demais são de escrita externa, e a chamada é recusada porque não há aprovação humana ainda.
+- Nome de servidor: letras minúsculas, dígitos e `_`, começando por letra. `catalogo` e `descoberta` são reservados. Nomes com dígito são aceitos na configuração, mas o registro não os aceita, então esse servidor não é iniciado e aparece num aviso.
+- Um servidor que não inicia gera um aviso, e o pedido continua com as demais ferramentas. Todos os servidores são fechados ao fim do pedido.
+
+```bash
+uv run python -m harness "Quanto vendemos?" --perfil Vendas --dados ./dados --mcp ./mcp.json
+```
+
+> **Aviso.** Ferramentas MCP são conteúdo não confiável e vêm de fora do harness (canal externo). O que elas devolvem entra na sessão como qualquer dado externo, e a política contra a *lethal trifecta* só chega na Fase 4. Use só servidores confiáveis e, por enquanto, só ferramentas de leitura.
+
 ### Desenvolvimento
 
 Requer Python 3.12, [uv](https://docs.astral.sh/uv/) e Docker.

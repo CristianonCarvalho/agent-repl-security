@@ -59,6 +59,9 @@ class Ferramenta:
     canal_externo: bool = False
     # Exemplo de uso em Python, mostrado por `descoberta.descrever`. Vazio quando não há.
     exemplo: str = ""
+    # JSON Schema original (inputSchema) de uma ferramenta MCP. Nas ferramentas do host é None,
+    # e `descoberta.descrever` usa o modelo pydantic. Quando existe, ele é a fonte da assinatura.
+    esquema: dict[str, Any] | None = None
 
 
 def _resultado_de_erro(call_id: str, mensagem: str) -> ToolResult:
@@ -104,6 +107,7 @@ class Registro:
         conteudo_nao_confiavel: bool = False,
         canal_externo: bool = False,
         exemplo: str = "",
+        esquema: dict[str, Any] | None = None,
     ) -> Callable[[Funcao], Funcao]:
         """Decorador que registra uma função como ferramenta `grupo.nome`.
 
@@ -126,6 +130,7 @@ class Registro:
                 conteudo_nao_confiavel=conteudo_nao_confiavel,
                 canal_externo=canal_externo,
                 exemplo=exemplo,
+                esquema=esquema,
             )
             return funcao
 
