@@ -51,7 +51,32 @@ O modelo emite um bloco de código por turno; o orquestrador o verifica e o envi
 
 ## Estado
 
-Fase de especificação: ainda não há código.
+**Fase 1 (fundamentos) implementada**, com dados sintéticos e sem política de trifecta nem aprovação humana (Fase 4):
+
+- Loop do orquestrador com orçamento (iterações, tokens, tempo), verificação estática e resumo final.
+- REPL persistente em contêiner Docker endurecido (sem rede, sistema de arquivos somente leitura, usuário sem privilégios), com ponte JSON-RPC para as ferramentas do host.
+- Registro de ferramentas com perfis por departamento e a ferramenta `catalogo.listar`.
+- `FINAL(resposta, fontes)` com fontes obrigatórias, truncagem da saída e observações marcadas como não confiáveis.
+- Trace JSONL por pedido, com chamadas de ferramenta, tokens, provedor e custo.
+- Cliente OpenRouter (SDK `openai`), com repetição em falhas transitórias. Validado com DeepSeek V4.1 Flash num pedido real de ponta a ponta.
+
+Ainda não há interface de linha de comando: o pedido é montado em código a partir de `Orquestrador`, `DockerSandbox`, `Registro` e `ClienteOpenRouter`.
+
+### Desenvolvimento
+
+Requer Python 3.12, [uv](https://docs.astral.sh/uv/) e Docker.
+
+```bash
+uv sync
+docker build -t harness-sandbox:dev -f harness/sandbox/Dockerfile .
+uv run ruff check . && uv run mypy harness tests && uv run pytest -q
+```
+
+O teste real contra o OpenRouter fica fora da rodada padrão e gasta tokens. Ele lê `OPENROUTER_API_KEY` e `OPENROUTER_MODELO` do ambiente ou de um `.env` (ver `.env.example`):
+
+```bash
+uv run pytest -m real_api
+```
 
 ## Documentação
 
