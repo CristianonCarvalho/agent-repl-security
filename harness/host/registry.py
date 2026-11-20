@@ -121,6 +121,10 @@ class Registro:
         """Devolve a ferramenta registrada com esse nome, ou None."""
         return self._ferramentas.get(nome)
 
+    def listar(self) -> tuple[Ferramenta, ...]:
+        """Todas as ferramentas registradas, em ordem de nome (base do catálogo do prompt)."""
+        return tuple(sorted(self._ferramentas.values(), key=lambda ferramenta: ferramenta.nome))
+
     def despachar(self, chamada: ToolCall, perfil: Perfil) -> ToolResult:
         """Executa uma chamada e devolve o resultado. Nunca levanta exceção.
 
