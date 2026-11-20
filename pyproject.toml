@@ -5,6 +5,7 @@ description = "Harness de agente em REPL Python, com sandbox isolado e política
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "docker>=7.2.0",
     "pydantic",
 ]
 
@@ -36,3 +37,11 @@ python_version = "3.12"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "docker: testes que exigem o Docker e constroem a imagem do sandbox (pulados sem Docker)",
+]
+
+[[tool.mypy.overrides]]
+# O SDK do Docker não traz tipos (sem py.typed); tratamos o módulo como Any.
+module = ["docker", "docker.*"]
+ignore_missing_imports = true

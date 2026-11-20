@@ -6,6 +6,7 @@ limites de tempo são pequenos, para a suíte inteira rodar em poucos segundos.
 
 import io
 import os
+import subprocess
 import sys
 from collections.abc import Iterator
 from typing import Literal
@@ -267,3 +268,33 @@ def test_main_le_e_escreve_nos_descritores_indicados() -> None:
         resultados = _linhas_decodificadas(leitura.read())
     assert resultados[0].cell_id == 4
     assert resultados[0].stdout == "via fd\n"
+
+
+# --- Modo --stdio (contêiner, sem descritores extras) --------------------------
+
+
+def test_modo_stdio_protocolo_sobrevive_a_print_e_escrita_direta_no_fd_1() -> None:
+    # Roda o runner como processo real: o protocolo entra por stdin e sai por stdout.
+    # O código tenta corromper o canal de duas formas: print e os.write(1, ...).
+    codigo = "print('oi')\nimport os\nos.write(1, b'lixo no fd 1\\n')\n"
+    entrada = encode(Exec(cell_id=1, code=codigo, timeout_s=2.0)) + encode(
+        Exec(cell_id=2, code="y = 3", timeout_s=2.0)
+    )
+    processo = subprocess.run(
+        [sys.executable, "-m", "harness.sandbox.runner", "--stdio"],
+        input=entrada.encode("utf-8"),
+        capture_output=True,
+        timeout=30,
+        check=False,
+    )
+    assert processo.returncode == 0, processo.stderr.decode("utf-8", "replace")
+    resultados = _linhas_decodificadas(processo.stdout.decode("utf-8"))
+    assert [r.cell_id for r in resultados] == [1, 2]
+    assert resultados[0].stdout == "oi\n"
+
+
+def test_modo_stdio_nao_combina_com_descritores_explicitos() -> None:
+    from harness.sandbox.runner import main
+
+    with pytest.raises(SystemExit):
+        main(["--stdio", "--fd-in", "3", "--fd-out", "4"])

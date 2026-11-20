@@ -1,0 +1,12 @@
+# Bibliotecas disponíveis dentro do contêiner do sandbox (spec v0, "Acesso a arquivos no contêiner").
+# Para gerar o requirements.txt com versões e hashes:
+#   uv pip compile harness/sandbox/requirements.in --generate-hashes --universal \
+#     --python-version 3.12 -o harness/sandbox/requirements.txt
+pandas
+openpyxl
+python-docx
+python-pptx
+pypdf
+matplotlib
+# O runner importa o protocolo, que usa pydantic.
+pydantic

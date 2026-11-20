@@ -206,14 +206,55 @@ def serve(entrada: TextIO, saida: TextIO, repl: Repl | None = None) -> None:
         saida.flush()
 
 
+def _serve_por_stdio() -> None:
+    """Modo --stdio: o protocolo usa stdin e stdout, mas o código do modelo não os alcança.
+
+    O Docker só entrega stdin, stdout e stderr ao cliente, não descritores extras. Por isso
+    o protocolo passa pelos descritores 0 e 1, duplicados antes da troca. Os fds 0 e 1
+    originais são então apontados para /dev/null, e `print` ou `os.write(1, ...)` do
+    código do modelo deixam de alcançar o canal. Assim a intenção do D12 é preservada
+    dentro do contêiner.
+
+    Limitação: o código do modelo ainda pode achar o descritor duplicado, porque roda no
+    mesmo processo. A barreira real é o contêiner (sem rede, usuário sem privilégio e
+    sistema de arquivos somente leitura), não esta separação de descritores.
+    """
+    entrada_fd = os.dup(0)
+    saida_fd = os.dup(1)
+    nulo = os.open(os.devnull, os.O_RDWR)
+    try:
+        os.dup2(nulo, 0)
+        os.dup2(nulo, 1)
+    finally:
+        os.close(nulo)
+    with (
+        os.fdopen(entrada_fd, "r", encoding="utf-8") as entrada,
+        os.fdopen(saida_fd, "w", encoding="utf-8") as saida,
+    ):
+        serve(entrada, saida)
+
+
 def main(argv: list[str] | None = None) -> None:
-    """Ponto de entrada do processo do sandbox: abre os descritores e chama serve."""
+    """Ponto de entrada do processo do sandbox: abre os descritores e chama serve.
+
+    Com `--fd-in` e `--fd-out` (testes e uso local) o protocolo usa esses descritores.
+    Com `--stdio` (contêiner) o protocolo usa stdin e stdout, como explicado em
+    `_serve_por_stdio`.
+    """
     analisador = argparse.ArgumentParser(description="Runner do REPL dentro do sandbox.")
-    analisador.add_argument("--fd-in", type=int, required=True, help="descritor de leitura do host")
+    analisador.add_argument("--fd-in", type=int, help="descritor de leitura do host")
+    analisador.add_argument("--fd-out", type=int, help="descritor de escrita do host")
     analisador.add_argument(
-        "--fd-out", type=int, required=True, help="descritor de escrita do host"
+        "--stdio", action="store_true", help="usa stdin e stdout como canal (modo contêiner)"
     )
     args = analisador.parse_args(argv)
+    if args.stdio:
+        if args.fd_in is not None or args.fd_out is not None:
+            analisador.error("--stdio não combina com --fd-in e --fd-out")
+        _serve_por_stdio()
+        return
+    if args.fd_in is None or args.fd_out is None:
+        analisador.error("informe --fd-in e --fd-out, ou --stdio")
     with (
         os.fdopen(args.fd_in, "r", encoding="utf-8") as entrada,
         os.fdopen(args.fd_out, "w", encoding="utf-8") as saida,
