@@ -26,6 +26,7 @@ Decisões deste módulo (não estão na spec):
 - Um Orquestrador atende um pedido: o sandbox é fechado no fim.
 """
 
+import json
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -228,8 +229,15 @@ class Orquestrador:
             Mensagem(role="user", content=pedido),
         ]
         estado.nomes_ferramentas = frozenset(f.nome for f in self._registro.listar())
-        estado.despachante = self._registro.despachante(self._perfil)
-        self._emitir("pedido_iniciado", hash_prompt=prompt.hash_sha256, perfil=self._perfil.nome)
+        despachante = self._registro.despachante(self._perfil)
+        estado.despachante = self._instrumentar(despachante) if despachante is not None else None
+        self._emitir(
+            "pedido_iniciado",
+            hash_prompt=prompt.hash_sha256,
+            perfil=self._perfil.nome,
+            pedido=pedido,
+            orcamento=self._orcamento.model_dump(),
+        )
 
         while True:
             motivo = self._motivo_orcamento(estado)
@@ -259,7 +267,12 @@ class Orquestrador:
             return self._invalido(estado, turno.reasoning, None, MENSAGEM_SEM_CODIGO)
 
         problemas = verificar(codigo, estado.nomes_ferramentas)
-        self._emitir("verificacao_estatica", problemas=list(problemas))
+        self._emitir(
+            "verificacao_estatica",
+            iteracao=estado.iteracoes,
+            codigo=codigo,
+            problemas=list(problemas),
+        )
         if problemas:
             observacao = (
                 "[código reprovado na verificação estática; nada foi executado]\n"
@@ -488,8 +501,41 @@ class Orquestrador:
             iteracoes=estado.iteracoes,
             tokens_entrada=estado.tokens_entrada,
             tokens_saida=estado.tokens_saida,
+            resposta=resposta,
+            fontes=list(fontes),
         )
         return resultado
+
+    def _instrumentar(
+        self, despachante: Callable[[ToolCall], ToolResult]
+    ) -> Callable[[ToolCall], ToolResult]:
+        """Envolve o despachante para emitir `chamada_ferramenta` a cada chamada.
+
+        Devolve exatamente o ToolResult do despachante original. Se o despachante levantar,
+        a exceção segue como antes, sem evento. Falha na emissão nunca chega ao sandbox.
+        """
+
+        def medido(chamada: ToolCall) -> ToolResult:
+            inicio = self._relogio()
+            resultado = despachante(chamada)
+            self._emitir_chamada(chamada, resultado, self._relogio() - inicio)
+            return resultado
+
+        return medido
+
+    def _emitir_chamada(self, chamada: ToolCall, resultado: ToolResult, decorrido_s: float) -> None:
+        try:
+            self._emitir(
+                "chamada_ferramenta",
+                nome=chamada.name,
+                args=chamada.args,
+                ok=resultado.ok,
+                tamanho_resultado=_tamanho_do_resultado(resultado.data),
+                latencia_ms=int(decorrido_s * 1000),
+                erro=resultado.error,
+            )
+        except Exception:
+            pass
 
     def _emitir(self, tipo: str, **dados: Any) -> None:
         """Entrega um evento ao consumidor. Falha do consumidor nunca derruba o loop."""
@@ -506,6 +552,16 @@ class Orquestrador:
             self._sandbox.close()
         except Exception:
             pass
+
+
+def _tamanho_do_resultado(dados: Any) -> int:
+    """Tamanho, em caracteres, do JSON do resultado de uma ferramenta. Zero quando não há dado."""
+    if dados is None:
+        return 0
+    try:
+        return len(json.dumps(dados, default=repr))
+    except Exception:
+        return 0
 
 
 def _motivo_da_falha(erro: SandboxErro) -> str:
