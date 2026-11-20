@@ -98,6 +98,9 @@ class ExecDone(_Mensagem):
     exception: str | None
     duration_ms: Annotated[StrictInt, Field(ge=0)]
     final: RespostaFinal | None
+    # Verdadeiro quando a célula não pôde ser interrompida e o host precisa reiniciar o REPL.
+    # O padrão falso mantém compatível a mensagem antiga, que não trazia o campo.
+    reiniciar: StrictBool = False
 
 
 # União discriminada pelo campo `method`: cada método tem exatamente um modelo.

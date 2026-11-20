@@ -13,7 +13,7 @@ from hypothesis import strategies as st
 from pydantic import BaseModel, ConfigDict
 
 from harness.host.perfil import Perfil, perfil_por_nome
-from harness.host.registry import Nivel, Registro
+from harness.host.registry import LIMITE_RESULTADO_PADRAO, Nivel, Registro
 from harness.sandbox.protocol import ToolCall, ToolResult
 
 
@@ -184,6 +184,74 @@ def test_resultado_que_nao_serializa_em_json_vira_erro(
     assert resultado.ok is False
     assert resultado.error is not None
     assert "JSON" in resultado.error
+
+
+# --- Limite de tamanho do resultado ------------------------------------------
+
+
+def _registro_com_dado(limite: int, dado: Any) -> Registro:
+    reg = Registro(limite_resultado_bytes=limite)
+    reg.ferramenta(nome="teste.dado", nivel=Nivel.LEITURA, descricao="x", args=Entrada)(
+        lambda args, perfil: dado
+    )
+    return reg
+
+
+def _despachar_dado(reg: Registro, perfil: Perfil) -> ToolResult:
+    return reg.despachar(_chamada("teste.dado", {"texto": "a"}), perfil)
+
+
+def test_limite_padrao_e_um_mebibyte() -> None:
+    assert LIMITE_RESULTADO_PADRAO == 1024 * 1024
+    # Sem argumento, o Registro usa o padrão: a string de 1 MiB - 2 letras fica exatamente no
+    # limite (as aspas somam 2 bytes) e a de uma letra a mais é recusada.
+    perfil = perfil_por_nome("Vendas")
+    no_limite = Registro()
+    no_limite.ferramenta(nome="teste.dado", nivel=Nivel.LEITURA, descricao="x", args=Entrada)(
+        lambda args, perfil: "a" * (LIMITE_RESULTADO_PADRAO - 2)
+    )
+    assert _despachar_dado(no_limite, perfil).ok is True
+    acima = Registro()
+    acima.ferramenta(nome="teste.dado", nivel=Nivel.LEITURA, descricao="x", args=Entrada)(
+        lambda args, perfil: "a" * (LIMITE_RESULTADO_PADRAO - 1)
+    )
+    assert _despachar_dado(acima, perfil).ok is False
+
+
+def test_resultado_abaixo_do_limite_passa(perfil: Perfil) -> None:
+    resultado = _despachar_dado(_registro_com_dado(100, {"a": "b"}), perfil)
+    assert resultado.ok is True
+    assert resultado.data == {"a": "b"}
+
+
+def test_resultado_exatamente_no_limite_passa(perfil: Perfil) -> None:
+    # A string "a"*98 serializa para 100 bytes: '"' + 98 letras + '"'.
+    resultado = _despachar_dado(_registro_com_dado(100, "a" * 98), perfil)
+    assert resultado.ok is True
+    assert resultado.data == "a" * 98
+
+
+def test_resultado_acima_do_limite_falha_sem_vazar_o_conteudo(perfil: Perfil) -> None:
+    resultado = _despachar_dado(_registro_com_dado(100, "SEGREDO" + "a" * 92), perfil)
+    assert resultado.ok is False
+    assert resultado.data is None
+    assert resultado.error == "resultado da ferramenta excede o limite de 100 bytes"
+    assert "SEGREDO" not in resultado.error
+    assert "aaaa" not in resultado.error
+
+
+def test_limite_conta_bytes_utf8_e_nao_caracteres(perfil: Perfil) -> None:
+    # Cada "é" ocupa 2 bytes em utf-8 sem escape: "é"*49 serializa para 100 bytes.
+    assert _despachar_dado(_registro_com_dado(100, "é" * 49), perfil).ok is True
+    # Com 50 "é" são 102 bytes: passa de 100 mesmo com só 52 caracteres.
+    resultado = _despachar_dado(_registro_com_dado(100, "é" * 50), perfil)
+    assert resultado.ok is False
+
+
+@pytest.mark.parametrize("limite", [0, -1, True, 1.5, "100"])
+def test_limite_invalido_e_recusado_na_construcao(limite: Any) -> None:
+    with pytest.raises(ValueError):
+        Registro(limite_resultado_bytes=limite)
 
 
 # --- Propriedade: despachar nunca levanta exceção ----------------------------

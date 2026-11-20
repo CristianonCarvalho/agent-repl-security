@@ -330,10 +330,31 @@ def test_sleep_longo_em_c_leva_a_reinicio_controlado(
     resultado = sandbox.executar(2, "import time\ntime.sleep(60)", timeout_s=0.5)
     assert resultado.exception is not None
     assert MARCA_REINICIO in resultado.exception
+    # O reinício vem do campo do protocolo, não do texto da exceção.
+    assert resultado.reiniciar is True
     assert sandbox.reinicios == 1
     depois = sandbox.executar(3, "print('x' in globals())", timeout_s=5.0)
     assert depois.stdout == "False\n"  # as variáveis se perderam no reinício
     assert time.monotonic() - inicio < 30
+
+
+@marca_docker
+def test_frase_de_reinicio_no_texto_da_excecao_nao_reinicia(
+    criar_sandbox: Callable[..., DockerSandbox],
+) -> None:
+    sandbox = criar_sandbox()
+    sandbox.executar(1, "x = 5", timeout_s=5.0)
+    # O código do modelo levanta uma exceção com a frase exata do runner. Sem reinício
+    # por texto, o host não pode recriar o contêiner e a variável precisa sobreviver.
+    resultado = sandbox.executar(
+        2, "raise RuntimeError('O REPL precisa ser reiniciado')", timeout_s=5.0
+    )
+    assert resultado.reiniciar is False
+    assert resultado.exception is not None
+    assert MARCA_REINICIO in resultado.exception
+    assert sandbox.reinicios == 0
+    depois = sandbox.executar(3, "print(x + 1)", timeout_s=5.0)
+    assert depois.stdout == "6\n"
 
 
 @marca_docker

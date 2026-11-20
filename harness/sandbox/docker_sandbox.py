@@ -16,10 +16,11 @@ usa `privileged`.
 
 Heurísticas do host (decisões deste módulo, não da spec):
 - Reinício controlado: quando o runner não consegue interromper a célula, o `exec_done`
-  traz a frase `MARCA_REINICIO` no texto da exceção. Esse texto é o único sinal disponível
-  no protocolo, então o host procura essa frase. Ao encontrá-la, mata e recria o contêiner
-  (`reiniciar()`) e conta o reinício em `reinicios`. A célula é devolvida mesmo assim, com
-  a exceção, e o modelo fica sabendo que as variáveis se perderam.
+  vem com `reiniciar` verdadeiro. O host decide por esse campo do protocolo, nunca pelo
+  texto da exceção, que pode conter qualquer coisa, inclusive o código do modelo. Ao
+  receber `reiniciar` verdadeiro, mata e recria o contêiner (`reiniciar()`) e conta o
+  reinício em `reinicios`. A célula é devolvida mesmo assim, com a exceção (que cita a
+  frase `MARCA_REINICIO` para o modelo), e o modelo fica sabendo que as variáveis se perderam.
 - Morte do contêiner: o canal chegar ao fim antes da resposta é tratado como morte. O
   motivo vem de `container.attrs["State"]` (OOMKilled, ExitCode, Status) e do diagnóstico.
 - Sem resposta no prazo: `timeout_s` + MARGEM_S. Passado esse prazo, o contêiner é morto.
@@ -64,7 +65,8 @@ MARGEM_S: Final = 3.0
 LIMITE_LINHA: Final = 16 * 1024 * 1024
 # Quanto do stderr do runner fica guardado para diagnóstico.
 TAMANHO_DIAGNOSTICO: Final = 16 * 1024
-# Frase que o runner usa quando não consegue interromper a célula (runner.py, run_cell).
+# Frase que o runner põe no texto da exceção quando não consegue interromper a célula
+# (runner.py, run_cell). É texto para o modelo; o host não decide reinício por ela.
 MARCA_REINICIO: Final = "O REPL precisa ser reiniciado"
 _NOME_DADOS: Final = re.compile(r"[A-Za-z0-9_-]+")
 
@@ -279,7 +281,7 @@ class DockerSandbox:
                 if msg.cell_id != cell_id:
                     # Resposta de célula anterior: não é a que esperamos, então é descartada.
                     continue
-                if MARCA_REINICIO in (msg.exception or ""):
+                if msg.reiniciar:
                     self.reiniciar()
                 return ResultadoExecucao(done=msg, ferramentas=ferramentas)
             self._descartar()

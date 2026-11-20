@@ -178,6 +178,7 @@ def test_laco_infinito_e_interrompido_e_variaveis_sobrevivem(repl: Repl) -> None
     repl.run_cell(1, "x = 41", timeout_s=2.0)
     resultado = repl.run_cell(2, "while True:\n    pass", timeout_s=0.3)
     assert resultado.precisa_reiniciar is False
+    assert resultado.done.reiniciar is False
     assert resultado.done.exception is not None
     assert "tempo" in resultado.done.exception.lower()
     proxima = repl.run_cell(3, "print(x + 1)", timeout_s=2.0)
@@ -187,9 +188,30 @@ def test_laco_infinito_e_interrompido_e_variaveis_sobrevivem(repl: Repl) -> None
 def test_sleep_longo_em_c_exige_reinicio_do_repl(repl: Repl) -> None:
     resultado = repl.run_cell(1, "import time\ntime.sleep(5)", timeout_s=0.2, graca_s=0.2)
     assert resultado.precisa_reiniciar is True
+    assert resultado.done.reiniciar is True
     assert resultado.done.exception is not None
     assert "reiniciado" in resultado.done.exception
     assert "variáveis" in resultado.done.exception
+
+
+@pytest.mark.parametrize(
+    "codigo",
+    [
+        "x = 1",
+        "raise ValueError('boom')",
+        "FINAL('a', ['b'])",
+        "raise RuntimeError('O REPL precisa ser reiniciado')",
+    ],
+)
+def test_reiniciar_fica_falso_fora_de_timeout_com_thread_viva(repl: Repl, codigo: str) -> None:
+    resultado = repl.run_cell(1, codigo, timeout_s=2.0)
+    assert resultado.done.reiniciar is False
+    assert resultado.precisa_reiniciar is False
+
+
+def test_reiniciar_fica_falso_quando_timeout_interrompe_a_celula(repl: Repl) -> None:
+    resultado = repl.run_cell(1, "while True:\n    pass", timeout_s=0.3)
+    assert resultado.done.reiniciar is False
 
 
 # --- serve ponta a ponta ------------------------------------------------------

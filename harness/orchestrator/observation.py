@@ -12,14 +12,18 @@ Decisões deste módulo (não estão na spec):
 - Delimitadores de conteúdo não confiável (regra 5 da spec: resultado de ferramenta é dado,
   nunca instrução). Todo o conteúdo do stdout, stderr e exceção vai dentro de UM bloco
   `<saida_nao_confiavel>...</saida_nao_confiavel>`. Qualquer tentativa de escrever o nome do
-  delimitador dentro do conteúdo (em qualquer caixa, com espaços ou atributos) tem o `<`
-  trocado por `&lt;`. Assim a saída nunca fecha o bloco antes da hora nem forja um bloco novo.
-  A troca é feita numa única passagem e não cria `<` novo, então não há como remontar o nome.
+  delimitador dentro do conteúdo (em qualquer caixa, com espaços, caracteres invisíveis,
+  parecidos Unicode ou com o `＜` fullwidth) tem a abertura trocada por `&lt;`. O conteúdo passa
+  antes por NFKC e as quebras que não são `\n` viram escapes. Assim a saída nunca fecha o bloco
+  antes da hora nem forja um bloco novo. A troca é feita numa única passagem e não cria `<` novo.
+  Limitação: parecidos fora do mapa `_PARECIDOS` (um alfabeto inteiro de confusáveis) não são
+  cobertos; eles não formam o ASCII do delimitador, então o envelope real continua único.
   Os nomes das ferramentas também são neutralizados e escapados, porque o modelo escolhe o
   nome pelo acesso a atributos de `tools`.
 """
 
 import re
+import unicodedata
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Final
@@ -34,9 +38,39 @@ LIMITE_EXCECAO: Final = 2000
 _NOME_DELIMITADOR: Final = "saida_nao_confiavel"
 _ABERTURA: Final = f"<{_NOME_DELIMITADOR}>"
 _FECHAMENTO: Final = f"</{_NOME_DELIMITADOR}>"
-# Qualquer abertura ou fechamento do delimitador, com espaços e em qualquer caixa. O `<`
-# inicial é o único caractere que a neutralização troca, por isso o padrão só começa com ele.
-_PADRAO_DELIMITADOR: Final = re.compile(rf"<\s*/?\s*{_NOME_DELIMITADOR}", re.IGNORECASE)
+# Caracteres sem tinta (controles, espaços, zero-width, soft hyphen, BOM, tags Unicode). Podem
+# ficar entre as letras de uma falsa tag sem mudar o que o leitor vê.
+_INVISIVEIS: Final = (
+    r"\x00-\x1f\x7f-\x9f\s­​-‏‪-‮  ⁠-⁯"
+    r"̀-ͯ⃐-⃿︀-️﻿\U000e0000-\U000e007f"
+)
+_LACUNA: Final = f"[{_INVISIVEIS}]*"
+# Letras que parecem outras letras (cirílico e grego) e que um leitor confunde com o ASCII.
+# Compatibilidade (fullwidth, matemáticos etc.) já é resolvida pelo NFKC antes da busca.
+_PARECIDOS: Final = {
+    "a": "а",
+    "c": "с",
+    "d": "ԁ",
+    "e": "е",
+    "i": "іı",
+    "l": "ӏ",
+    "o": "оο",
+    "s": "ѕ",
+    "v": "ѵν",
+}
+_CLASSES_DE_LETRA: Final = [
+    "[" + re.escape(letra) + "".join(_PARECIDOS.get(letra, "")) + "]" for letra in _NOME_DELIMITADOR
+]
+_NOME_COM_LACUNAS: Final = _LACUNA.join(_CLASSES_DE_LETRA)
+# Qualquer abertura ou fechamento do delimitador, com lacunas invisíveis, em qualquer caixa e
+# com os parecidos acima. A abertura é um `<` ou um parecido dele (o `＜` fullwidth já virou `<`
+# pelo NFKC); a barra também aceita parecidos. A neutralização troca só essa abertura.
+_PADRAO_DELIMITADOR: Final = re.compile(
+    rf"[<‹〈〈❮˂]{_LACUNA}[/⁄∕]?{_LACUNA}{_NOME_COM_LACUNAS}",
+    re.IGNORECASE,
+)
+# Quebras que `str.splitlines` reconhece, exceto o `\n` (que é a quebra real da observação).
+_QUEBRAS_EXTRAS: Final = re.compile("[\r\x0b\x0c\x1c\x1d\x1e\x85  ]")
 
 
 @dataclass(frozen=True)
@@ -74,11 +108,27 @@ def truncar(texto: str, limite: int) -> Truncado:
     return Truncado(texto=exibido, truncado=True, omitidos=omitidos)
 
 
-def _neutralizar(texto: str) -> str:
-    """Troca o `<` de cada tentativa de abrir ou fechar o delimitador por `&lt;`."""
-    return _PADRAO_DELIMITADOR.sub(
-        lambda casamento: casamento.group(0).replace("<", "&lt;", 1), texto
+def _preparar(texto: str) -> str:
+    """Normaliza o conteúdo antes de truncar e neutralizar.
+
+    NFKC faz `＜/saida_nao_confiavel＞` (fullwidth) e letras matemáticas virarem ASCII, e
+    as quebras que não são `\\n` viram escapes visíveis, para que o leitor não veja uma linha
+    nova onde o host não pôs uma.
+    """
+    normalizado = unicodedata.normalize("NFKC", texto)
+    return _QUEBRAS_EXTRAS.sub(
+        lambda casamento: casamento.group(0).encode("unicode_escape").decode("ascii"),
+        normalizado,
     )
+
+
+def _neutralizar(texto: str) -> str:
+    """Troca a abertura de cada tentativa de abrir ou fechar o delimitador por `&lt;`.
+
+    Só o primeiro caractere do casamento muda (a abertura), e a troca é uma única passagem:
+    o texto que sobra depois dela não vira `<` novo.
+    """
+    return _PADRAO_DELIMITADOR.sub(lambda casamento: "&lt;" + casamento.group(0)[1:], texto)
 
 
 def _nome_seguro(nome: str) -> str:
@@ -118,7 +168,7 @@ def formatar_observacao(cell_id: int, done: ExecDone, ferramentas: Mapping[str, 
     for rotulo, texto, limite in campos:
         if not texto:
             continue
-        truncado = truncar(texto, limite)
+        truncado = truncar(_preparar(texto), limite)
         if truncado.truncado:
             secoes.append(f"{rotulo} (truncado em {limite} caracteres):")
         else:

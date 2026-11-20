@@ -60,7 +60,13 @@ O modelo emite um bloco de código por turno; o orquestrador o verifica e o envi
 - Trace JSONL por pedido, com chamadas de ferramenta, tokens, provedor e custo.
 - Cliente OpenRouter (SDK `openai`), com repetição em falhas transitórias. Validado com DeepSeek V4.1 Flash num pedido real de ponta a ponta.
 
-Ainda não há interface de linha de comando: o pedido é montado em código a partir de `Orquestrador`, `DockerSandbox`, `Registro` e `ClienteOpenRouter`.
+Para responder a um pedido pela linha de comando (precisa da imagem do sandbox e de `OPENROUTER_API_KEY` e `OPENROUTER_MODELO` no ambiente ou no `.env`):
+
+```bash
+uv run python -m harness "Qual o total gasto pelo cliente Acme nos pedidos de vendas? Cite a fonte." --perfil Vendas --dados ./dados
+```
+
+`--dados` aponta para a pasta com um subdiretório por departamento (`vendas/`, `marketing/`...). O perfil define quais departamentos o contêiner enxerga. Opções: `--trace` (pasta do trace JSONL, padrão `traces`), `--imagem` (padrão `harness-sandbox:dev`) e `--max-iteracoes`. A saída traz resposta, fontes, motivo, iterações, tokens, custo e o caminho do trace. O código de saída é 0 quando o pedido termina com `FINAL`, 1 quando não termina e 2 para uso ou configuração inválidos.
 
 ### Desenvolvimento
 

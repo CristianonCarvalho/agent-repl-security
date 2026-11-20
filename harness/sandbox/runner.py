@@ -239,6 +239,8 @@ class Repl:
             duration_ms=duracao_ms,
             # Vale mesmo se o timeout estourou depois de FINAL: a resposta já foi gravada.
             final=estado_final.resposta,
+            # Sinal explícito para o host: a thread ficou viva mesmo depois da interrupção.
+            reiniciar=precisa_reiniciar,
         )
         return ResultadoCelula(done=done, precisa_reiniciar=precisa_reiniciar)
 

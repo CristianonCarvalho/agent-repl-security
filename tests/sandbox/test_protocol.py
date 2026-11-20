@@ -66,6 +66,56 @@ def test_ida_e_volta_exec_done_sem_resposta_final() -> None:
     assert decode(encode(msg)) == msg
 
 
+def test_exec_done_reiniciar_tem_padrao_falso() -> None:
+    msg = ExecDone(cell_id=1, stdout="", stderr="", exception=None, duration_ms=0, final=None)
+    assert msg.reiniciar is False
+    # Mensagem antiga, sem o campo, continua válida e lida como sem reinício.
+    antiga = (
+        '{"jsonrpc":"2.0","method":"exec_done","cell_id":1,"stdout":"","stderr":"",'
+        '"exception":null,"duration_ms":0,"final":null}'
+    )
+    lida = decode(antiga)
+    assert isinstance(lida, ExecDone)
+    assert lida.reiniciar is False
+
+
+def test_ida_e_volta_exec_done_com_reiniciar_verdadeiro() -> None:
+    msg = ExecDone(
+        cell_id=3,
+        stdout="",
+        stderr="",
+        exception="TimeoutError: ...",
+        duration_ms=500,
+        final=None,
+        reiniciar=True,
+    )
+    assert decode(encode(msg)) == msg
+    assert json.loads(encode(msg))["reiniciar"] is True
+
+
+@pytest.mark.parametrize("valor", ['"true"', "1", "0", "null"])
+def test_rejeita_reiniciar_que_nao_e_booleano(valor: str) -> None:
+    linha = (
+        '{"jsonrpc":"2.0","method":"exec_done","cell_id":1,"stdout":"","stderr":"",'
+        f'"exception":null,"duration_ms":0,"final":null,"reiniciar":{valor}}}'
+    )
+    with pytest.raises(ProtocolError):
+        decode(linha)
+
+
+def test_exec_done_construido_com_reiniciar_nao_booleano_levanta_erro() -> None:
+    with pytest.raises(ValidationError):
+        ExecDone(
+            cell_id=1,
+            stdout="",
+            stderr="",
+            exception=None,
+            duration_ms=0,
+            final=None,
+            reiniciar="sim",  # type: ignore[arg-type]
+        )
+
+
 # --- Formato da linha --------------------------------------------------------
 
 

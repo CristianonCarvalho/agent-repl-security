@@ -41,6 +41,8 @@ type Funcao = Callable[[Any, Perfil], Any]
 _NOME_VALIDO: Final = re.compile(r"[a-z_]+\.[a-z_]+")
 # Limite de caracteres do nome da ferramenta que volta ao modelo em mensagens de erro.
 _TAMANHO_NOME_NA_MENSAGEM: Final = 80
+# Teto do JSON serializado (utf-8) do resultado de uma ferramenta: 1 MiB por padrão.
+LIMITE_RESULTADO_PADRAO: Final = 1024 * 1024
 
 
 @dataclass(frozen=True)
@@ -78,7 +80,15 @@ def _mensagem_de_validacao(erro: ValidationError) -> str:
 class Registro:
     """Conjunto de ferramentas de uma sessão, com despacho que nunca levanta exceção."""
 
-    def __init__(self) -> None:
+    def __init__(self, limite_resultado_bytes: int = LIMITE_RESULTADO_PADRAO) -> None:
+        # bool é subclasse de int; um True/False aqui seria um erro de quem chama.
+        if (
+            isinstance(limite_resultado_bytes, bool)
+            or not isinstance(limite_resultado_bytes, int)
+            or limite_resultado_bytes <= 0
+        ):
+            raise ValueError("limite_resultado_bytes precisa ser um inteiro maior que zero")
+        self._limite_resultado = limite_resultado_bytes
         self._ferramentas: dict[str, Ferramenta] = {}
 
     def ferramenta(
@@ -168,10 +178,19 @@ class Registro:
             # Detalhes da exceção ficam de fora da mensagem: podem conter caminhos do host.
             return _resultado_de_erro(chamada.call_id, f"falha ao executar a ferramenta '{nome}'")
         try:
-            json.dumps(resultado, allow_nan=False)
+            # Medido em bytes utf-8 do JSON: é o que o resultado ocupa na ponte.
+            tamanho = len(
+                json.dumps(resultado, allow_nan=False, ensure_ascii=False).encode("utf-8")
+            )
         except (TypeError, ValueError):
             return _resultado_de_erro(
                 chamada.call_id, f"o resultado de '{nome}' não pode ser convertido em JSON"
+            )
+        if tamanho > self._limite_resultado:
+            # A mensagem não traz o conteúdo nem o tamanho real: só o limite configurado.
+            return _resultado_de_erro(
+                chamada.call_id,
+                f"resultado da ferramenta excede o limite de {self._limite_resultado} bytes",
             )
         return ToolResult(call_id=chamada.call_id, ok=True, data=resultado)
 

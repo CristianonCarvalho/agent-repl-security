@@ -4,6 +4,7 @@ Nenhum teste aqui usa Docker: o SandboxFalso devolve células roteirizadas. Os t
 contêiner real estão em test_loop_docker.py.
 """
 
+import json
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
@@ -569,6 +570,91 @@ def test_turno_modelo_sem_metadados_registra_none() -> None:
         None,
         None,
     )
+
+
+# --- Limite de resultado de ferramenta e evento chamada_ferramenta -------------------------
+
+
+class SandboxComFerramenta:
+    """Sandbox falso que chama uma ferramenta pelo despachante, como o DockerSandbox faz."""
+
+    def __init__(self, chamada: ToolCall) -> None:
+        self._chamada = chamada
+        self.resultados: list[ToolResult] = []
+        self.fechamentos = 0
+
+    def executar_detalhado(
+        self,
+        cell_id: int,
+        code: str,
+        timeout_s: float,
+        despachante: Callable[[ToolCall], ToolResult] | None = None,
+    ) -> ResultadoExecucao:
+        assert despachante is not None
+        self.resultados.append(despachante(self._chamada))
+        return ResultadoExecucao(
+            done=ExecDone(
+                cell_id=cell_id,
+                stdout="",
+                stderr="",
+                exception=None,
+                duration_ms=1,
+                final=RESPOSTA_FINAL,
+            ),
+            ferramentas={self._chamada.name: 1},
+        )
+
+    def reiniciar(self) -> None:
+        pass
+
+    def close(self) -> None:
+        self.fechamentos += 1
+
+
+def test_resultado_acima_do_limite_vira_erro_e_aparece_no_evento_chamada_ferramenta() -> None:
+    registro = Registro(limite_resultado_bytes=50)
+    registro.ferramenta(
+        nome="teste.grande", nivel=Nivel.LEITURA, descricao="devolve muito", args=_SemArgs
+    )(lambda args, perfil: "SEGREDO" + "a" * 500)
+    sandbox = SandboxComFerramenta(ToolCall(call_id="c1", name="teste.grande", args={}))
+    modelo = LLMFalso([FINAL_OK])
+    recebidos: list[Evento] = []
+    resultado = Orquestrador(
+        modelo, sandbox, registro, PERFIL, eventos=recebidos.append
+    ).executar_pedido("Pedido")
+
+    # O sandbox recebe ok=False, sem o conteúdo, e o pedido segue normalmente.
+    assert sandbox.resultados[0].ok is False
+    assert sandbox.resultados[0].error == "resultado da ferramenta excede o limite de 50 bytes"
+    assert resultado.motivo is MotivoTermino.FINAL
+    assert sandbox.fechamentos == 1
+
+    chamadas = [e for e in recebidos if e.tipo == "chamada_ferramenta"]
+    assert len(chamadas) == 1
+    evento = chamadas[0].dados
+    assert evento["nome"] == "teste.grande"
+    assert evento["ok"] is False
+    assert evento["erro"] == "resultado da ferramenta excede o limite de 50 bytes"
+    assert evento["tamanho_resultado"] == 0
+    # O conteúdo não vaza nem pelo evento nem pela trace.
+    assert "SEGREDO" not in json.dumps([e.dados for e in recebidos], default=repr)
+
+
+def test_resultado_dentro_do_limite_gera_evento_com_ok_verdadeiro() -> None:
+    registro = Registro(limite_resultado_bytes=50)
+    registro.ferramenta(nome="teste.pequeno", nivel=Nivel.LEITURA, descricao="x", args=_SemArgs)(
+        lambda args, perfil: ["ok"]
+    )
+    sandbox = SandboxComFerramenta(ToolCall(call_id="c1", name="teste.pequeno", args={}))
+    recebidos: list[Evento] = []
+    Orquestrador(
+        LLMFalso([FINAL_OK]), sandbox, registro, PERFIL, eventos=recebidos.append
+    ).executar_pedido("Pedido")
+
+    evento = next(e for e in recebidos if e.tipo == "chamada_ferramenta").dados
+    assert evento["ok"] is True
+    assert evento["erro"] is None
+    assert evento["tamanho_resultado"] == len('["ok"]')
 
 
 # --- Propriedades (Hypothesis) --------------------------------------------------------------
