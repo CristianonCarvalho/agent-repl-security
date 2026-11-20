@@ -152,19 +152,39 @@ def _criar_final(estado: _EstadoFinal) -> Callable[[Any, Any], NoReturn]:
     return FINAL
 
 
+def _apelidos_de_descoberta(ferramentas: Ferramentas) -> dict[str, Callable[..., Any]]:
+    """Apelidos `search_tools` e `describe_tool` do REPL (spec v0, contrato 1; Tarefa 10).
+
+    Cada um chama uma ferramenta `descoberta.*` pela ponte, então a busca é feita no host.
+    Os apelidos seguram o objeto `ferramentas` recebido, e não o nome `tools` do namespace:
+    se o modelo reatribuir `tools`, os apelidos continuam funcionando.
+    """
+
+    def search_tools(query: str, limit: int = 5) -> Any:
+        return ferramentas.descoberta.buscar(query=query, limit=limit)
+
+    def describe_tool(name: str) -> Any:
+        return ferramentas.descoberta.descrever(name=name)
+
+    return {"search_tools": search_tools, "describe_tool": describe_tool}
+
+
 class Repl:
     """REPL com namespace persistente: variáveis de uma célula existem nas seguintes."""
 
     def __init__(self, ponte: Ponte | None = None) -> None:
         self._ponte = ponte
+        ferramentas = Ferramentas(ponte)
         # Um único dict de globais é reutilizado por todas as células. `tools`, a exceção
-        # ToolError e FINAL ficam disponíveis para o modelo; sem ponte, `tools` só levanta erro.
+        # ToolError, FINAL e os apelidos de descoberta ficam disponíveis para o modelo; sem
+        # ponte, `tools` e os apelidos só levantam erro. Um Repl novo (reinício) os recria.
         self._globais: dict[str, Any] = {
             "__name__": "__main__",
-            "tools": Ferramentas(ponte),
+            "tools": ferramentas,
             "ToolError": ToolError,
             # FINAL inativo até a primeira célula; run_cell o troca a cada célula.
             "FINAL": _criar_final(_EstadoFinal()),
+            **_apelidos_de_descoberta(ferramentas),
         }
 
     def run_cell(

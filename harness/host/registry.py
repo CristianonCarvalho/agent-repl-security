@@ -57,6 +57,8 @@ class Ferramenta:
     dado_privado: bool = False
     conteudo_nao_confiavel: bool = False
     canal_externo: bool = False
+    # Exemplo de uso em Python, mostrado por `descoberta.descrever`. Vazio quando não há.
+    exemplo: str = ""
 
 
 def _resultado_de_erro(call_id: str, mensagem: str) -> ToolResult:
@@ -101,6 +103,7 @@ class Registro:
         dado_privado: bool = False,
         conteudo_nao_confiavel: bool = False,
         canal_externo: bool = False,
+        exemplo: str = "",
     ) -> Callable[[Funcao], Funcao]:
         """Decorador que registra uma função como ferramenta `grupo.nome`.
 
@@ -122,6 +125,7 @@ class Registro:
                 dado_privado=dado_privado,
                 conteudo_nao_confiavel=conteudo_nao_confiavel,
                 canal_externo=canal_externo,
+                exemplo=exemplo,
             )
             return funcao
 

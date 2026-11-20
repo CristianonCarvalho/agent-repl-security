@@ -214,14 +214,16 @@ def test_caminho_feliz_com_duas_celulas_e_final() -> None:
     assert sandbox.fechamentos == 1
 
 
-def test_mensagens_ao_modelo_incluem_sistema_com_catalogo_e_observacao_delimitada() -> None:
+def test_mensagens_ao_modelo_incluem_sistema_com_grupos_e_observacao_delimitada() -> None:
     modelo = LLMFalso(["```python\nprint('oi')\n```", FINAL_OK])
     sandbox = SandboxFalso([Celula(stdout="oi\n")])
     _pedido(modelo, sandbox)
 
     primeira = modelo.chamadas[0]
     assert primeira[0].role == "system"
-    assert "catalogo.listar" in primeira[0].content
+    # O prompt lista só o grupo; o nome completo fica para `search_tools` e `describe_tool`.
+    assert "- catalogo" in primeira[0].content
+    assert "search_tools" in primeira[0].content
     assert primeira[1] == Mensagem(role="user", content="Pedido")
 
     segunda = modelo.chamadas[1]

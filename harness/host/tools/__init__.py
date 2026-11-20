@@ -3,9 +3,10 @@
 from pathlib import Path
 
 from harness.host.registry import Registro
-from harness.host.tools import catalogo
+from harness.host.tools import catalogo, descoberta
 
 
 def registrar_todas(registro: Registro, raiz: Path) -> None:
     """Registra todas as ferramentas do host, lendo os dados de `raiz` (a pasta de /dados)."""
     catalogo.registrar(registro, raiz)
+    descoberta.registrar(registro)

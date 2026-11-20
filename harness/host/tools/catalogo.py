@@ -127,6 +127,7 @@ def registrar(registro: Registro, raiz: Path) -> None:
         dado_privado=True,
         conteudo_nao_confiavel=False,
         canal_externo=False,
+        exemplo='tools.catalogo.listar(departamento="vendas")',
     )
     def executar(args: ListarArgs, perfil: Perfil) -> list[dict[str, Any]]:
         return listar(args, perfil, raiz)

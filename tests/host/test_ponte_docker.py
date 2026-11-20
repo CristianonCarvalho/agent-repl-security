@@ -213,7 +213,7 @@ achados = [
     os.path.join(atual, nome)
     for atual, _, nomes in os.walk("/app")
     for nome in nomes
-    if nome in {"registry.py", "perfil.py", "catalogo.py"}
+    if nome in {"registry.py", "perfil.py", "catalogo.py", "descoberta.py"}
 ]
 print(json.dumps({
     "app_harness": sorted(os.listdir("/app/harness")),
