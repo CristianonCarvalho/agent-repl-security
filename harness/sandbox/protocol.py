@@ -8,7 +8,7 @@ rede e não fala com o LLM.
 """
 
 import json
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Final, Literal
 
 from pydantic import (
     BaseModel,
@@ -19,6 +19,10 @@ from pydantic import (
     TypeAdapter,
     model_validator,
 )
+
+# Limite de chamadas de ferramenta por célula (spec v0, "Limites iniciais"). O sandbox aplica
+# primeiro, em tools_client; o host reforça o mesmo teto, para não depender só do sandbox.
+LIMITE_CHAMADAS_POR_CELULA: Final = 50
 
 
 class ProtocolError(Exception):

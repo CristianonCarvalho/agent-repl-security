@@ -10,11 +10,10 @@ import json
 import socket
 import struct
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-import docker
 import pytest
 
 from harness.sandbox.docker_sandbox import (
@@ -22,59 +21,13 @@ from harness.sandbox.docker_sandbox import (
     DockerSandbox,
     SandboxMorreu,
     _Leitor,
+    _resposta_a_ferramenta,
 )
-from harness.sandbox.protocol import ExecDone
+from harness.sandbox.protocol import LIMITE_CHAMADAS_POR_CELULA, ExecDone, ToolCall, ToolResult
 
-RAIZ = Path(__file__).resolve().parents[2]
-IMAGEM = "harness-sandbox:dev"
 ROTULO = "harness-sandbox=1"
 
 marca_docker = pytest.mark.docker
-
-
-# --- Fixtures ----------------------------------------------------------------
-
-
-@pytest.fixture(scope="session")
-def cliente_docker() -> Any:
-    try:
-        cliente = docker.from_env()
-        cliente.ping()
-    except Exception as erro:  # Docker ausente, parado ou sem permissão
-        pytest.skip(f"Docker indisponível: {erro}")
-    return cliente
-
-
-@pytest.fixture(scope="session")
-def imagem(cliente_docker: Any) -> str:
-    # Constrói a imagem uma vez por sessão. O cache de camadas do Docker deixa as próximas rápidas.
-    try:
-        cliente_docker.images.build(
-            path=str(RAIZ),
-            dockerfile="harness/sandbox/Dockerfile",
-            tag=IMAGEM,
-            rm=True,
-            forcerm=True,
-        )
-    except docker.errors.BuildError as erro:
-        pytest.fail(f"falha ao construir a imagem do sandbox: {erro}")
-    return IMAGEM
-
-
-@pytest.fixture
-def criar_sandbox(imagem: str) -> Iterator[Callable[..., DockerSandbox]]:
-    """Cria sandboxes para o teste e garante que todos sejam fechados no fim."""
-    criados: list[DockerSandbox] = []
-
-    def criar(**kwargs: Any) -> DockerSandbox:
-        sandbox = DockerSandbox(imagem=imagem, **kwargs)
-        sandbox.start()
-        criados.append(sandbox)
-        return sandbox
-
-    yield criar
-    for sandbox in criados:
-        sandbox.close()
 
 
 def _saida_json(resultado: ExecDone) -> Any:
@@ -472,3 +425,51 @@ def test_morte_do_conteiner_informa_motivo(criar_sandbox: Callable[..., DockerSa
         # os._exit encerra o processo do runner: o canal chega ao fim antes da resposta.
         sandbox.executar(1, "import os\nos._exit(3)", timeout_s=5.0)
     assert "código de saída=3" in str(info.value)
+
+
+# --- Ponte de ferramentas no host: lógica sem Docker ----------------------------
+
+
+def _chamada(numero: int) -> ToolCall:
+    return ToolCall(call_id=f"c{numero}", name="x.y", args={})
+
+
+def test_sem_despachante_o_host_responde_ferramentas_indisponiveis() -> None:
+    resposta = _resposta_a_ferramenta(_chamada(1), None, 1)
+    assert resposta == ToolResult(call_id="c1", ok=False, error="ferramentas indisponíveis")
+
+
+def test_host_recusa_a_chamada_acima_do_limite_sem_despachar() -> None:
+    chamadas: list[ToolCall] = []
+
+    def despachante(chamada: ToolCall) -> ToolResult:
+        chamadas.append(chamada)
+        return ToolResult(call_id=chamada.call_id, ok=True, data=1)
+
+    # A chamada de número LIMITE é a última permitida; a seguinte precisa ser recusada.
+    ultima = _resposta_a_ferramenta(_chamada(LIMITE_CHAMADAS_POR_CELULA), despachante, 50)
+    assert ultima.ok is True
+    recusada = _resposta_a_ferramenta(_chamada(51), despachante, LIMITE_CHAMADAS_POR_CELULA + 1)
+    assert recusada.ok is False
+    assert recusada.error is not None
+    assert "50" in recusada.error
+    assert [c.call_id for c in chamadas] == ["c50"]
+
+
+def test_despachante_que_levanta_vira_erro_sem_derrubar_o_host() -> None:
+    def despachante(chamada: ToolCall) -> ToolResult:
+        raise RuntimeError("detalhe interno com /caminho/do/host")
+
+    resposta = _resposta_a_ferramenta(_chamada(1), despachante, 1)
+    assert resposta.ok is False
+    assert resposta.error is not None
+    assert "/caminho" not in resposta.error
+
+
+def test_resultado_com_call_id_trocado_vira_erro() -> None:
+    def despachante(chamada: ToolCall) -> ToolResult:
+        return ToolResult(call_id="outra", ok=True, data=1)
+
+    resposta = _resposta_a_ferramenta(_chamada(1), despachante, 1)
+    assert resposta.ok is False
+    assert resposta.call_id == "c1"

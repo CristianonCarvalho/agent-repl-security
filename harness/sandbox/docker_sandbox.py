@@ -4,6 +4,10 @@ O host cria um contêiner Docker endurecido a partir da imagem `harness-sandbox:
 células pelo canal de stdin e stdout (modo `--stdio` do runner) e lê as respostas
 `exec_done`. O stderr do contêiner são logs do runner: ficam num buffer de diagnóstico.
 
+Ponte de ferramentas (Tarefa 5): enquanto espera o `exec_done`, o host atende cada
+`tool_call` pelo despachante recebido em `executar` e responde com `tool_result`. As
+ferramentas executam aqui, no host; o contêiner só troca mensagens.
+
 Endurecimento aplicado na criação do contêiner: sem rede, sistema de arquivos somente
 leitura, tmpfs efêmeros para /tmp e /saida, sem capacidades Linux, usuário 10001,
 `no-new-privileges`, sem swap, limites de processos, CPU e memória, e só os diretórios de
@@ -25,6 +29,7 @@ import queue
 import re
 import threading
 import time
+from collections.abc import Callable
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Final
@@ -34,7 +39,17 @@ from docker.errors import DockerException
 from docker.types import Mount
 from docker.utils.socket import STDERR, STDOUT, frames_iter
 
-from harness.sandbox.protocol import Exec, ExecDone, Mensagem, ProtocolError, decode, encode
+from harness.sandbox.protocol import (
+    LIMITE_CHAMADAS_POR_CELULA,
+    Exec,
+    ExecDone,
+    Mensagem,
+    ProtocolError,
+    ToolCall,
+    ToolResult,
+    decode,
+    encode,
+)
 
 IMAGEM_PADRAO: Final = "harness-sandbox:dev"
 # Rótulo que marca os contêineres criados por este código. Só eles podem ser removidos.
@@ -183,8 +198,19 @@ class DockerSandbox:
 
     # --- execução ---------------------------------------------------------------
 
-    def executar(self, cell_id: int, code: str, timeout_s: float) -> ExecDone:
+    def executar(
+        self,
+        cell_id: int,
+        code: str,
+        timeout_s: float,
+        despachante: Callable[[ToolCall], ToolResult] | None = None,
+    ) -> ExecDone:
         """Envia uma célula e espera o `exec_done` com o mesmo `cell_id`.
+
+        Cada `tool_call` recebido enquanto a célula roda é entregue a `despachante`, e a
+        resposta volta ao contêiner como `tool_result`. Sem despachante, a chamada recebe
+        erro "ferramentas indisponíveis". O prazo `timeout_s` + MARGEM_S vale durante as
+        chamadas também.
 
         Levanta SandboxMorreu se o contêiner terminar antes da resposta e SandboxTimeout se
         ele não responder dentro de `timeout_s` + MARGEM_S (nesse caso o contêiner é morto).
@@ -196,6 +222,7 @@ class DockerSandbox:
         self._enviar(quadro.encode("utf-8"))
         prazo = time.monotonic() + timeout_s + MARGEM_S
         leitor = self._leitor
+        chamadas_feitas = 0
         while True:
             restante = prazo - time.monotonic()
             if restante <= 0:
@@ -211,6 +238,11 @@ class DockerSandbox:
             if linha is None:
                 raise self._consumir_morte()
             msg = self._decodificar(linha)
+            if isinstance(msg, ToolCall):
+                chamadas_feitas += 1
+                resposta = _resposta_a_ferramenta(msg, despachante, chamadas_feitas)
+                self._enviar(encode(resposta).encode("utf-8"))
+                continue
             if isinstance(msg, ExecDone):
                 if msg.cell_id != cell_id:
                     # Resposta de célula anterior: não é a que esperamos, então é descartada.
@@ -333,6 +365,46 @@ class DockerSandbox:
                 conteiner.remove(force=True)
             except (DockerException, OSError):
                 pass  # já removido
+
+
+def _resposta_a_ferramenta(
+    chamada: ToolCall,
+    despachante: Callable[[ToolCall], ToolResult] | None,
+    numero: int,
+) -> ToolResult:
+    """Decide a resposta do host a uma `tool_call` da célula em curso.
+
+    `numero` é a posição da chamada dentro da célula (a partir de 1). O teto de
+    LIMITE_CHAMADAS_POR_CELULA é reforçado aqui, no host, além do sandbox. A chamada
+    recusada nunca chega ao despachante. Falhas do despachante viram erro sem detalhes.
+    """
+    if numero > LIMITE_CHAMADAS_POR_CELULA:
+        return ToolResult(
+            call_id=chamada.call_id,
+            ok=False,
+            error=(
+                f"limite de {LIMITE_CHAMADAS_POR_CELULA} chamadas de ferramenta por célula "
+                "excedido; a chamada foi recusada pelo host"
+            ),
+        )
+    if despachante is None:
+        return ToolResult(call_id=chamada.call_id, ok=False, error="ferramentas indisponíveis")
+    try:
+        resultado = despachante(chamada)
+    except Exception:
+        # O despachante não deveria levantar; se levantar, o detalhe fica no host.
+        return ToolResult(
+            call_id=chamada.call_id,
+            ok=False,
+            error="falha interna do host ao atender a ferramenta",
+        )
+    if resultado.call_id != chamada.call_id:
+        return ToolResult(
+            call_id=chamada.call_id,
+            ok=False,
+            error="falha interna do host: resposta de outra chamada",
+        )
+    return resultado
 
 
 def _preparar_dados(dados: dict[str, Path]) -> list[Mount]:

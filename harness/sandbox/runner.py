@@ -1,8 +1,9 @@
-"""Runner do REPL que roda dentro do sandbox (Tarefa 3, D12).
+"""Runner do REPL que roda dentro do sandbox (Tarefa 3, D12; ponte de ferramentas na Tarefa 5).
 
 Este módulo executa o código do modelo num namespace persistente, captura stdout e
 stderr por célula, transforma exceções em dados e aplica o limite de tempo por thread.
-Ainda não há Docker, ferramentas nem FINAL: essas partes entram em tarefas seguintes.
+As chamadas de ferramenta passam pela `Ponte` de `tools_client`, que usa o mesmo canal
+do protocolo. FINAL ainda não existe: entra em tarefa seguinte.
 
 Contrato com o host: o protocolo trafega só pelos objetos `entrada` e `saida` passados
 a `serve`. O stdout do código do modelo nunca é escrito neles diretamente.
@@ -28,6 +29,7 @@ from harness.sandbox.protocol import (
     decode,
     encode,
 )
+from harness.sandbox.tools_client import Ferramentas, Ponte, ToolError
 
 
 class _Interrupcao(BaseException):
@@ -98,9 +100,15 @@ def _interromper(thread: threading.Thread) -> None:
 class Repl:
     """REPL com namespace persistente: variáveis de uma célula existem nas seguintes."""
 
-    def __init__(self) -> None:
-        # Um único dict de globais é reutilizado por todas as células.
-        self._globais: dict[str, Any] = {"__name__": "__main__"}
+    def __init__(self, ponte: Ponte | None = None) -> None:
+        self._ponte = ponte
+        # Um único dict de globais é reutilizado por todas as células. `tools` e a exceção
+        # ToolError ficam disponíveis para o modelo; sem ponte, `tools` só levanta erro.
+        self._globais: dict[str, Any] = {
+            "__name__": "__main__",
+            "tools": Ferramentas(ponte),
+            "ToolError": ToolError,
+        }
 
     def run_cell(
         self, cell_id: int, code: str, timeout_s: float, graca_s: float = 1.0
@@ -114,6 +122,9 @@ class Repl:
         # O código do modelo aparece no traceback com as linhas reais, pois o linecache
         # passa a conhecer o texto desta célula.
         linecache.cache[nome] = (len(code), None, code.splitlines(keepends=True), nome)
+        if self._ponte is not None:
+            # O limite de chamadas de ferramenta vale por célula.
+            self._ponte.nova_celula()
 
         saida_capturada = _Captura()
         erro_capturado = _Captura()
@@ -186,10 +197,12 @@ class Repl:
 def serve(entrada: TextIO, saida: TextIO, repl: Repl | None = None) -> None:
     """Lê mensagens do host linha a linha e responde cada `exec` com um `exec_done`.
 
-    Termina quando `entrada` chega ao fim. Qualquer mensagem que não seja `exec` levanta
-    ProtocolError: ferramentas (tool_call e tool_result) entram na Tarefa 5.
+    Termina quando `entrada` chega ao fim. Fora de uma célula só `exec` é aceito; qualquer
+    outra mensagem levanta ProtocolError. Dentro de uma célula, `tool_call` e `tool_result`
+    passam pela ponte que a `serve` cria sobre `entrada` e `saida`, a menos que um `repl`
+    já ligado a uma ponte seja passado.
     """
-    ambiente = repl if repl is not None else Repl()
+    ambiente = repl if repl is not None else Repl(Ponte(entrada, saida))
     while True:
         linha = entrada.readline()
         if linha == "":
@@ -198,8 +211,8 @@ def serve(entrada: TextIO, saida: TextIO, repl: Repl | None = None) -> None:
         msg: Mensagem = decode(linha)
         if not isinstance(msg, Exec):
             raise ProtocolError(
-                f"mensagem '{msg.method}' não é aceita pelo sandbox nesta etapa "
-                "(só 'exec' é suportada; ferramentas chegam na Tarefa 5)"
+                f"mensagem '{msg.method}' não é aceita pelo sandbox fora de uma célula "
+                "(só 'exec' chega no nível de topo)"
             )
         resultado = ambiente.run_cell(msg.cell_id, msg.code, msg.timeout_s)
         saida.write(encode(resultado.done))
