@@ -131,6 +131,18 @@ def _neutralizar(texto: str) -> str:
     return _PADRAO_DELIMITADOR.sub(lambda casamento: "&lt;" + casamento.group(0)[1:], texto)
 
 
+def envolver_nao_confiavel(texto: str, limite: int) -> str:
+    """Envelope `<saida_nao_confiavel>` para um conteúdo de tamanho limitado (a prévia do contexto).
+
+    Usa a mesma sequência de `formatar_observacao`: normaliza com NFKC, escapa as quebras que
+    não são `\\n`, trunca ao `limite` e neutraliza qualquer tentativa de abrir ou fechar o
+    delimitador. Assim a prévia não consegue fechar o bloco antes da hora.
+    """
+    return "\n".join(
+        [_ABERTURA, _neutralizar(truncar(_preparar(texto), limite).texto), _FECHAMENTO]
+    )
+
+
 def _nome_seguro(nome: str) -> str:
     """Nome de ferramenta sem quebras de linha, sem controles e sem delimitadores.
 

@@ -23,6 +23,7 @@ from harness.orchestrator.loop import (
     ResultadoPedido,
 )
 from harness.orchestrator.prompt import montar_prompt_sistema
+from harness.sandbox.contexto import ValorContexto
 from harness.sandbox.docker_sandbox import (
     ResultadoExecucao,
     SandboxMorreu,
@@ -46,6 +47,7 @@ class Celula:
     exception: str | None = None
     final: RespostaFinal | None = None
     ferramentas: dict[str, int] = field(default_factory=dict)
+    reiniciado: bool = False
 
 
 @dataclass(frozen=True)
@@ -67,6 +69,7 @@ class SandboxFalso:
         self.reinicios = 0
         self.fechamentos = 0
         self.falhar_reinicio = False
+        self.cargas: list[ValorContexto] = []
 
     def executar_detalhado(
         self,
@@ -89,12 +92,16 @@ class SandboxFalso:
                 final=item.final,
             ),
             ferramentas=dict(item.ferramentas),
+            reiniciado=item.reiniciado,
         )
 
     def reiniciar(self) -> None:
         self.reinicios += 1
         if self.falhar_reinicio:
             raise RuntimeError("reinício indisponível")
+
+    def carregar_contexto(self, valor: ValorContexto) -> None:
+        self.cargas.append(valor)
 
     def close(self) -> None:
         self.fechamentos += 1
@@ -607,6 +614,9 @@ class SandboxComFerramenta:
         )
 
     def reiniciar(self) -> None:
+        pass
+
+    def carregar_contexto(self, valor: ValorContexto) -> None:
         pass
 
     def close(self) -> None:

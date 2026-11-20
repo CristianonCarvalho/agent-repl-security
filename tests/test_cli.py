@@ -34,6 +34,9 @@ class SandboxRoteiro:
     def start(self) -> None:
         self.inicios += 1
 
+    def carregar_contexto(self, valor: Any) -> None:
+        pass
+
     def executar_detalhado(
         self,
         cell_id: int,

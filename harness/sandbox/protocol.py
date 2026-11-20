@@ -17,6 +17,7 @@ from pydantic import (
     StrictBool,
     StrictInt,
     TypeAdapter,
+    field_validator,
     model_validator,
 )
 
@@ -103,8 +104,34 @@ class ExecDone(_Mensagem):
     reiniciar: StrictBool = False
 
 
+class Contexto(_Mensagem):
+    """host → sandbox: carrega o contexto do pedido na variável `context` do REPL.
+
+    O valor é dado de entrada, nunca código: precisa ser texto, objeto ou lista de JSON.
+    Números, booleanos e null são recusados.
+    """
+
+    method: Literal["contexto"] = "contexto"
+    valor: Any
+
+    @field_validator("valor")
+    @classmethod
+    def _valor_e_texto_objeto_ou_lista(cls, valor: Any) -> Any:
+        if not isinstance(valor, str | dict | list):
+            raise ValueError("contexto precisa ser um texto, um objeto ou uma lista de JSON")
+        return valor
+
+
+class ContextoOk(_Mensagem):
+    """sandbox → host: o contexto foi carregado; traz o tipo e o tamanho que o REPL viu."""
+
+    method: Literal["contexto_ok"] = "contexto_ok"
+    tipo: str
+    tamanho: Annotated[StrictInt, Field(ge=0)]
+
+
 # União discriminada pelo campo `method`: cada método tem exatamente um modelo.
-Mensagem = Exec | ToolCall | ToolResult | ExecDone
+Mensagem = Exec | ToolCall | ToolResult | ExecDone | Contexto | ContextoOk
 
 _ADAPTADOR: TypeAdapter[Mensagem] = TypeAdapter(Annotated[Mensagem, Field(discriminator="method")])
 

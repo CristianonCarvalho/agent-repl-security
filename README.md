@@ -66,7 +66,15 @@ Para responder a um pedido pela linha de comando (precisa da imagem do sandbox e
 uv run python -m harness "Qual o total gasto pelo cliente Acme nos pedidos de vendas? Cite a fonte." --perfil Vendas --dados ./dados
 ```
 
-`--dados` aponta para a pasta com um subdiretório por departamento (`vendas/`, `marketing/`...). O perfil define quais departamentos o contêiner enxerga. Opções: `--trace` (pasta do trace JSONL, padrão `traces`), `--imagem` (padrão `harness-sandbox:dev`) e `--max-iteracoes`. A saída traz resposta, fontes, motivo, iterações, tokens, custo e o caminho do trace. O código de saída é 0 quando o pedido termina com `FINAL`, 1 quando não termina e 2 para uso ou configuração inválidos.
+`--dados` aponta para a pasta com um subdiretório por departamento (`vendas/`, `marketing/`...). O perfil define quais departamentos o contêiner enxerga. Opções: `--trace` (pasta do trace JSONL, padrão `traces`), `--imagem` (padrão `harness-sandbox:dev`), `--max-iteracoes` e `--contexto`. A saída traz resposta, fontes, motivo, iterações, tokens, custo e o caminho do trace. O código de saída é 0 quando o pedido termina com `FINAL`, 1 quando não termina e 2 para uso ou configuração inválidos.
+
+Entrada grande (documento, tabela, JSON) vai com `--contexto`. O arquivo `.json` vira objeto ou lista; qualquer outro é lido como texto UTF-8. O conteúdo fica na variável `context` do REPL, e o modelo só vê o tipo, o tamanho e uma prévia curta:
+
+```bash
+uv run python -m harness "Quantos pedidos há no arquivo e qual o maior valor?" --perfil Vendas --dados ./dados --contexto ./pedidos.csv
+```
+
+O limite do contexto é de 2 MiB (JSON canônico). Acima disso, o código de saída é 2.
 
 ### Desenvolvimento
 

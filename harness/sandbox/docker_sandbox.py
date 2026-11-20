@@ -24,6 +24,9 @@ Heurísticas do host (decisões deste módulo, não da spec):
 - Morte do contêiner: o canal chegar ao fim antes da resposta é tratado como morte. O
   motivo vem de `container.attrs["State"]` (OOMKilled, ExitCode, Status) e do diagnóstico.
 - Sem resposta no prazo: `timeout_s` + MARGEM_S. Passado esse prazo, o contêiner é morto.
+- Contexto: `carregar_contexto` guarda o valor no host e o reenvia em todo reinício, para que
+  `context` sobreviva ao REPL novo. O teto (LIMITE_CONTEXTO_BYTES) é conferido antes do envio.
+  Um valor fora do teto nunca chega ao contêiner, e a mensagem de erro não traz o conteúdo.
 """
 
 import queue
@@ -41,8 +44,11 @@ from docker.errors import DockerException
 from docker.types import Mount
 from docker.utils.socket import STDERR, STDOUT, frames_iter
 
+from harness.sandbox.contexto import ValorContexto, bytes_do_contexto, descrever_contexto
 from harness.sandbox.protocol import (
     LIMITE_CHAMADAS_POR_CELULA,
+    Contexto,
+    ContextoOk,
     Exec,
     ExecDone,
     Mensagem,
@@ -63,6 +69,11 @@ PIDS_MAX: Final = 128
 MARGEM_S: Final = 3.0
 # Uma linha do protocolo acima deste tamanho é tratada como violação e o contêiner é descartado.
 LIMITE_LINHA: Final = 16 * 1024 * 1024
+# Teto do contexto do pedido, medido como JSON em bytes (ver `bytes_do_contexto`). Acima disso
+# o carregamento é recusado antes de qualquer envio ao contêiner.
+LIMITE_CONTEXTO_BYTES: Final = 2 * 1024 * 1024
+# Prazo para o runner confirmar a carga do contexto (o JSON de 2 MiB chega em milissegundos).
+PRAZO_CONTEXTO_S: Final = 30.0
 # Quanto do stderr do runner fica guardado para diagnóstico.
 TAMANHO_DIAGNOSTICO: Final = 16 * 1024
 # Frase que o runner põe no texto da exceção quando não consegue interromper a célula
@@ -76,12 +87,14 @@ class ResultadoExecucao:
     """Uma célula executada: o `exec_done` e a contagem de ferramentas chamadas nela.
 
     `ferramentas` mapeia o nome de cada ferramenta ao número de chamadas recebidas nesta
-    célula. A instância é congelada (o campo não pode ser trocado); o dict em si fica como
-    o chamador o recebeu.
+    célula. `reiniciado` é verdadeiro quando o contêiner foi recriado depois da célula (o
+    REPL perdeu as variáveis, exceto `context`, que o host restaura). A instância é congelada
+    (o campo não pode ser trocado); o dict em si fica como o chamador o recebeu.
     """
 
     done: ExecDone
     ferramentas: dict[str, int]
+    reiniciado: bool = False
 
 
 class SandboxErro(Exception):
@@ -169,6 +182,8 @@ class DockerSandbox:
         self._canal: Any = None
         self._leitor: _Leitor | None = None
         self._fechado = False
+        # Contexto do pedido guardado no host: é reenviado ao REPL a cada reinício.
+        self._contexto: ValorContexto | None = None
         # Quantas vezes o contêiner foi recriado por reiniciar() (incluindo o controlado).
         self.reinicios = 0
 
@@ -183,12 +198,38 @@ class DockerSandbox:
         self._criar_e_iniciar()
 
     def reiniciar(self) -> None:
-        """Mata e recria o contêiner. As variáveis do REPL se perdem."""
+        """Mata e recria o contêiner. As variáveis do REPL se perdem, menos `context`.
+
+        Se um contexto foi carregado, ele é reenviado ao REPL novo antes de a função voltar.
+        """
         if self._fechado:
             raise SandboxErro("o sandbox já foi fechado")
         self._descartar()
         self._criar_e_iniciar()
         self.reinicios += 1
+        if self._contexto is not None:
+            self._enviar_contexto(self._contexto)
+
+    def carregar_contexto(self, valor: ValorContexto) -> None:
+        """Envia o contexto do pedido ao REPL, como `context`, e guarda o valor no host.
+
+        O valor é dado, nunca código. Se o JSON canônico passar de LIMITE_CONTEXTO_BYTES, a
+        carga é recusada antes do envio e a mensagem de erro não traz o conteúdo. Um segundo
+        carregamento substitui o primeiro, no REPL e no host. Falhas de envio, morte do
+        contêiner e prazo seguem o mesmo tratamento das células.
+        """
+        if self._fechado:
+            raise SandboxErro("o sandbox já foi fechado")
+        if self._conteiner is None or self._leitor is None:
+            raise SandboxErro("o sandbox não está ativo: chame start() ou reiniciar()")
+        tamanho = bytes_do_contexto(valor)
+        if tamanho > LIMITE_CONTEXTO_BYTES:
+            raise SandboxErro(
+                f"o contexto tem {tamanho} bytes e passa do limite de {LIMITE_CONTEXTO_BYTES} "
+                "bytes; ele não foi carregado"
+            )
+        self._enviar_contexto(valor)
+        self._contexto = valor
 
     def close(self) -> None:
         """Para e remove o contêiner. Chamadas repetidas não fazem nada."""
@@ -283,10 +324,49 @@ class DockerSandbox:
                     continue
                 if msg.reiniciar:
                     self.reiniciar()
+                    return ResultadoExecucao(done=msg, ferramentas=ferramentas, reiniciado=True)
                 return ResultadoExecucao(done=msg, ferramentas=ferramentas)
             self._descartar()
             raise SandboxErro(
                 f"mensagem '{msg.method}' inesperada do sandbox nesta etapa; contêiner descartado"
+            )
+
+    def _enviar_contexto(self, valor: ValorContexto) -> None:
+        """Envia `contexto`, espera o `contexto_ok` e confere tipo e tamanho com o host."""
+        self._enviar(encode(Contexto(valor=valor)).encode("utf-8"))
+        confirmacao = self._aguardar_contexto_ok()
+        descricao = descrever_contexto(valor)
+        if (confirmacao.tipo, confirmacao.tamanho) != (descricao.tipo, descricao.tamanho):
+            self._descartar()
+            raise SandboxErro(
+                "o REPL confirmou um contexto diferente do enviado; contêiner descartado"
+            )
+
+    def _aguardar_contexto_ok(self) -> ContextoOk:
+        """Lê a próxima mensagem do canal, que precisa ser o `contexto_ok`, dentro do prazo."""
+        leitor = self._leitor
+        if leitor is None:
+            raise SandboxErro("o sandbox não está ativo: chame start() ou reiniciar()")
+        prazo = time.monotonic() + PRAZO_CONTEXTO_S
+        while True:
+            restante = prazo - time.monotonic()
+            if restante <= 0:
+                self._descartar()
+                raise SandboxTimeout(
+                    f"sem confirmação do contexto em {PRAZO_CONTEXTO_S:g} s; o contêiner foi morto"
+                )
+            try:
+                linha = leitor.linhas.get(timeout=restante)
+            except queue.Empty:
+                continue
+            if linha is None:
+                raise self._consumir_morte()
+            msg = self._decodificar(linha)
+            if isinstance(msg, ContextoOk):
+                return msg
+            self._descartar()
+            raise SandboxErro(
+                f"mensagem '{msg.method}' inesperada ao carregar o contexto; contêiner descartado"
             )
 
     def _decodificar(self, linha: bytes) -> Mensagem:

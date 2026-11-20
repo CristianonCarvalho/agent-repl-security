@@ -65,6 +65,9 @@ class EspiaoSandbox:
     def reiniciar(self) -> None:
         self._real.reiniciar()
 
+    def carregar_contexto(self, valor: Any) -> None:
+        self._real.carregar_contexto(valor)
+
     def close(self) -> None:
         self._real.close()
 

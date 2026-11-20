@@ -15,10 +15,17 @@ Decisões deste módulo (não estão na spec):
   mensagem de erro quando falta.
 - O custo total soma o campo `custo` dos eventos `turno_modelo`. Sem nenhum custo informado, a
   linha diz "indisponível" em vez de zero.
+- `--contexto ARQUIVO`: arquivo `.json` (sem distinguir maiúsculas) é lido como JSON, e o valor
+  precisa ser objeto ou lista; qualquer outra extensão é lida como texto UTF-8. O conteúdo vai
+  para a variável `context` do REPL, nunca para o prompt. Arquivo inexistente, ilegível, inválido
+  ou acima do teto de `LIMITE_CONTEXTO_BYTES` sai com código 2, antes de iniciar o sandbox. Para
+  o teto, o arquivo inteiro conta: um JSON com muito espaço em branco pode ser recusado mesmo
+  que o valor canônico coubesse.
 """
 
 import argparse
 import contextlib
+import json
 import os
 import sys
 from collections.abc import Callable, Sequence
@@ -38,7 +45,8 @@ from harness.orchestrator.loop import (
     ResultadoPedido,
     SandboxLike,
 )
-from harness.sandbox.docker_sandbox import IMAGEM_PADRAO, DockerSandbox
+from harness.sandbox.contexto import ValorContexto, bytes_do_contexto
+from harness.sandbox.docker_sandbox import IMAGEM_PADRAO, LIMITE_CONTEXTO_BYTES, DockerSandbox
 from harness.telemetry.trace import TraceJsonl
 
 ARQUIVO_ENV: Final = Path(".env")
@@ -58,6 +66,49 @@ class SandboxIniciavel(SandboxLike, Protocol):
 
 class ErroDeConfiguracao(Exception):
     """Configuração do modelo ausente ou inválida. A mensagem nunca traz valores de chave."""
+
+
+class ErroDeContexto(Exception):
+    """Arquivo de contexto inexistente, ilegível, inválido ou grande demais. Sai com código 2."""
+
+
+def _carregar_contexto(caminho: Path) -> ValorContexto:
+    """Lê o arquivo do `--contexto` e devolve o valor (texto, objeto ou lista).
+
+    A mensagem de erro cita só o caminho e o motivo, nunca o conteúdo do arquivo.
+    """
+    try:
+        with caminho.open("rb") as arquivo:
+            # Lê um byte além do teto: se vier mais, o arquivo é grande demais sem ser lido inteiro.
+            bruto = arquivo.read(LIMITE_CONTEXTO_BYTES + 1)
+    except OSError:
+        raise ErroDeContexto(f"arquivo de contexto não pode ser lido: {caminho}") from None
+    if len(bruto) > LIMITE_CONTEXTO_BYTES:
+        raise ErroDeContexto(
+            f"arquivo de contexto maior que o limite de {LIMITE_CONTEXTO_BYTES} bytes: {caminho}"
+        )
+    try:
+        texto = bruto.decode("utf-8")
+    except UnicodeDecodeError:
+        raise ErroDeContexto(f"arquivo de contexto não está em UTF-8: {caminho}") from None
+    valor: ValorContexto = texto
+    if caminho.suffix.lower() == ".json":
+        try:
+            carregado = json.loads(texto)
+        except json.JSONDecodeError as erro:
+            raise ErroDeContexto(
+                f"JSON inválido no arquivo de contexto ({erro.msg}, linha {erro.lineno}): {caminho}"
+            ) from None
+        if not isinstance(carregado, dict | list):
+            raise ErroDeContexto(
+                f"o JSON do contexto precisa ser um objeto ou uma lista: {caminho}"
+            )
+        valor = carregado
+    if bytes_do_contexto(valor) > LIMITE_CONTEXTO_BYTES:
+        raise ErroDeContexto(
+            f"o contexto passa do limite de {LIMITE_CONTEXTO_BYTES} bytes como JSON: {caminho}"
+        )
+    return valor
 
 
 class _ColetorDeEventos:
@@ -115,6 +166,12 @@ def _parser() -> argparse.ArgumentParser:
         type=_inteiro_positivo,
         default=None,
         help="limite de chamadas ao modelo (padrão: o do Orcamento)",
+    )
+    parser.add_argument(
+        "--contexto",
+        type=Path,
+        default=None,
+        help="arquivo de entrada do pedido: .json vira objeto ou lista; outro tipo, texto",
     )
     return parser
 
@@ -182,6 +239,13 @@ def main(
     if not args.dados.is_dir():
         saida.write(f"pasta de dados não encontrada: {args.dados}\n")
         return CODIGO_USO
+    contexto: ValorContexto | None = None
+    if args.contexto is not None:
+        try:
+            contexto = _carregar_contexto(args.contexto)
+        except ErroDeContexto as erro:
+            saida.write(f"{erro}\n")
+            return CODIGO_USO
 
     if modelo is None:
         try:
@@ -217,6 +281,6 @@ def main(
     # O Orquestrador fecha o sandbox ao fim do pedido, inclusive em erro.
     resultado = Orquestrador(
         modelo, sandbox, registro, perfil, orcamento=orcamento, eventos=coletor
-    ).executar_pedido(args.pedido)
+    ).executar_pedido(args.pedido, contexto=contexto)
     _imprimir(saida, resultado, coletor, trace.caminho)
     return CODIGO_COMPLETO if resultado.completo else CODIGO_NAO_COMPLETO

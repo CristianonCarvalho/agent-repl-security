@@ -11,6 +11,7 @@ a `serve`. O stdout do código do modelo nunca é escrito neles diretamente.
 """
 
 import argparse
+import copy
 import ctypes
 import io
 import linecache
@@ -23,7 +24,10 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, NoReturn, TextIO
 
+from harness.sandbox.contexto import ValorContexto, descrever_contexto
 from harness.sandbox.protocol import (
+    Contexto,
+    ContextoOk,
     Exec,
     ExecDone,
     Mensagem,
@@ -152,6 +156,28 @@ def _criar_final(estado: _EstadoFinal) -> Callable[[Any, Any], NoReturn]:
     return FINAL
 
 
+def _context_info_sem_contexto() -> dict[str, Any]:
+    """`context_info` antes de qualquer carga: avisa, em português, que não há contexto."""
+    raise ValueError(
+        "não há contexto carregado neste pedido: context_info() só funciona quando o pedido "
+        "traz uma entrada de contexto"
+    )
+
+
+def _criar_context_info(copia: ValorContexto) -> Callable[[], dict[str, Any]]:
+    """Cria `context_info` ligada a uma CÓPIA do contexto original.
+
+    A cópia é guardada em fechamento. Assim, se o modelo reatribuir `context` (ou alterá-lo
+    no lugar), o resultado de `context_info()` continua descrevendo o contexto carregado.
+    """
+
+    def context_info() -> dict[str, Any]:
+        descricao = descrever_contexto(copia)
+        return {"tipo": descricao.tipo, "tamanho": descricao.tamanho, "previa": descricao.previa}
+
+    return context_info
+
+
 def _apelidos_de_descoberta(ferramentas: Ferramentas) -> dict[str, Callable[..., Any]]:
     """Apelidos `search_tools` e `describe_tool` do REPL (spec v0, contrato 1; Tarefa 10).
 
@@ -184,8 +210,22 @@ class Repl:
             "ToolError": ToolError,
             # FINAL inativo até a primeira célula; run_cell o troca a cada célula.
             "FINAL": _criar_final(_EstadoFinal()),
+            # `context` só existe depois de carregar_contexto; context_info avisa até lá.
+            "context_info": _context_info_sem_contexto,
             **_apelidos_de_descoberta(ferramentas),
         }
+
+    def carregar_contexto(self, valor: ValorContexto) -> ContextoOk:
+        """Define `context` e `context_info` no namespace e devolve tipo e tamanho.
+
+        Um segundo carregamento substitui o primeiro. `context` guarda o valor recebido; a
+        cópia usada por `context_info` é feita antes, para não depender de reatribuições.
+        """
+        copia = copy.deepcopy(valor)
+        self._globais["context"] = valor
+        self._globais["context_info"] = _criar_context_info(copia)
+        descricao = descrever_contexto(copia)
+        return ContextoOk(tipo=descricao.tipo, tamanho=descricao.tamanho)
 
     def run_cell(
         self, cell_id: int, code: str, timeout_s: float, graca_s: float = 1.0
@@ -282,10 +322,11 @@ class Repl:
 def serve(entrada: TextIO, saida: TextIO, repl: Repl | None = None) -> None:
     """Lê mensagens do host linha a linha e responde cada `exec` com um `exec_done`.
 
-    Termina quando `entrada` chega ao fim. Fora de uma célula só `exec` é aceito; qualquer
-    outra mensagem levanta ProtocolError. Dentro de uma célula, `tool_call` e `tool_result`
-    passam pela ponte que a `serve` cria sobre `entrada` e `saida`, a menos que um `repl`
-    já ligado a uma ponte seja passado.
+    Termina quando `entrada` chega ao fim. No nível de topo só `exec` e `contexto` são
+    aceitos; qualquer outra mensagem levanta ProtocolError. Como a leitura é sequencial, um
+    `contexto` é processado antes de qualquer `exec` que venha depois dele. Dentro de uma
+    célula, `tool_call` e `tool_result` passam pela ponte que a `serve` cria sobre `entrada`
+    e `saida`, a menos que um `repl` já ligado a uma ponte seja passado.
     """
     ambiente = repl if repl is not None else Repl(Ponte(entrada, saida))
     while True:
@@ -294,10 +335,15 @@ def serve(entrada: TextIO, saida: TextIO, repl: Repl | None = None) -> None:
             # EOF: o host fechou o canal e o sandbox termina.
             return
         msg: Mensagem = decode(linha)
+        if isinstance(msg, Contexto):
+            confirmacao = ambiente.carregar_contexto(msg.valor)
+            saida.write(encode(confirmacao))
+            saida.flush()
+            continue
         if not isinstance(msg, Exec):
             raise ProtocolError(
                 f"mensagem '{msg.method}' não é aceita pelo sandbox fora de uma célula "
-                "(só 'exec' chega no nível de topo)"
+                "(só 'exec' e 'contexto' chegam no nível de topo)"
             )
         resultado = ambiente.run_cell(msg.cell_id, msg.code, msg.timeout_s)
         saida.write(encode(resultado.done))
