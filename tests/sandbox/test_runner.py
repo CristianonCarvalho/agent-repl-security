@@ -19,6 +19,7 @@ from harness.sandbox.protocol import (
     Exec,
     ExecDone,
     ProtocolError,
+    RespostaFinal,
     ToolResult,
     decode,
     encode,
@@ -298,3 +299,106 @@ def test_modo_stdio_nao_combina_com_descritores_explicitos() -> None:
 
     with pytest.raises(SystemExit):
         main(["--stdio", "--fd-in", "3", "--fd-out", "4"])
+
+
+# --- FINAL (RF7, D8) ----------------------------------------------------------
+
+
+def test_final_valido_encerra_a_celula_e_preenche_final(repl: Repl) -> None:
+    resultado = repl.run_cell(1, "FINAL('resposta', ['fonte.csv'])", timeout_s=2.0)
+    assert resultado.done.final == RespostaFinal(answer="resposta", sources=["fonte.csv"])
+    assert resultado.done.exception is None
+    assert resultado.precisa_reiniciar is False
+
+
+def test_codigo_depois_do_final_nao_executa(repl: Repl) -> None:
+    codigo = "FINAL('a', ['b'])\nprint('depois do final')"
+    resultado = repl.run_cell(1, codigo, timeout_s=2.0)
+    assert resultado.done.final is not None
+    assert "depois do final" not in resultado.done.stdout
+
+
+def test_final_dentro_de_except_exception_ainda_termina_a_celula(repl: Repl) -> None:
+    codigo = "try:\n    FINAL('a', ['b'])\nexcept Exception:\n    print('apanhado')\n"
+    resultado = repl.run_cell(1, codigo, timeout_s=2.0)
+    assert resultado.done.final == RespostaFinal(answer="a", sources=["b"])
+    assert "apanhado" not in resultado.done.stdout
+    assert resultado.done.exception is None
+
+
+def test_final_engolido_por_except_baseexception_ainda_vale(repl: Repl) -> None:
+    codigo = "try:\n    FINAL('a', ['b'])\nexcept BaseException:\n    pass\nprint('segue')\n"
+    resultado = repl.run_cell(1, codigo, timeout_s=2.0)
+    assert resultado.done.final == RespostaFinal(answer="a", sources=["b"])
+    assert resultado.done.exception is None
+
+
+def test_stdout_antes_do_final_e_devolvido(repl: Repl) -> None:
+    resultado = repl.run_cell(1, "print('antes')\nFINAL('a', ['b'])", timeout_s=2.0)
+    assert resultado.done.stdout == "antes\n"
+    assert resultado.done.final == RespostaFinal(answer="a", sources=["b"])
+
+
+def test_final_nao_persiste_entre_celulas(repl: Repl) -> None:
+    repl.run_cell(1, "FINAL('a', ['b'])", timeout_s=2.0)
+    resultado = repl.run_cell(2, "print('sem final')", timeout_s=2.0)
+    assert resultado.done.final is None
+    assert resultado.done.stdout == "sem final\n"
+
+
+@pytest.mark.parametrize(
+    "codigo",
+    [
+        "FINAL('', ['x'])",
+        "FINAL('   ', ['x'])",
+        "FINAL(None, ['x'])",
+        "FINAL(1, ['x'])",
+        "FINAL('a', [])",
+        "FINAL('a', [''])",
+        "FINAL('a', ['  '])",
+        "FINAL('a', [1])",
+        "FINAL('a', 'fonte.csv')",
+        "FINAL('a', ('fonte.csv',))",
+        "FINAL('a', None)",
+    ],
+)
+def test_final_invalido_vira_valueerror_e_repl_continua_vivo(repl: Repl, codigo: str) -> None:
+    resultado = repl.run_cell(1, codigo, timeout_s=2.0)
+    assert resultado.done.final is None
+    assert resultado.done.exception is not None
+    assert "ValueError" in resultado.done.exception
+    proxima = repl.run_cell(2, "print('ok')", timeout_s=2.0)
+    assert proxima.done.stdout == "ok\n"
+
+
+def test_final_sem_sources_nao_tem_padrao(repl: Repl) -> None:
+    resultado = repl.run_cell(1, "FINAL('a')", timeout_s=2.0)
+    assert resultado.done.final is None
+    assert resultado.done.exception is not None
+    assert "TypeError" in resultado.done.exception
+
+
+def test_final_guardado_de_celula_anterior_nao_vale(repl: Repl) -> None:
+    repl.run_cell(1, "guardado = FINAL", timeout_s=2.0)
+    resultado = repl.run_cell(2, "guardado('a', ['b'])", timeout_s=2.0)
+    assert resultado.done.final is None
+    assert resultado.done.exception is not None
+    assert "ValueError" in resultado.done.exception
+
+
+def test_timeout_depois_de_final_gravado_o_final_vale(repl: Repl) -> None:
+    codigo = "try:\n    FINAL('a', ['b'])\nexcept BaseException:\n    pass\nwhile True:\n    pass\n"
+    resultado = repl.run_cell(1, codigo, timeout_s=0.3)
+    assert resultado.done.final == RespostaFinal(answer="a", sources=["b"])
+    assert resultado.done.exception is not None
+    assert "tempo" in resultado.done.exception.lower()
+
+
+def test_serve_devolve_final_dentro_de_exec_done() -> None:
+    entrada = io.StringIO(
+        encode(Exec(cell_id=1, code="FINAL('pronto', ['arquivo.xlsx'])", timeout_s=2.0))
+    )
+    saida = io.StringIO()
+    serve(entrada, saida)
+    (resultado,) = _linhas_decodificadas(saida.getvalue())
+    assert resultado.final == RespostaFinal(answer="pronto", sources=["arquivo.xlsx"])

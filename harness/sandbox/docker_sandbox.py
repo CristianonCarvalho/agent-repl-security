@@ -30,6 +30,7 @@ import re
 import threading
 import time
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Final
@@ -66,6 +67,19 @@ TAMANHO_DIAGNOSTICO: Final = 16 * 1024
 # Frase que o runner usa quando não consegue interromper a célula (runner.py, run_cell).
 MARCA_REINICIO: Final = "O REPL precisa ser reiniciado"
 _NOME_DADOS: Final = re.compile(r"[A-Za-z0-9_-]+")
+
+
+@dataclass(frozen=True)
+class ResultadoExecucao:
+    """Uma célula executada: o `exec_done` e a contagem de ferramentas chamadas nela.
+
+    `ferramentas` mapeia o nome de cada ferramenta ao número de chamadas recebidas nesta
+    célula. A instância é congelada (o campo não pode ser trocado); o dict em si fica como
+    o chamador o recebeu.
+    """
+
+    done: ExecDone
+    ferramentas: dict[str, int]
 
 
 class SandboxErro(Exception):
@@ -205,12 +219,28 @@ class DockerSandbox:
         timeout_s: float,
         despachante: Callable[[ToolCall], ToolResult] | None = None,
     ) -> ExecDone:
-        """Envia uma célula e espera o `exec_done` com o mesmo `cell_id`.
+        """Envia uma célula e devolve o `exec_done`. Mesma assinatura de sempre.
+
+        Não conta as ferramentas chamadas; para isso use `executar_detalhado`.
+        """
+        return self.executar_detalhado(cell_id, code, timeout_s, despachante).done
+
+    def executar_detalhado(
+        self,
+        cell_id: int,
+        code: str,
+        timeout_s: float,
+        despachante: Callable[[ToolCall], ToolResult] | None = None,
+    ) -> ResultadoExecucao:
+        """Envia uma célula, espera o `exec_done` com o mesmo `cell_id` e conta as ferramentas.
 
         Cada `tool_call` recebido enquanto a célula roda é entregue a `despachante`, e a
         resposta volta ao contêiner como `tool_result`. Sem despachante, a chamada recebe
         erro "ferramentas indisponíveis". O prazo `timeout_s` + MARGEM_S vale durante as
         chamadas também.
+
+        A contagem `ferramentas` inclui todas as chamadas que chegaram nesta célula, inclusive
+        as recusadas pelo teto de LIMITE_CHAMADAS_POR_CELULA (que não vão ao despachante).
 
         Levanta SandboxMorreu se o contêiner terminar antes da resposta e SandboxTimeout se
         ele não responder dentro de `timeout_s` + MARGEM_S (nesse caso o contêiner é morto).
@@ -223,6 +253,7 @@ class DockerSandbox:
         prazo = time.monotonic() + timeout_s + MARGEM_S
         leitor = self._leitor
         chamadas_feitas = 0
+        ferramentas: dict[str, int] = {}
         while True:
             restante = prazo - time.monotonic()
             if restante <= 0:
@@ -240,6 +271,7 @@ class DockerSandbox:
             msg = self._decodificar(linha)
             if isinstance(msg, ToolCall):
                 chamadas_feitas += 1
+                ferramentas[msg.name] = ferramentas.get(msg.name, 0) + 1
                 resposta = _resposta_a_ferramenta(msg, despachante, chamadas_feitas)
                 self._enviar(encode(resposta).encode("utf-8"))
                 continue
@@ -249,7 +281,7 @@ class DockerSandbox:
                     continue
                 if MARCA_REINICIO in (msg.exception or ""):
                     self.reiniciar()
-                return msg
+                return ResultadoExecucao(done=msg, ferramentas=ferramentas)
             self._descartar()
             raise SandboxErro(
                 f"mensagem '{msg.method}' inesperada do sandbox nesta etapa; contêiner descartado"

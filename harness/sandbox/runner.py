@@ -3,7 +3,8 @@
 Este módulo executa o código do modelo num namespace persistente, captura stdout e
 stderr por célula, transforma exceções em dados e aplica o limite de tempo por thread.
 As chamadas de ferramenta passam pela `Ponte` de `tools_client`, que usa o mesmo canal
-do protocolo. FINAL ainda não existe: entra em tarefa seguinte.
+do protocolo. `FINAL(answer, sources)` (RF7, D8) grava a resposta no estado da célula e
+encerra a célula com a mesma interrupção interna do timeout.
 
 Contrato com o host: o protocolo trafega só pelos objetos `entrada` e `saida` passados
 a `serve`. O stdout do código do modelo nunca é escrito neles diretamente.
@@ -18,14 +19,16 @@ import sys
 import threading
 import time
 import traceback
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, TextIO
+from typing import Any, NoReturn, TextIO
 
 from harness.sandbox.protocol import (
     Exec,
     ExecDone,
     Mensagem,
     ProtocolError,
+    RespostaFinal,
     decode,
     encode,
 )
@@ -33,11 +36,25 @@ from harness.sandbox.tools_client import Ferramentas, Ponte, ToolError
 
 
 class _Interrupcao(BaseException):
-    """Exceção injetada na thread da célula quando ela estoura o tempo limite.
+    """Exceção injetada na thread da célula para encerrá-la.
 
-    Herda de BaseException para não ser apanhada por `except Exception` do código do modelo,
-    embora um `except BaseException` ainda possa engoli-la (nesse caso a thread continua viva).
+    Usada de duas formas: pelo timeout da célula e por `FINAL`, que encerra a célula logo
+    depois de gravar a resposta. Herda de BaseException para não ser apanhada por
+    `except Exception` do código do modelo, embora um `except BaseException` ainda possa
+    engoli-la (nesse caso a thread continua viva e o `FINAL` gravado continua valendo).
     """
+
+
+@dataclass
+class _EstadoFinal:
+    """Estado do FINAL de UMA célula: se a célula aceita FINAL e a resposta gravada, se houver.
+
+    Cada célula cria o seu. Assim uma referência a FINAL guardada numa célula anterior não
+    grava resposta na célula atual (`ativa` é falso depois que a célula termina).
+    """
+
+    ativa: bool = False
+    resposta: RespostaFinal | None = None
 
 
 @dataclass(frozen=True)
@@ -97,17 +114,57 @@ def _interromper(thread: threading.Thread) -> None:
     )
 
 
+def _validar_final(answer: Any, sources: Any) -> RespostaFinal:
+    """Confere os argumentos de FINAL e devolve a resposta validada.
+
+    Regra D8: a lista de fontes é obrigatória e não pode ser vazia. Qualquer falha vira
+    ValueError com mensagem em português, que o modelo vê como exceção da célula.
+    """
+    if not isinstance(answer, str) or not answer.strip():
+        raise ValueError(
+            "FINAL: 'answer' precisa ser um texto não vazio, por exemplo "
+            "FINAL('resposta', ['arquivo.csv'])"
+        )
+    if not isinstance(sources, list) or not sources:
+        raise ValueError(
+            "FINAL: 'sources' precisa ser uma lista com pelo menos uma fonte, por exemplo "
+            "['arquivo.csv']"
+        )
+    if not all(isinstance(fonte, str) and fonte.strip() for fonte in sources):
+        raise ValueError("FINAL: cada item de 'sources' precisa ser um texto não vazio")
+    return RespostaFinal(answer=answer, sources=list(sources))
+
+
+def _criar_final(estado: _EstadoFinal) -> Callable[[Any, Any], NoReturn]:
+    """Cria a função FINAL ligada ao estado de uma célula.
+
+    Chamada válida grava a resposta no estado e levanta `_Interrupcao`, para o resto da
+    célula não rodar. Se o código do modelo engolir a interrupção, `run_cell` ainda lê o
+    estado gravado e devolve a resposta.
+    """
+
+    def FINAL(answer: Any, sources: Any) -> NoReturn:
+        if not estado.ativa:
+            raise ValueError("FINAL só pode ser chamado pela célula que está em execução")
+        estado.resposta = _validar_final(answer, sources)
+        raise _Interrupcao()
+
+    return FINAL
+
+
 class Repl:
     """REPL com namespace persistente: variáveis de uma célula existem nas seguintes."""
 
     def __init__(self, ponte: Ponte | None = None) -> None:
         self._ponte = ponte
-        # Um único dict de globais é reutilizado por todas as células. `tools` e a exceção
-        # ToolError ficam disponíveis para o modelo; sem ponte, `tools` só levanta erro.
+        # Um único dict de globais é reutilizado por todas as células. `tools`, a exceção
+        # ToolError e FINAL ficam disponíveis para o modelo; sem ponte, `tools` só levanta erro.
         self._globais: dict[str, Any] = {
             "__name__": "__main__",
             "tools": Ferramentas(ponte),
             "ToolError": ToolError,
+            # FINAL inativo até a primeira célula; run_cell o troca a cada célula.
+            "FINAL": _criar_final(_EstadoFinal()),
         }
 
     def run_cell(
@@ -129,6 +186,9 @@ class Repl:
         saida_capturada = _Captura()
         erro_capturado = _Captura()
         relato = _Relato()
+        # Estado novo por célula: FINAL de célula anterior não vale aqui (RF7).
+        estado_final = _EstadoFinal(ativa=True)
+        self._globais["FINAL"] = _criar_final(estado_final)
         original_out, original_err = sys.stdout, sys.stderr
         inicio = time.monotonic()
         estourou = False
@@ -153,6 +213,8 @@ class Repl:
             # Restaura mesmo que o código tenha reatribuído ou fechado sys.stdout/sys.stderr.
             sys.stdout = original_out
             sys.stderr = original_err
+            # Depois da célula, FINAL deixa de aceitar resposta (ver _EstadoFinal).
+            estado_final.ativa = False
         duracao_ms = int((time.monotonic() - inicio) * 1000)
 
         if estourou and precisa_reiniciar:
@@ -175,7 +237,8 @@ class Repl:
             stderr=erro_capturado.getvalue(),
             exception=excecao,
             duration_ms=duracao_ms,
-            final=None,
+            # Vale mesmo se o timeout estourou depois de FINAL: a resposta já foi gravada.
+            final=estado_final.resposta,
         )
         return ResultadoCelula(done=done, precisa_reiniciar=precisa_reiniciar)
 
