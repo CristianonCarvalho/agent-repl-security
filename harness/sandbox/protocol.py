@@ -1,0 +1,134 @@
+"""Mensagens da ponte JSON-RPC 2.0 entre o host e o sandbox (contrato 2 da spec, D12).
+
+Cada mensagem ocupa exatamente uma linha (NDJSON) e trafega no descritor de arquivo
+dedicado do processo do sandbox, separado do stdout do código do modelo.
+
+Este módulo só modela, valida e codifica mensagens. Não executa código, não abre
+rede e não fala com o LLM.
+"""
+
+import json
+from typing import Annotated, Any, Literal
+
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    StrictBool,
+    StrictInt,
+    TypeAdapter,
+    model_validator,
+)
+
+
+class ProtocolError(Exception):
+    """Mensagem da ponte inválida: JSON malformado, método desconhecido ou campos inválidos."""
+
+
+class _Mensagem(BaseModel):
+    """Base comum das mensagens: rejeita campos fora do contrato e é imutável."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    # Toda mensagem JSON-RPC 2.0 carrega a versão do protocolo.
+    jsonrpc: Literal["2.0"] = "2.0"
+
+
+class Exec(_Mensagem):
+    """host → sandbox: pede a execução de uma célula de código."""
+
+    method: Literal["exec"] = "exec"
+    cell_id: StrictInt
+    code: str
+    # Limite da célula em segundos; zero ou negativo não faz sentido e NaN/infinito são recusados.
+    timeout_s: float = Field(gt=0, allow_inf_nan=False)
+
+
+class ToolCall(_Mensagem):
+    """sandbox → host: a célula chamou uma ferramenta e espera a resposta."""
+
+    method: Literal["tool_call"] = "tool_call"
+    call_id: str
+    name: str
+    args: dict[str, Any]
+
+
+class ToolResult(_Mensagem):
+    """host → sandbox: resposta de uma chamada de ferramenta.
+
+    Regra: se ok é verdadeiro, error fica ausente (None); se ok é falso, error é obrigatório.
+    """
+
+    method: Literal["tool_result"] = "tool_result"
+    call_id: str
+    ok: StrictBool
+    # Qualquer JSON: dict, lista, texto, número, booleano ou null.
+    data: Any = None
+    error: str | None = None
+
+    @model_validator(mode="after")
+    def _error_coerente_com_ok(self) -> "ToolResult":
+        if self.ok and self.error is not None:
+            raise ValueError("tool_result com ok=true não pode trazer 'error'")
+        if not self.ok and self.error is None:
+            raise ValueError("tool_result com ok=false exige 'error'")
+        return self
+
+
+class RespostaFinal(BaseModel):
+    """Objeto de término (FINAL) enviado dentro de exec_done."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    answer: str
+    sources: list[str]
+
+
+class ExecDone(_Mensagem):
+    """sandbox → host: a célula terminou; traz stdout e stderr capturados por célula."""
+
+    method: Literal["exec_done"] = "exec_done"
+    cell_id: StrictInt
+    stdout: str
+    stderr: str
+    exception: str | None
+    duration_ms: Annotated[StrictInt, Field(ge=0)]
+    final: RespostaFinal | None
+
+
+# União discriminada pelo campo `method`: cada método tem exatamente um modelo.
+Mensagem = Exec | ToolCall | ToolResult | ExecDone
+
+_ADAPTADOR: TypeAdapter[Mensagem] = TypeAdapter(Annotated[Mensagem, Field(discriminator="method")])
+
+
+def encode(msg: Mensagem) -> str:
+    """Serializa a mensagem numa única linha JSON terminada em quebra de linha.
+
+    O JSON sai com ensure_ascii=True: caracteres como U+2028 e U+2029 viram escapes,
+    porque alguns leitores de linha (str.splitlines) os tratariam como quebra.
+    """
+    corpo = json.dumps(msg.model_dump(mode="json"), ensure_ascii=True, separators=(",", ":"))
+    return corpo + "\n"
+
+
+def decode(linha: str) -> Mensagem:
+    """Lê uma linha da ponte e devolve a mensagem validada.
+
+    Levanta ProtocolError para qualquer problema (JSON inválido, método desconhecido,
+    campos inválidos ou quebra de linha no meio da mensagem). Nenhuma outra exceção sai daqui.
+    """
+    corpo = linha
+    # Aceita um terminador de linha no fim (o que o readline devolve), nada além disso.
+    if corpo.endswith("\n"):
+        corpo = corpo[:-1]
+    if corpo.endswith("\r"):
+        corpo = corpo[:-1]
+    if "\n" in corpo or "\r" in corpo:
+        raise ProtocolError("mensagem com quebra de linha interna")
+    try:
+        return _ADAPTADOR.validate_json(corpo)
+    except (ValueError, RecursionError) as erro:
+        # ValidationError (pydantic) é subclasse de ValueError; cobre JSON inválido,
+        # método desconhecido e campos inválidos.
+        raise ProtocolError(f"mensagem inválida: {erro}") from erro
