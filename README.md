@@ -126,4 +126,5 @@ uv run pytest -m real_api
 ## Documentação
 
 - [Especificação v0](docs/especificacao-v0.md)
+- [Diagramas de ferramentas, MCP e permissões](docs/diagramas-ferramentas-e-permissoes.md)
 - [Decisões de arquitetura (ADRs)](docs/adr/README.md)
