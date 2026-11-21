@@ -16,6 +16,9 @@ dev = [
     "hypothesis",
     "ruff",
     "mypy",
+    "openpyxl>=3.1.5",
+    "python-docx>=1.2.0",
+    "python-pptx>=1.0.2",
 ]
 
 [build-system]
@@ -48,4 +51,9 @@ markers = [
 [[tool.mypy.overrides]]
 # O SDK do Docker não traz tipos (sem py.typed); tratamos o módulo como Any.
 module = ["docker", "docker.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# O openpyxl não traz tipos (sem py.typed); usado só em harness/evals e nos testes de avaliação.
+module = ["openpyxl", "openpyxl.*"]
 ignore_missing_imports = true
