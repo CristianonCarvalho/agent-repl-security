@@ -1,6 +1,18 @@
 # Avaliações (evals)
 
-Diagramas da Fase 3: como os dados sintéticos são gerados, como um caso é descrito e corrigido, e como o executor vai rodar o agente de verdade e produzir um relatório.
+Diagramas da Fase 3: como os dados sintéticos são gerados, como um caso é descrito e corrigido, e como o executor roda o agente de verdade e produz um relatório.
+
+## Em resumo
+
+**O que é testado.** O agente completo (modelo, orquestrador, sandbox e ferramentas) respondendo a pedidos de funcionários sobre os arquivos sintéticos de uma distribuidora. Os pedidos se dividem em 7 categorias: consulta, cruzamento, conformidade, geração, alteração, permissão e injeção. Hoje só 4 são avaliáveis (consulta, cruzamento, conformidade e permissão).
+
+**Como.**
+1. Um script com semente fixa gera os dados e os valores corretos de cada resposta.
+2. Cada caso (pedido, perfil e gabarito) roda de 3 a 5 vezes, cada vez num contêiner novo, porque o modelo varia entre rodadas.
+3. Um corretor por regras compara a resposta final e as fontes com o gabarito, sem modelo juiz.
+4. Um relatório JSON traz taxa de sucesso, variação entre rodadas, custo e tokens, com teto de gasto por execução.
+
+**Objetivo.** Medir, com números, se o agente acerta, se respeita as permissões do perfil e se resiste a instruções plantadas nos dados. O resultado serve para detectar regressões (gate do CI), comparar o REPL com tool calling em JSON e fechar a defesa contra prompt injection com evidência. Não prova segurança: mostra que os ataques conhecidos não funcionaram.
 
 Estado de cada parte:
 
