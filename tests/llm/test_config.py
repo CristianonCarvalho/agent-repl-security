@@ -175,3 +175,53 @@ def test_linha_sem_igual_ou_sem_chave_e_ignorada(tmp_path: Path) -> None:
     arquivo = tmp_path / ".env"
     arquivo.write_text("SEM_IGUAL\n=sem_chave\nOK=1\n", encoding="utf-8")
     assert carregar_env(arquivo) == {"OK": "1"}
+
+
+# --- prazo_total_s e OPENROUTER_PRAZO_TOTAL -------------------------------------------------
+
+
+def test_prazo_total_padrao_e_120_segundos() -> None:
+    assert ConfigModelo(slug="x").prazo_total_s == 120.0
+
+
+def test_prazo_total_igual_ao_timeout_e_aceito() -> None:
+    assert ConfigModelo(slug="x", timeout_s=60.0, prazo_total_s=60.0).prazo_total_s == 60.0
+
+
+def test_prazo_total_menor_que_timeout_falha_com_mensagem_clara() -> None:
+    with pytest.raises(ValidationError, match="prazo_total_s não pode ser menor que timeout_s"):
+        ConfigModelo(slug="x", timeout_s=150.0)
+
+
+@pytest.mark.parametrize("prazo", [0, -1.0, float("inf"), float("nan")])
+def test_prazo_total_precisa_ser_positivo_e_finito(prazo: float) -> None:
+    with pytest.raises(ValidationError):
+        ConfigModelo(slug="x", prazo_total_s=prazo)
+
+
+def test_prazo_total_do_ambiente_e_lido() -> None:
+    config = config_de_ambiente({"OPENROUTER_MODELO": "x", "OPENROUTER_PRAZO_TOTAL": " 300 "})
+    assert config.prazo_total_s == 300.0
+
+
+def test_prazo_total_vazio_no_ambiente_conta_como_ausente() -> None:
+    config = config_de_ambiente({"OPENROUTER_MODELO": "x", "OPENROUTER_PRAZO_TOTAL": " "})
+    assert config.prazo_total_s == 120.0
+
+
+@pytest.mark.parametrize("bruto", ["rápido", "1.5.2"])
+def test_prazo_total_invalido_cita_so_o_nome_da_variavel(bruto: str) -> None:
+    with pytest.raises(ValueError, match="OPENROUTER_PRAZO_TOTAL deve ser um número") as erro:
+        config_de_ambiente({"OPENROUTER_MODELO": "x", "OPENROUTER_PRAZO_TOTAL": bruto})
+    assert bruto not in str(erro.value)
+
+
+@pytest.mark.parametrize("bruto", ["0", "-5", "nan", "inf"])
+def test_prazo_total_nao_positivo_ou_nao_finito_no_ambiente_e_recusado(bruto: str) -> None:
+    with pytest.raises(ValueError, match="OPENROUTER_PRAZO_TOTAL deve ser um número positivo"):
+        config_de_ambiente({"OPENROUTER_MODELO": "x", "OPENROUTER_PRAZO_TOTAL": bruto})
+
+
+def test_prazo_total_menor_que_o_timeout_padrao_e_recusado_no_ambiente() -> None:
+    with pytest.raises(ValidationError, match="prazo_total_s"):
+        config_de_ambiente({"OPENROUTER_MODELO": "x", "OPENROUTER_PRAZO_TOTAL": "30"})

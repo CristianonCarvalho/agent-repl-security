@@ -5,8 +5,11 @@ contêiner real estão em test_loop_docker.py.
 """
 
 import json
+import threading
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from types import SimpleNamespace
 
 from hypothesis import given, settings
 from hypothesis import strategies as st
@@ -15,6 +18,8 @@ from pydantic import BaseModel
 from harness.host.perfil import Perfil, perfil_por_nome
 from harness.host.registry import Nivel, Registro
 from harness.llm.base import LLMFalso, Mensagem, ModeloLLM, RespostaLLM
+from harness.llm.config import ConfigModelo
+from harness.llm.openrouter import ClienteOpenRouter
 from harness.orchestrator.loop import (
     Evento,
     MotivoTermino,
@@ -750,3 +755,43 @@ def test_a_mesma_chamada_passa_quando_o_perfil_concede_a_ferramenta() -> None:
     # Primeira célula (a chamada à ferramenta concedida) passa na verificação e é executada.
     assert sandbox.execucoes[0].code == "print(tools.teste.oculta())"
     assert resultado.passos[0].problemas_estaticos == ()
+
+
+class _ClientePresoAteOPrazo:
+    """Cliente do SDK que não responde até ser liberado. Quem o usa libera o evento no fim."""
+
+    def __init__(self, evento: threading.Event) -> None:
+        self._evento = evento
+        self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._criar))
+
+    def _criar(self, **kwargs: object) -> object:
+        self._evento.wait(10)
+        raise RuntimeError("corpo secreto da resposta que não deve vazar")
+
+
+def test_prazo_estourado_no_cliente_termina_com_erro_llm_sem_travar_nem_vazar() -> None:
+    evento = threading.Event()
+    sandbox = SandboxFalso()
+    try:
+        modelo = ClienteOpenRouter(
+            ConfigModelo(slug="x", timeout_s=0.2, prazo_total_s=0.3),
+            "chave-falsa-de-teste-123",
+            cliente=_ClientePresoAteOPrazo(evento),
+        )
+        inicio = time.monotonic()
+        resultado = _orquestrador(modelo, sandbox).executar_pedido("Pedido")
+        decorrido = time.monotonic() - inicio
+    finally:
+        evento.set()
+        for thread in threading.enumerate():
+            if thread.name == "openrouter-tentativa":
+                thread.join(timeout=5)
+
+    assert decorrido < 0.3 + 1.0
+    assert resultado.motivo is MotivoTermino.ERRO_LLM
+    assert resultado.completo is False
+    assert resultado.resposta == ""
+    assert sandbox.fechamentos == 1
+    textos = " ".join(passo.observacao for passo in resultado.passos)
+    assert "corpo secreto" not in textos
+    assert "chave-falsa" not in textos

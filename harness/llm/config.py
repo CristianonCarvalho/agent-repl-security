@@ -7,8 +7,11 @@ aparece em `ConfigModelo`.
 Decisões deste módulo (não estão na spec):
 - `slug` não tem valor padrão: o snapshot exato do DeepSeek V4.1 Flash ainda será confirmado.
   Vem de `OPENROUTER_MODELO`, e a ausência dele é erro claro em `config_de_ambiente`.
-- Variáveis opcionais: `OPENROUTER_TEMPERATURA`, `OPENROUTER_SEED` e `OPENROUTER_FALLBACK`
-  (1/0, true/false, sim/não, yes/no). Vazia ou ausente conta como não definida.
+- Variáveis opcionais: `OPENROUTER_TEMPERATURA`, `OPENROUTER_SEED`, `OPENROUTER_FALLBACK`
+  (1/0, true/false, sim/não, yes/no) e `OPENROUTER_PRAZO_TOTAL` (segundos, finito e positivo;
+  padrão 120). Vazia ou ausente conta como não definida.
+- `prazo_total_s` não pode ser menor que `timeout_s`: o prazo da chamada inteira tem de caber
+  pelo menos uma tentativa.
 - `carregar_env` é um leitor mínimo de `.env`, sem dependência extra. Ele não altera
   `os.environ`: quem chama decide a precedência, por exemplo
   `{**carregar_env(caminho), **os.environ}`. Não remove comentários no fim da linha, porque
@@ -16,11 +19,12 @@ Decisões deste módulo (não estão na spec):
 - Mensagens de erro citam o nome da variável, nunca o seu valor.
 """
 
+import math
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Final
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 URL_PADRAO: Final = "https://openrouter.ai/api/v1"
 _VERDADEIROS: Final = frozenset({"1", "true", "sim", "yes", "on"})
@@ -38,8 +42,20 @@ class ConfigModelo(BaseModel):
     seed: int | None = None
     fallback_provedor: bool = False
     timeout_s: float = Field(default=60.0, gt=0)
+    # Prazo de uma chamada inteira a `responder`, com todas as tentativas e esperas. O timeout
+    # por tentativa (`timeout_s`) só limita cada operação de socket, então precisa deste teto.
+    prazo_total_s: float = Field(default=120.0, gt=0, allow_inf_nan=False)
     max_tentativas: int = Field(default=3, ge=1)
     max_tokens_saida: int | None = Field(default=None, ge=1)
+
+    @model_validator(mode="after")
+    def _prazo_cobre_a_tentativa(self) -> "ConfigModelo":
+        if self.prazo_total_s < self.timeout_s:
+            raise ValueError(
+                "prazo_total_s não pode ser menor que timeout_s: o prazo da chamada inteira "
+                "tem de cobrir pelo menos uma tentativa"
+            )
+        return self
 
 
 def config_de_ambiente(env: Mapping[str, str]) -> ConfigModelo:
@@ -62,6 +78,12 @@ def config_de_ambiente(env: Mapping[str, str]) -> ConfigModelo:
     fallback = _bool_opcional(env, "OPENROUTER_FALLBACK")
     if fallback is not None:
         campos["fallback_provedor"] = fallback
+    prazo = _float_opcional(env, "OPENROUTER_PRAZO_TOTAL")
+    if prazo is not None:
+        # Checado aqui e não só pelo Pydantic: a mensagem do Pydantic repete o valor recebido.
+        if not math.isfinite(prazo) or prazo <= 0:
+            raise ValueError("OPENROUTER_PRAZO_TOTAL deve ser um número positivo e finito")
+        campos["prazo_total_s"] = prazo
     return ConfigModelo(**campos)
 
 

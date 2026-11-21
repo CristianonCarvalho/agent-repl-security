@@ -17,8 +17,20 @@ Decisões deste módulo (não estão na spec):
   corpo, que o OpenRouter acrescenta). Se faltarem, ficam None, sem inventar valor.
 - `custo` vem de `usage.cost`, quando o OpenRouter envia; senão None.
 - A chave não fica em atributo do cliente: ela só serve para criar o SDK.
+- Prazo total por chamada a `responder` (`prazo_total_s`, padrão 120 s), com todas as
+  tentativas e esperas. O `timeout` do SDK vale por operação de socket e não basta: um
+  provedor que mantém a conexão aberta sem responder prenderia o loop. Por isso cada tentativa
+  roda numa thread daemon própria, e o chamador espera com `Event.wait` só o restante do prazo.
+  O `timeout` passado ao SDK é min(`timeout_s`, restante).
+- Se a tentativa não termina até o fim do prazo, `responder` levanta `ErroLLM` de prazo e não
+  repete. A thread abandonada não altera estado do cliente, e o resultado tardio é descartado.
+  Limitação: a requisição HTTP pode continuar em segundo plano até o SDK desistir; o pedido
+  é que não espera por ela.
+- Erro transitório com prazo restante: a repetição segue as esperas de 1, 2, 4 s. Se a espera
+  já não cabe no prazo restante, falha logo com o ErroLLM de prazo, sem dormir.
 """
 
+import threading
 import time
 from collections.abc import Callable, Sequence
 from typing import Any
@@ -29,11 +41,25 @@ from harness.llm.base import ErroLLM, Mensagem, RespostaLLM
 from harness.llm.config import ConfigModelo
 
 
+class _Tentativa:
+    """Resultado de uma tentativa. A thread da tentativa preenche e sinaliza `pronta`.
+
+    Só o chamador lê os campos, e só depois de `pronta` estar ligado. Uma tentativa abandonada
+    pelo prazo escreve aqui sem que ninguém leia: o resultado tardio é descartado.
+    """
+
+    def __init__(self) -> None:
+        self.pronta = threading.Event()
+        self.resposta: Any = None
+        self.erro: BaseException | None = None
+
+
 class ClienteOpenRouter:
     """Implementa `ModeloLLM` falando com o OpenRouter pelo SDK `openai`.
 
     `cliente` é injetável: qualquer objeto com `.chat.completions.create(...)` no formato do
-    SDK. Sem ele, cria-se `openai.OpenAI` com a chave e a configuração.
+    SDK. Sem ele, cria-se `openai.OpenAI` com a chave e a configuração. O cliente injetado é
+    chamado de uma thread de tentativa, não da thread que chama `responder`.
     """
 
     def __init__(
@@ -42,25 +68,76 @@ class ClienteOpenRouter:
         api_key: str,
         cliente: Any | None = None,
         dormir: Callable[[float], None] = time.sleep,
+        relogio: Callable[[], float] = time.monotonic,
     ) -> None:
         self._config = config
         self._cliente: Any = cliente if cliente is not None else _criar_sdk(config, api_key)
         self._dormir = dormir
+        self._relogio = relogio
 
     def responder(self, mensagens: Sequence[Mensagem]) -> RespostaLLM:
-        """Envia o histórico ao modelo e devolve a resposta. Levanta `ErroLLM` se falhar."""
+        """Envia o histórico ao modelo e devolve a resposta. Levanta `ErroLLM` se falhar.
+
+        O prazo `prazo_total_s` cobre todas as tentativas e esperas desta chamada.
+        """
         parametros = self._parametros(mensagens)
-        tentativa = 0
+        inicio = self._relogio()
+        tentativa_numero = 0
         while True:
-            tentativa += 1
-            try:
-                resposta = self._cliente.chat.completions.create(**parametros)
-            except Exception as erro:
-                if _transitorio(erro) and tentativa < self._config.max_tentativas:
-                    self._dormir(float(2 ** (tentativa - 1)))
-                    continue
-                raise ErroLLM(_mensagem_de_erro(erro, tentativa)) from None
-            return _converter(resposta)
+            tentativa_numero += 1
+            if self._restante(inicio) <= 0:
+                raise self._erro_de_prazo()
+            tentativa = self._tentar(parametros, self._restante(inicio))
+            if tentativa is None:
+                raise self._erro_de_prazo()
+            if tentativa.erro is None:
+                return _converter(tentativa.resposta)
+            erro = tentativa.erro
+            if not isinstance(erro, Exception):
+                # Interrupções (BaseException) não são classificadas: seguem como estavam.
+                raise erro
+            if not (_transitorio(erro) and tentativa_numero < self._config.max_tentativas):
+                raise ErroLLM(_mensagem_de_erro(erro, tentativa_numero)) from None
+            espera = float(2 ** (tentativa_numero - 1))
+            if espera >= self._restante(inicio):
+                raise self._erro_de_prazo()
+            self._dormir(espera)
+
+    def _tentar(self, parametros: dict[str, Any], restante: float) -> _Tentativa | None:
+        """Roda uma tentativa numa thread daemon. Devolve None se ela não termina no prazo."""
+        tentativa = _Tentativa()
+        pedido = {
+            **parametros,
+            "timeout": min(self._config.timeout_s, restante),
+        }
+        threading.Thread(
+            target=self._executar,
+            args=(pedido, tentativa),
+            name="openrouter-tentativa",
+            daemon=True,
+        ).start()
+        if not tentativa.pronta.wait(restante):
+            return None
+        return tentativa
+
+    def _executar(self, pedido: dict[str, Any], tentativa: _Tentativa) -> None:
+        """Corpo da thread: captura tudo, porque nada pode vazar para fora dela."""
+        try:
+            tentativa.resposta = self._cliente.chat.completions.create(**pedido)
+        except BaseException as erro:
+            tentativa.erro = erro
+        finally:
+            tentativa.pronta.set()
+
+    def _restante(self, inicio: float) -> float:
+        """Segundos que ainda restam do prazo total desta chamada."""
+        return self._config.prazo_total_s - (self._relogio() - inicio)
+
+    def _erro_de_prazo(self) -> ErroLLM:
+        # Genérico: sem corpo de resposta, headers ou chave.
+        return ErroLLM(
+            f"a chamada ao modelo passou do prazo total de {self._config.prazo_total_s:g} s"
+        )
 
     def _parametros(self, mensagens: Sequence[Mensagem]) -> dict[str, Any]:
         config = self._config

@@ -68,6 +68,8 @@ uv run python -m harness "Qual o total gasto pelo cliente Acme nos pedidos de ve
 
 `--dados` aponta para a pasta com um subdiretório por departamento (`vendas/`, `marketing/`...). O perfil define quais departamentos o contêiner enxerga. Opções: `--trace` (pasta do trace JSONL, padrão `traces`), `--imagem` (padrão `harness-sandbox:dev`), `--max-iteracoes` e `--contexto`. A saída traz resposta, fontes, motivo, iterações, tokens, custo e o caminho do trace. O código de saída é 0 quando o pedido termina com `FINAL`, 1 quando não termina e 2 para uso ou configuração inválidos.
 
+`OPENROUTER_PRAZO_TOTAL` (opcional, em segundos; padrão `120`) limita o tempo de uma chamada inteira ao modelo, incluindo repetições e esperas. Ao estourar, o pedido termina com `erro_llm`. Precisa ser maior ou igual ao timeout por tentativa (60 s).
+
 Entrada grande (documento, tabela, JSON) vai com `--contexto`. O arquivo `.json` vira objeto ou lista; qualquer outro é lido como texto UTF-8. O conteúdo fica na variável `context` do REPL, e o modelo só vê o tipo, o tamanho e uma prévia curta:
 
 ```bash

@@ -3,7 +3,10 @@
 Nenhum teste aqui usa rede: o `cliente` é injetado e `dormir` só registra as esperas.
 """
 
-from collections.abc import Sequence
+import threading
+import time
+from collections.abc import Iterator, Sequence
+from dataclasses import dataclass
 from types import SimpleNamespace
 from typing import Any
 
@@ -20,6 +23,20 @@ REQ = httpx2.Request("POST", "https://openrouter.ai/api/v1/chat/completions")
 CHAVE_FALSA = "chave-falsa-de-teste-123"
 CORPO_DO_ERRO = "corpo detalhado da resposta que não deve vazar"
 MENSAGENS = [Mensagem(role="system", content="regras"), Mensagem(role="user", content="oi")]
+NOME_THREAD_TENTATIVA = "openrouter-tentativa"
+FOLGA_S = 1.0
+
+
+@dataclass
+class _Preso:
+    """Item do roteiro que simula um provedor que não responde: a chamada espera `evento`.
+
+    Depois de liberada, a chamada devolve (ou levanta) `depois`. Quem cria o evento deve
+    liberá-lo no fim do teste, para a thread da tentativa terminar.
+    """
+
+    evento: threading.Event
+    depois: object
 
 
 class ClienteFalso:
@@ -33,9 +50,43 @@ class ClienteFalso:
     def _criar(self, **kwargs: Any) -> Any:
         self.chamadas.append(kwargs)
         item = self._roteiro.pop(0)
+        if isinstance(item, _Preso):
+            item.evento.wait(10)
+            item = item.depois
         if isinstance(item, BaseException):
             raise item
         return item
+
+
+class RelogioFalso:
+    """Relógio controlado: só anda quando o teste (ou o `dormir` falso) manda."""
+
+    def __init__(self) -> None:
+        self.agora = 0.0
+
+    def __call__(self) -> float:
+        return self.agora
+
+    def avancar(self, segundos: float) -> None:
+        self.agora += segundos
+
+
+@pytest.fixture
+def liberacoes() -> Iterator[list[threading.Event]]:
+    """Guarda os eventos dos `_Preso` e, no fim, libera todos e espera as threads terminarem."""
+    eventos: list[threading.Event] = []
+    yield eventos
+    for evento in eventos:
+        evento.set()
+    _esperar_threads_de_tentativa()
+
+
+def _esperar_threads_de_tentativa() -> None:
+    for thread in threading.enumerate():
+        if thread.name == NOME_THREAD_TENTATIVA:
+            thread.join(timeout=5)
+    vivas = [t for t in threading.enumerate() if t.name == NOME_THREAD_TENTATIVA]
+    assert vivas == [], "thread de tentativa ficou viva depois do teste"
 
 
 def _completion(
@@ -311,3 +362,162 @@ def test_cliente_sdk_criado_internamente_nao_expoe_a_chave_no_repr() -> None:
 def test_chave_vazia_sem_cliente_injetado_e_recusada() -> None:
     with pytest.raises(ValueError, match="vazia"):
         ClienteOpenRouter(_config(), "")
+
+
+# --- Prazo total por chamada ---------------------------------------------------------------
+
+
+def _cliente_no_relogio(
+    roteiro: Sequence[object], relogio: RelogioFalso, **config: Any
+) -> tuple[ClienteOpenRouter, ClienteFalso, list[float]]:
+    """Como `_cliente`, mas o relógio é falso e cada espera de repetição o faz andar."""
+    falso = ClienteFalso(roteiro)
+    esperas: list[float] = []
+
+    def dormir(segundos: float) -> None:
+        esperas.append(segundos)
+        relogio.avancar(segundos)
+
+    cliente = ClienteOpenRouter(
+        _config(**config), CHAVE_FALSA, cliente=falso, dormir=dormir, relogio=relogio
+    )
+    return cliente, falso, esperas
+
+
+def test_prazo_total_padrao_e_120_segundos() -> None:
+    assert _config().prazo_total_s == 120.0
+
+
+def test_chamada_presa_levanta_erro_de_prazo_dentro_do_prazo_e_sem_repetir(
+    liberacoes: list[threading.Event],
+) -> None:
+    evento = threading.Event()
+    liberacoes.append(evento)
+    cliente, falso, esperas = _cliente(
+        [_Preso(evento, _completion()), _completion()], timeout_s=0.2, prazo_total_s=0.3
+    )
+
+    inicio = time.monotonic()
+    with pytest.raises(ErroLLM) as erro:
+        cliente.responder(MENSAGENS)
+    decorrido = time.monotonic() - inicio
+
+    assert decorrido < 0.3 + FOLGA_S
+    assert "passou do prazo total de 0.3 s" in str(erro.value)
+    assert len(falso.chamadas) == 1
+    assert esperas == []
+    assert erro.value.__cause__ is None
+    assert CORPO_DO_ERRO not in str(erro.value)
+    assert CHAVE_FALSA not in str(erro.value)
+
+
+def test_resposta_tardia_depois_do_prazo_e_descartada_sem_efeito(
+    liberacoes: list[threading.Event],
+) -> None:
+    evento = threading.Event()
+    liberacoes.append(evento)
+    cliente, falso, _ = _cliente(
+        [_Preso(evento, _completion(conteudo="tardia")), _completion(conteudo="nova")],
+        timeout_s=0.2,
+        prazo_total_s=0.3,
+    )
+
+    with pytest.raises(ErroLLM, match="prazo total"):
+        cliente.responder(MENSAGENS)
+    # A resposta tardia chega agora, numa thread já abandonada.
+    evento.set()
+    _esperar_threads_de_tentativa()
+
+    resposta = cliente.responder(MENSAGENS)
+
+    assert resposta.texto == "nova"
+    assert len(falso.chamadas) == 2
+
+
+def test_timeout_por_tentativa_seguido_de_resposta_dentro_do_prazo_funciona() -> None:
+    relogio = RelogioFalso()
+    cliente, falso, esperas = _cliente_no_relogio(
+        [openai.APITimeoutError(REQ), _completion()],
+        relogio,
+        timeout_s=0.5,
+        prazo_total_s=5.0,
+    )
+
+    assert cliente.responder(MENSAGENS).texto == "oi, tudo bem"
+    assert len(falso.chamadas) == 2
+    assert esperas == [1.0]
+
+
+def test_timeout_enviado_ao_sdk_e_limitado_pelo_restante_do_prazo() -> None:
+    relogio = RelogioFalso()
+    cliente, falso, esperas = _cliente_no_relogio(
+        [
+            _erro_http(openai.RateLimitError, 429),
+            _erro_http(openai.RateLimitError, 429),
+            _completion(),
+        ],
+        relogio,
+        timeout_s=2.0,
+        prazo_total_s=3.5,
+    )
+
+    assert cliente.responder(MENSAGENS).texto == "oi, tudo bem"
+    # Primeira tentativa: prazo cheio. Terceira: só 0,5 s restam, então o timeout encolhe.
+    assert [chamada["timeout"] for chamada in falso.chamadas] == [2.0, 2.0, 0.5]
+    assert esperas == [1.0, 2.0]
+
+
+def test_espera_de_repeticao_que_nao_cabe_no_prazo_falha_logo() -> None:
+    relogio = RelogioFalso()
+    cliente, falso, esperas = _cliente_no_relogio(
+        [
+            _erro_http(openai.RateLimitError, 429),
+            _erro_http(openai.RateLimitError, 429),
+            _completion(),
+        ],
+        relogio,
+        timeout_s=0.5,
+        prazo_total_s=2.5,
+    )
+
+    with pytest.raises(ErroLLM, match="passou do prazo total de 2.5 s") as erro:
+        cliente.responder(MENSAGENS)
+
+    # A espera de 2 s não cabe nos 1,5 s restantes: não dorme e não tenta de novo.
+    assert len(falso.chamadas) == 2
+    assert esperas == [1.0]
+    assert CORPO_DO_ERRO not in str(erro.value)
+
+
+def test_erro_de_prazo_nao_cita_corpo_de_resposta_nem_chave(
+    liberacoes: list[threading.Event],
+) -> None:
+    evento = threading.Event()
+    liberacoes.append(evento)
+    cliente, _, _ = _cliente(
+        [_Preso(evento, _erro_http(openai.InternalServerError, 500))],
+        timeout_s=0.2,
+        prazo_total_s=0.3,
+    )
+
+    with pytest.raises(ErroLLM) as erro:
+        cliente.responder(MENSAGENS)
+
+    assert CORPO_DO_ERRO not in str(erro.value)
+    assert CHAVE_FALSA not in str(erro.value)
+    assert erro.value.__cause__ is None
+
+
+def test_erro_inesperado_na_thread_chega_ao_chamador_como_erro_llm_sem_repetir() -> None:
+    cliente, falso, esperas = _cliente([RuntimeError("detalhe interno")])
+
+    with pytest.raises(ErroLLM, match="RuntimeError"):
+        cliente.responder(MENSAGENS)
+
+    assert len(falso.chamadas) == 1
+    assert esperas == []
+
+
+def test_prazo_total_menor_que_timeout_e_recusado() -> None:
+    with pytest.raises(ValueError, match="prazo_total_s"):
+        ConfigModelo(slug="x", timeout_s=60.0, prazo_total_s=30.0)
