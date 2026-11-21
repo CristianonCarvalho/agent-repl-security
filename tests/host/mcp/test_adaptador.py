@@ -58,7 +58,8 @@ def _despachar(registro: Registro, perfil: Perfil, nome: str, **args: Any) -> To
 
 @pytest.fixture
 def perfil() -> Perfil:
-    return perfil_por_nome("Vendas")
+    # Vendas com as ferramentas do servidor falso concedidas (D14): o teste chama todas elas.
+    return perfil_por_nome("Vendas").com_concessoes(FERRAMENTAS_VALIDAS)
 
 
 @pytest.fixture

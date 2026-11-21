@@ -80,13 +80,11 @@ class SandboxComMcp:
 
 
 class _Fabrica:
-    def __init__(self, sandbox: SandboxComMcp) -> None:
+    def __init__(self, sandbox: Any) -> None:
         self.sandbox = sandbox
         self.chamadas = 0
 
-    def __call__(
-        self, imagem: str, dados: dict[str, Path] | None = None, **_: Any
-    ) -> SandboxComMcp:
+    def __call__(self, imagem: str, dados: dict[str, Path] | None = None, **_: Any) -> Any:
         self.chamadas += 1
         return self.sandbox
 
@@ -153,6 +151,89 @@ def test_ferramenta_mcp_e_chamada_pelo_despachante_e_o_servidor_fecha(
         if linha["tipo"] == "chamada_ferramenta"
     ]
     assert chamadas == ["falso.eco"]
+
+
+# --- Concessões: leitura visível e chamável, escrita externa invisível ------------------
+
+
+class SandboxDeChamadas:
+    """Sandbox falso: na primeira célula manda as chamadas dadas pelo despachante; depois, FINAL."""
+
+    def __init__(self, chamadas: list[ToolCall]) -> None:
+        self._chamadas = chamadas
+        self.resultados: list[ToolResult] = []
+        self.execucoes = 0
+
+    def start(self) -> None:
+        pass
+
+    def carregar_contexto(self, valor: Any) -> None:
+        pass
+
+    def executar_detalhado(
+        self,
+        cell_id: int,
+        code: str,
+        timeout_s: float,
+        despachante: Callable[[ToolCall], ToolResult] | None = None,
+    ) -> ResultadoExecucao:
+        self.execucoes += 1
+        if self.execucoes == 1 and despachante is not None:
+            for chamada in self._chamadas:
+                self.resultados.append(despachante(chamada))
+            done = ExecDone(
+                cell_id=cell_id, stdout="", stderr="", exception=None, duration_ms=1, final=None
+            )
+            return ResultadoExecucao(done=done, ferramentas={})
+        done = ExecDone(
+            cell_id=cell_id,
+            stdout="",
+            stderr="",
+            exception=None,
+            duration_ms=1,
+            final=RESPOSTA_FINAL,
+        )
+        return ResultadoExecucao(done=done, ferramentas={})
+
+    def reiniciar(self) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+
+def test_mcp_de_leitura_aparece_na_busca_e_escrita_externa_fica_invisivel(
+    dados: Path, tmp_path: Path
+) -> None:
+    # `eco` é de leitura e `ambiente` (fora da lista `leitura`) é de escrita externa.
+    mcp = _config(tmp_path, {"falso": _servidor()})
+    chamadas = [
+        ToolCall(call_id="b1", name="descoberta.buscar", args={"query": "eco", "limit": 20}),
+        ToolCall(call_id="b2", name="descoberta.buscar", args={"query": "ambiente", "limit": 20}),
+        ToolCall(call_id="d1", name="descoberta.descrever", args={"name": "falso.ambiente"}),
+        ToolCall(call_id="c1", name="falso.ambiente", args={}),
+    ]
+    sandbox = SandboxDeChamadas(chamadas)
+    codigo = main(
+        _argv(dados, tmp_path / "traces", mcp),
+        modelo=LLMFalso(["```python\nprint(1)\n```", FINAL_OK]),
+        saida=StringIO(),
+        fabrica_sandbox=_Fabrica(sandbox),
+    )
+
+    assert codigo == 0
+    busca_eco, busca_ambiente, descrever, executar = sandbox.resultados
+    assert busca_eco.ok is True
+    nomes_eco = [item["nome"] for item in busca_eco.data]
+    assert "falso.eco" in nomes_eco
+    assert busca_ambiente.ok is True
+    assert "falso.ambiente" not in [item["nome"] for item in busca_ambiente.data]
+    # Escrita externa não concedida responde como ferramenta inexistente, sem executar.
+    # Como a inexistente: a sugestão vem só das ferramentas visíveis (`falso.eco`).
+    assert descrever.error == (
+        "a ferramenta 'falso.ambiente' não existe; talvez você quis dizer: falso.eco"
+    )
+    assert executar.error == "a ferramenta 'falso.ambiente' não existe"
 
 
 # --- Configuração inválida: código 2 antes do sandbox -----------------------------------

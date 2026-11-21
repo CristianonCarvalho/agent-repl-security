@@ -32,6 +32,8 @@ from harness.sandbox.docker_sandbox import (
 from harness.sandbox.protocol import ExecDone, RespostaFinal, ToolCall, ToolResult
 
 PERFIL: Perfil = perfil_por_nome("Vendas")
+# O mesmo perfil com as ferramentas `teste.*` dos testes de limite de resultado concedidas.
+PERFIL_COM_TESTES: Perfil = PERFIL.com_concessoes({"teste.*"})
 FINAL_OK = "```python\nFINAL('Resposta pronta', ['vendas/pedidos.csv'])\n```"
 RESPOSTA_FINAL = RespostaFinal(answer="Resposta pronta", sources=["vendas/pedidos.csv"])
 
@@ -251,7 +253,7 @@ def test_contagem_de_tokens_e_somada_e_hash_do_prompt_registrado() -> None:
 
     assert resultado.tokens_entrada == 30
     assert resultado.tokens_saida == 12
-    esperado = montar_prompt_sistema(_registro()).hash_sha256
+    esperado = montar_prompt_sistema(_registro(), PERFIL).hash_sha256
     assert resultado.hash_prompt == esperado
 
 
@@ -632,7 +634,7 @@ def test_resultado_acima_do_limite_vira_erro_e_aparece_no_evento_chamada_ferrame
     modelo = LLMFalso([FINAL_OK])
     recebidos: list[Evento] = []
     resultado = Orquestrador(
-        modelo, sandbox, registro, PERFIL, eventos=recebidos.append
+        modelo, sandbox, registro, PERFIL_COM_TESTES, eventos=recebidos.append
     ).executar_pedido("Pedido")
 
     # O sandbox recebe ok=False, sem o conteúdo, e o pedido segue normalmente.
@@ -660,7 +662,7 @@ def test_resultado_dentro_do_limite_gera_evento_com_ok_verdadeiro() -> None:
     sandbox = SandboxComFerramenta(ToolCall(call_id="c1", name="teste.pequeno", args={}))
     recebidos: list[Evento] = []
     Orquestrador(
-        LLMFalso([FINAL_OK]), sandbox, registro, PERFIL, eventos=recebidos.append
+        LLMFalso([FINAL_OK]), sandbox, registro, PERFIL_COM_TESTES, eventos=recebidos.append
     ).executar_pedido("Pedido")
 
     evento = next(e for e in recebidos if e.tipo == "chamada_ferramenta").dados
@@ -706,3 +708,45 @@ def test_loop_com_textos_arbitrarios_sempre_termina_sem_levantar(
     assert isinstance(resultado.motivo, MotivoTermino)
     assert modelo.chamadas <= maximo + 1
     assert sandbox.fechamentos == 1
+
+
+# --- Concessões (D14): a verificação estática usa só as ferramentas visíveis ----------------
+
+
+def test_chamada_a_ferramenta_negada_e_reprovada_como_inexistente_sem_executar() -> None:
+    registro = _registro()
+    registro.ferramenta(nome="teste.oculta", nivel=Nivel.LEITURA, descricao="x", args=_SemArgs)(
+        lambda args, perfil: []
+    )
+    sem_a_ferramenta = _registro()
+    codigo = "```python\nprint(tools.teste.oculta())\n```"
+
+    negada_sandbox = SandboxFalso()
+    negada = Orquestrador(LLMFalso([codigo] * 3), negada_sandbox, registro, PERFIL).executar_pedido(
+        "Pedido"
+    )
+    inexistente = Orquestrador(
+        LLMFalso([codigo] * 3), SandboxFalso(), sem_a_ferramenta, PERFIL
+    ).executar_pedido("Pedido")
+
+    # Nada foi executado, e o problema apontado é o mesmo de uma ferramenta que não existe.
+    assert negada_sandbox.execucoes == []
+    assert negada.passos[0].problemas_estaticos == inexistente.passos[0].problemas_estaticos
+    assert "ferramenta desconhecida: 'tools.teste.oculta'" in negada.passos[0].observacao
+
+
+def test_a_mesma_chamada_passa_quando_o_perfil_concede_a_ferramenta() -> None:
+    registro = _registro()
+    registro.ferramenta(nome="teste.oculta", nivel=Nivel.LEITURA, descricao="x", args=_SemArgs)(
+        lambda args, perfil: []
+    )
+    codigo = "```python\nprint(tools.teste.oculta())\n```"
+    sandbox = SandboxFalso([Celula(stdout="[]\n")])
+
+    resultado = Orquestrador(
+        LLMFalso([codigo, FINAL_OK]), sandbox, registro, PERFIL.com_concessoes({"teste.*"})
+    ).executar_pedido("Pedido")
+
+    # Primeira célula (a chamada à ferramenta concedida) passa na verificação e é executada.
+    assert sandbox.execucoes[0].code == "print(tools.teste.oculta())"
+    assert resultado.passos[0].problemas_estaticos == ()

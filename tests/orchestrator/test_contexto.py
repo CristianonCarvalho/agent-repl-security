@@ -174,7 +174,7 @@ def test_hash_do_prompt_de_sistema_e_o_mesmo_com_e_sem_contexto() -> None:
 
 
 def test_prompt_de_sistema_explica_context_e_context_info() -> None:
-    texto = montar_prompt_sistema(Registro()).texto
+    texto = montar_prompt_sistema(Registro(), PERFIL).texto
     assert "`context`" in texto
     assert "context_info()" in texto
     assert "Nunca imprima o contexto inteiro" in texto

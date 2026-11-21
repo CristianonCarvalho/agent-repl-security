@@ -24,7 +24,8 @@ Decisões deste módulo (não estão na spec):
 - `--mcp ARQUIVO`: configuração dos servidores MCP (stdio). Arquivo ausente, inválido ou com
   nome de grupo repetido sai com código 2, antes de iniciar o sandbox. Os servidores sobem
   depois do sandbox e são SEMPRE fechados ao fim do pedido (try/finally), inclusive em erro. Um
-  servidor que não inicia vira um aviso e não impede o pedido.
+  servidor que não inicia vira um aviso e não impede o pedido. Só as ferramentas MCP de leitura
+  são concedidas ao perfil (D14); as de escrita externa não aparecem nem podem ser chamadas.
 """
 
 import argparse
@@ -39,7 +40,7 @@ from typing import Final, Protocol, TextIO
 from harness.host.mcp.adaptador import GerenteMcp, registrar_servidores_mcp, verificar_nomes_mcp
 from harness.host.mcp.config import ConfigMcp, ErroConfigMcp, carregar_config_mcp
 from harness.host.perfil import PERFIS, montagens_do_perfil, perfil_por_nome
-from harness.host.registry import Registro
+from harness.host.registry import Nivel, Registro
 from harness.host.tools import registrar_todas
 from harness.llm.base import ModeloLLM
 from harness.llm.config import carregar_env, config_de_ambiente
@@ -321,6 +322,14 @@ def main(
         if mcp_config is not None:
             gerente = registrar_servidores_mcp(registro, mcp_config)
             _avisar_mcp(saida, gerente)
+            # Só as ferramentas MCP de leitura são concedidas; as de escrita externa ficam
+            # invisíveis para o perfil (D14, versão mínima).
+            mcp = set(gerente.ferramentas)
+            perfil = perfil.com_concessoes(
+                ferramenta.nome
+                for ferramenta in registro.listar()
+                if ferramenta.nome in mcp and ferramenta.nivel is Nivel.LEITURA
+            )
     except BaseException:
         # Sem Orquestrador, ninguém mais fecharia o sandbox nem os servidores já iniciados.
         if gerente is not None:

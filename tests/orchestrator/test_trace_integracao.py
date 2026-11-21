@@ -101,7 +101,7 @@ def _orquestrador(
         modelo,
         sandbox,
         _registro(relogio),
-        PERFIL,
+        PERFIL.com_concessoes({"catalogo.buscar"}),
         relogio=relogio,
         eventos=eventos,
     )

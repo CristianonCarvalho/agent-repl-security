@@ -253,7 +253,7 @@ class Orquestrador:
         self, pedido: str, estado: _Estado, contexto: ValorContexto | None
     ) -> ResultadoPedido:
         estado.inicio = self._relogio()
-        prompt = montar_prompt_sistema(self._registro)
+        prompt = montar_prompt_sistema(self._registro, self._perfil)
         estado.hash_prompt = prompt.hash_sha256
         descricao = descrever_contexto(contexto) if contexto is not None else None
         conteudo = pedido if descricao is None else _mensagem_do_pedido(pedido, descricao)
@@ -261,7 +261,8 @@ class Orquestrador:
             Mensagem(role="system", content=prompt.texto),
             Mensagem(role="user", content=conteudo),
         ]
-        estado.nomes_ferramentas = frozenset(f.nome for f in self._registro.listar())
+        # Só as ferramentas visíveis ao perfil: a chamada a uma negada é reprovada como inexistente.
+        estado.nomes_ferramentas = frozenset(f.nome for f in self._registro.visiveis(self._perfil))
         despachante = self._registro.despachante(self._perfil)
         estado.despachante = self._instrumentar(despachante) if despachante is not None else None
         self._emitir(

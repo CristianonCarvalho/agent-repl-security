@@ -79,7 +79,7 @@ def test_ferramenta_mcp_no_repl_real_chega_a_observacao(
         "Tenho o resultado.\n```python\nFINAL('Eco feito', ['falso.eco'])\n```",
     ]
     trace = TraceJsonl(tmp_path / "traces", session_id="mcp")
-    perfil = perfil_por_nome("Vendas")
+    perfil = perfil_por_nome("Vendas").com_concessoes({"falso.eco"})
 
     with registrar_servidores_mcp(registro, config):
         resultado = Orquestrador(

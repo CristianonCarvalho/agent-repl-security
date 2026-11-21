@@ -144,12 +144,19 @@ class Registro:
         """Todas as ferramentas registradas, em ordem de nome (base do catálogo do prompt)."""
         return tuple(sorted(self._ferramentas.values(), key=lambda ferramenta: ferramenta.nome))
 
+    def visiveis(self, perfil: Perfil) -> tuple[Ferramenta, ...]:
+        """Só as ferramentas que o perfil pode chamar, em ordem de nome (D14).
+
+        É a lista que o prompt, a descoberta e a verificação estática usam.
+        """
+        return tuple(ferramenta for ferramenta in self.listar() if perfil.permite(ferramenta.nome))
+
     def despachar(self, chamada: ToolCall, perfil: Perfil) -> ToolResult:
         """Executa uma chamada e devolve o resultado. Nunca levanta exceção.
 
-        Qualquer falha (ferramenta inexistente, nível que exige aprovação, argumentos
-        inválidos, exceção na ferramenta ou resultado que não vira JSON) volta como
-        ToolResult com ok=False e uma mensagem em português.
+        Qualquer falha (ferramenta inexistente ou não concedida ao perfil, argumentos inválidos,
+        nível que exige aprovação, exceção na ferramenta ou resultado que não vira JSON) volta
+        como ToolResult com ok=False e uma mensagem em português.
         """
         try:
             return self._despachar(chamada, perfil)
@@ -162,20 +169,22 @@ class Registro:
     def _despachar(self, chamada: ToolCall, perfil: Perfil) -> ToolResult:
         nome = chamada.name
         ferramenta = self._ferramentas.get(nome)
-        if ferramenta is None:
+        # Ferramenta não concedida responde exatamente como a inexistente: o perfil não descobre
+        # o que existe. A função nunca é chamada nesse caso.
+        if ferramenta is None or not perfil.permite(nome):
             exibido = nome[:_TAMANHO_NOME_NA_MENSAGEM]
             return _resultado_de_erro(chamada.call_id, f"a ferramenta {exibido!r} não existe")
-        if ferramenta.nivel is not Nivel.LEITURA:
-            return _resultado_de_erro(
-                chamada.call_id,
-                f"a ferramenta '{nome}' é de nível {ferramenta.nivel.value} e exige aprovação "
-                "humana; a aprovação ainda não existe, então a chamada foi recusada",
-            )
         try:
             argumentos = ferramenta.args.model_validate(chamada.args)
         except ValidationError as erro:
             return _resultado_de_erro(
                 chamada.call_id, f"argumentos inválidos: {_mensagem_de_validacao(erro)}"
+            )
+        if ferramenta.nivel is not Nivel.LEITURA:
+            return _resultado_de_erro(
+                chamada.call_id,
+                f"a ferramenta '{nome}' é de nível {ferramenta.nivel.value} e exige aprovação "
+                "humana; a aprovação ainda não existe, então a chamada foi recusada",
             )
         try:
             resultado = ferramenta.funcao(argumentos, perfil)

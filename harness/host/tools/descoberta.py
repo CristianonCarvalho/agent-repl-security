@@ -70,13 +70,14 @@ def _palavras(texto: str) -> set[str]:
 def _visiveis(registro: Registro, perfil: Perfil) -> tuple[Ferramenta, ...]:
     """Ferramentas que a descoberta mostra ao perfil. Único ponto de filtragem.
 
-    Hoje o Perfil ainda não tem lista de ferramentas, então valem todas, exceto as do grupo
-    `descoberta`. A D14 (perfis por ferramenta) troca só este corpo para filtrar pelo que o
-    perfil pode usar; `buscar` e `descrever` não mudam. O parâmetro `perfil` já está aqui
-    por isso.
+    São as concedidas ao perfil (`Registro.visiveis`), menos as do grupo `descoberta`. `buscar`
+    e `descrever` passam só por aqui, então uma ferramenta não concedida não aparece em lugar
+    nenhum da descoberta.
     """
     return tuple(
-        ferramenta for ferramenta in registro.listar() if ferramenta.nome.split(".")[0] != GRUPO
+        ferramenta
+        for ferramenta in registro.visiveis(perfil)
+        if ferramenta.nome.split(".")[0] != GRUPO
     )
 
 

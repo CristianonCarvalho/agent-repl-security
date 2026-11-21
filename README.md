@@ -99,6 +99,7 @@ O limite do contexto é de 2 MiB (JSON canônico). Acima disso, o código de sa�
 - `leitura`: nomes de ferramentas tratadas como leitura. As demais são de escrita externa, e a chamada é recusada porque não há aprovação humana ainda.
 - Nome de servidor: letras minúsculas, dígitos e `_`, começando por letra. `catalogo` e `descoberta` são reservados. Nomes com dígito são aceitos na configuração, mas o registro não os aceita, então esse servidor não é iniciado e aparece num aviso.
 - Um servidor que não inicia gera um aviso, e o pedido continua com as demais ferramentas. Todos os servidores são fechados ao fim do pedido.
+- Concessões (D14): só as ferramentas listadas em `leitura` ficam visíveis e chamáveis pelo perfil. As demais (escrita externa) não aparecem na busca e são tratadas como ferramenta inexistente.
 
 ```bash
 uv run python -m harness "Quanto vendemos?" --perfil Vendas --dados ./dados --mcp ./mcp.json

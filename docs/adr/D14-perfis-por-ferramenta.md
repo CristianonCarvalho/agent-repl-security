@@ -1,6 +1,6 @@
 # D14 — Perfis por ferramenta (concessões) na v1
 
-- Status: proposta (ideia para a v1; não implementada)
+- Status: aceita (versão mínima)
 - Data: 20/11/2026
 - Relacionadas: D5 (ferramentas e MCP na v1), D10 (conteúdo não confiável por arquivo), seção Perfis de acesso da spec v0
 
@@ -50,3 +50,23 @@ Gradual. A montagem de `/dados` permanece como defesa em profundidade, e as conc
 - Perde-se a garantia estrutural para dados servidos por ferramenta: a política do registro vira o ponto único de falha e precisa de testes pesados, inclusive de propriedade com Hypothesis.
 - O tráfego de dados pela ponte exige tratar volume (limites, materialização em arquivo).
 - Depende da adoção de MCP ou de ferramentas de dados na v1; só então a decisão deve ser revisada e, se confirmada, passar a "aceita".
+
+## Implementação (T13)
+
+A versão mínima foi implementada: liga/desliga por ferramenta, sem escopo por parâmetro.
+
+- **Concessões no perfil.** `Perfil.concessoes` (`frozenset[str]`, vazio por padrão) lista o que o perfil pode chamar: um nome exato (`catalogo.listar`) ou um grupo inteiro (`descoberta.*`). Os nomes são validados no construtor (`grupo.nome` ou `grupo.*`, com `[a-z_]+`). `desc.*` não casa `descoberta.x`, e `eco.*` não casa `eco2.x`. Nome que não está no formato `grupo.nome` nunca é permitido. Os quatro perfis embutidos recebem `CONCESSOES_BASE` (`catalogo.listar` e `descoberta.*`), então o comportamento visível não muda.
+- **Negar por padrão, sem vazar.** O registro avalia a concessão antes de validar os argumentos e antes de chamar a função. Ferramenta não concedida responde exatamente como a inexistente (mesma mensagem, mesmo truncamento do nome), e a função nunca é chamada. A checagem de nível (aprovação) vem depois da validação. Antes desta tarefa, a validação vinha depois da checagem de nível; a ordem mudou só para ferramentas recusadas por nível, que agora mostram erro de argumentos quando os argumentos estão errados.
+- **Visibilidade.** `Registro.visiveis(perfil)` devolve só as ferramentas concedidas. A descoberta (`buscar` e `descrever`, sugestões incluídas), o prompt de sistema e a verificação estática usam essa lista. Para o modelo, uma ferramenta negada não existe.
+- **Prompt.** `montar_prompt_sistema(registro, perfil)` lista só os grupos com ferramenta visível ao perfil. O hash varia com os grupos do perfil, e nunca com descrições nem com o número de ferramentas dentro de um grupo já presente.
+- **MCP.** A CLI concede ao perfil só as ferramentas MCP de nível LEITURA (nome exato). As de escrita externa ficam invisíveis para o perfil e não podem ser chamadas. O modelo nem as encontra na busca.
+- **Transição.** A montagem de `/dados` continua como defesa em profundidade. Um teste de consistência confere que todo perfil que concede `catalogo.listar` tem departamentos e que as montagens batem com os departamentos.
+
+Testes: propriedades com Hypothesis (a função só roda quando `permite` é verdadeiro, e `permite` segue a regra de item exato ou curinga), Docker real (negada igual à inexistente, concedida funciona) e CLI (leitura visível e chamável, escrita externa invisível).
+
+### Fica para depois
+
+- Escopo por parâmetro, como `departamento` ou o nível de sensibilidade de cada chamada. A concessão hoje decide só se a ferramenta pode ser chamada.
+- Recursos declarados pela ferramenta (o `recurso` que a concessão decidiria), previstos na seção Decisão.
+- A revisão da decisão depende da adoção real de MCP ou de ferramentas de dados na v1.
+

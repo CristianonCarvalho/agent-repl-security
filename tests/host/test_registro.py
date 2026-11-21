@@ -16,6 +16,13 @@ from harness.host.perfil import Perfil, perfil_por_nome
 from harness.host.registry import LIMITE_RESULTADO_PADRAO, Nivel, Registro
 from harness.sandbox.protocol import ToolCall, ToolResult
 
+# Perfil de Vendas com as ferramentas `teste.*` concedidas: os testes do registro usam esse grupo.
+CONCESSAO_DE_TESTE: frozenset[str] = frozenset({"teste.*"})
+
+
+def _perfil_de_teste() -> Perfil:
+    return perfil_por_nome("Vendas").com_concessoes(CONCESSAO_DE_TESTE)
+
 
 class Entrada(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -62,7 +69,7 @@ def registro(chamadas: list[Any]) -> Registro:
 
 @pytest.fixture
 def perfil() -> Perfil:
-    return perfil_por_nome("Vendas")
+    return _perfil_de_teste()
 
 
 def _chamada(nome: str, args: dict[str, Any], call_id: str = "c1") -> ToolCall:
@@ -205,7 +212,7 @@ def test_limite_padrao_e_um_mebibyte() -> None:
     assert LIMITE_RESULTADO_PADRAO == 1024 * 1024
     # Sem argumento, o Registro usa o padrão: a string de 1 MiB - 2 letras fica exatamente no
     # limite (as aspas somam 2 bytes) e a de uma letra a mais é recusada.
-    perfil = perfil_por_nome("Vendas")
+    perfil = _perfil_de_teste()
     no_limite = Registro()
     no_limite.ferramenta(nome="teste.dado", nivel=Nivel.LEITURA, descricao="x", args=Entrada)(
         lambda args, perfil: "a" * (LIMITE_RESULTADO_PADRAO - 2)
@@ -290,3 +297,136 @@ def test_despachar_nunca_levanta_para_nome_e_args_arbitrarios(
     assert resultado.call_id == call_id
     # O resultado precisa ser serializável em JSON, seja sucesso ou erro.
     json.dumps(resultado.model_dump(mode="json"), allow_nan=False)
+
+
+# --- Concessões (D14): negar por padrão, sem vazar o que existe ----------------------------
+
+
+def _sem_concessao() -> Perfil:
+    """Vendas com a base de concessões dos perfis embutidos, sem nenhuma `teste.*`."""
+    return perfil_por_nome("Vendas")
+
+
+def _inexistente(nome: str, call_id: str = "c1") -> ToolResult:
+    """Resultado que um nome qualquer recebe quando não existe nenhuma ferramenta."""
+    return Registro().despachar(_chamada(nome, {"texto": "a"}, call_id=call_id), _sem_concessao())
+
+
+def test_ferramenta_nao_concedida_responde_igual_a_inexistente(
+    registro: Registro, chamadas: list[Any]
+) -> None:
+    negada = registro.despachar(_chamada("teste.eco", {"texto": "a"}), _sem_concessao())
+    assert negada == _inexistente("teste.eco")
+    assert negada.ok is False
+    assert negada.error == "a ferramenta 'teste.eco' não existe"
+
+
+def test_ferramenta_nao_concedida_nao_executa_a_funcao(
+    registro: Registro, chamadas: list[Any]
+) -> None:
+    registro.despachar(_chamada("teste.eco", {"texto": "a"}), _sem_concessao())
+    registro.despachar(_chamada("teste.escreve", {"texto": "a"}), _sem_concessao())
+    assert chamadas == []
+
+
+def test_ferramenta_nao_concedida_nao_chega_a_validar_argumentos(registro: Registro) -> None:
+    # Argumentos inválidos e nível de escrita não aparecem para quem não tem a concessão.
+    casos: list[tuple[str, dict[str, Any]]] = [
+        ("teste.eco", {"zz": 1}),
+        ("teste.escreve", {"texto": "a"}),
+    ]
+    for nome, args in casos:
+        resultado = registro.despachar(_chamada(nome, args), _sem_concessao())
+        assert resultado == _inexistente(nome), nome
+
+
+def test_nome_longo_nao_concedido_e_truncado_como_inexistente(registro: Registro) -> None:
+    nome = "teste." + "x" * 300
+    resultado = registro.despachar(_chamada(nome, {}), _sem_concessao())
+    assert resultado == _inexistente(nome)
+    assert resultado.error is not None
+    assert "x" * 81 not in resultado.error
+
+
+def test_ferramenta_concedida_passa_pela_concessao(registro: Registro, chamadas: list[Any]) -> None:
+    resultado = registro.despachar(_chamada("teste.eco", {"texto": "a"}), _perfil_de_teste())
+    assert resultado.ok is True
+    assert chamadas == ["Vendas"]
+
+
+def test_concessao_exata_libera_so_aquele_nome(registro: Registro, chamadas: list[Any]) -> None:
+    perfil = _sem_concessao().com_concessoes(["teste.eco"])
+    assert registro.despachar(_chamada("teste.eco", {"texto": "a"}), perfil).ok is True
+    negada = registro.despachar(_chamada("teste.explode", {"texto": "a"}), perfil)
+    assert negada == _inexistente("teste.explode")
+
+
+def test_ordem_e_concessao_depois_validacao_depois_nivel(
+    registro: Registro, chamadas: list[Any]
+) -> None:
+    sem = _sem_concessao()
+    # Sem concessão, o nível de escrita não chega a ser avaliado.
+    negada = registro.despachar(_chamada("teste.escreve", {}), sem)
+    assert negada.error == "a ferramenta 'teste.escreve' não existe"
+    # Com concessão, a validação vem antes da checagem de nível.
+    invalido = registro.despachar(_chamada("teste.escreve", {"zz": 1}), _perfil_de_teste())
+    assert invalido.error is not None and invalido.error.startswith("argumentos inválidos")
+    # Com concessão e argumentos válidos, o nível de escrita recusa a chamada sem executar.
+    recusada = registro.despachar(_chamada("teste.escreve", {"texto": "a"}), _perfil_de_teste())
+    assert recusada.error is not None and "exige aprovação humana" in recusada.error
+    assert chamadas == []
+
+
+def test_visiveis_traz_so_as_concedidas_em_ordem_de_nome(chamadas: list[Any]) -> None:
+    reg = Registro()
+    for nome in ["teste.zeta", "grupo.x", "teste.eco", "outro.y"]:
+        reg.ferramenta(nome=nome, nivel=Nivel.LEITURA, descricao="x", args=Entrada)(
+            lambda args, perfil: None
+        )
+    perfil = _sem_concessao().com_concessoes(["teste.*", "grupo.x"])
+    assert [f.nome for f in reg.visiveis(perfil)] == ["grupo.x", "teste.eco", "teste.zeta"]
+    assert [f.nome for f in reg.visiveis(_sem_concessao())] == []
+
+
+# --- Propriedade de concessões (Hypothesis) -------------------------------------------------
+
+_NOMES_DE_TESTE = st.one_of(
+    st.text(max_size=40),
+    st.sampled_from(["teste.eco", "teste.escreve", "teste.*", "teste.", ".eco", "eco.*"]),
+    st.from_regex(r"teste\.[a-z]{0,4}", fullmatch=True),
+)
+_ITENS_DE_CONCESSAO = st.one_of(
+    st.sampled_from(["teste.eco", "teste.escreve", "teste.explode", "teste.*", "outro.*"]),
+    st.from_regex(r"[a-z]{1,4}\.[a-z]{1,4}", fullmatch=True),
+    st.from_regex(r"[a-z]{1,4}\.\*", fullmatch=True),
+)
+
+
+@settings(max_examples=400, deadline=None)
+@given(nome=_NOMES_DE_TESTE, concessoes=st.frozensets(_ITENS_DE_CONCESSAO, max_size=5))
+def test_funcao_so_executa_quando_o_perfil_permite_o_nome(
+    nome: str, concessoes: frozenset[str]
+) -> None:
+    """Para qualquer nome e qualquer conjunto de concessões válido, o despacho é fiel à regra."""
+    chamadas: list[str] = []
+
+    def eco(args: Entrada, perfil: Perfil) -> Any:
+        chamadas.append(args.texto)
+        return args.texto
+
+    reg = Registro()
+    reg.ferramenta(nome="teste.eco", nivel=Nivel.LEITURA, descricao="x", args=Entrada)(eco)
+    perfil = Perfil(nome="P", departamentos=frozenset(), concessoes=concessoes)
+
+    resultado = reg.despachar(_chamada(nome, {"texto": "a"}), perfil)
+
+    permitido = perfil.permite(nome)
+    if not permitido:
+        assert chamadas == []
+        assert resultado == Registro().despachar(_chamada(nome, {"texto": "a"}), perfil)
+    if chamadas:
+        assert nome == "teste.eco"
+        assert permitido is True
+    if permitido and nome == "teste.eco":
+        assert chamadas == ["a"]
+        assert resultado.ok is True

@@ -47,7 +47,8 @@ def registro(raiz: Path) -> Registro:
 
 @pytest.fixture
 def perfil() -> Perfil:
-    return perfil_por_nome("Vendas")
+    # Vendas com o grupo `grupo.*` concedido: as ferramentas de teste deste módulo usam esse grupo.
+    return perfil_por_nome("Vendas").com_concessoes({"grupo.*"})
 
 
 def _despachar(
@@ -350,3 +351,61 @@ def test_descoberta_e_registrada_como_leitura_sem_flags_de_privacidade(
         assert ferramenta.dado_privado is False
         assert ferramenta.conteudo_nao_confiavel is False
         assert ferramenta.canal_externo is False
+
+
+# --- Concessões (D14): a descoberta mostra só o que o perfil pode chamar -------------------
+
+
+def test_busca_nao_mostra_ferramenta_nao_concedida(perfil: Perfil) -> None:
+    reg = _com_descoberta()
+    _ferramenta(reg, "grupo.visivel", "Procura arquivos.")
+    _ferramenta(reg, "segredo.oculta", "Procura arquivos sigilosos.")
+    assert _buscar(reg, perfil, "arquivos") == ["grupo.visivel"]
+    assert _buscar(reg, perfil, "oculta") == []
+
+
+def test_busca_nao_mostra_ferramenta_sem_concessao_mesmo_do_mesmo_grupo() -> None:
+    # Concessão por nome exato: o irmão `grupo.escrita` no mesmo grupo fica invisível.
+    perfil = perfil_por_nome("Vendas").com_concessoes({"grupo.leitura"})
+    reg = _com_descoberta()
+    _ferramenta(reg, "grupo.leitura", "Consulta algo.")
+    reg.ferramenta(
+        nome="grupo.escrita",
+        nivel=Nivel.ESCRITA_EXTERNA,
+        descricao="Consulta algo.",
+        args=_SemArgs,
+    )(lambda a, p: None)
+    assert _buscar(reg, perfil, "consulta") == ["grupo.leitura"]
+
+
+def test_descrever_ferramenta_nao_concedida_responde_igual_a_inexistente(perfil: Perfil) -> None:
+    com_oculta = _com_descoberta()
+    _ferramenta(com_oculta, "grupo.visivel", "Procura.")
+    _ferramenta(com_oculta, "segredo.oculta", "Oculta.")
+    sem_oculta = _com_descoberta()
+    _ferramenta(sem_oculta, "grupo.visivel", "Procura.")
+
+    negada = _despachar(com_oculta, perfil, "descoberta.descrever", name="segredo.oculta")
+    inexistente = _despachar(sem_oculta, perfil, "descoberta.descrever", name="segredo.oculta")
+    assert negada == inexistente
+    assert negada[0] is False
+    assert negada[2] == "a ferramenta 'segredo.oculta' não existe"
+
+
+def test_descrever_nao_concedida_nao_revela_a_assinatura(perfil: Perfil) -> None:
+    reg = _com_descoberta()
+    _ferramenta(reg, "segredo.oculta", "Oculta.", _Exemplo)
+    ok, dados, _ = _despachar(reg, perfil, "descoberta.descrever", name="segredo.oculta")
+    assert ok is False
+    assert dados is None
+
+
+def test_sugestoes_nao_incluem_ferramentas_nao_concedidas(perfil: Perfil) -> None:
+    reg = _com_descoberta()
+    _ferramenta(reg, "grupo.relatorio", "Relatório.")
+    _ferramenta(reg, "segredo.relatorios", "Relatório sigiloso.")
+    ok, _, erro = _despachar(reg, perfil, "descoberta.descrever", name="grupo.relatorioz")
+    assert ok is False
+    assert erro is not None
+    assert "grupo.relatorio" in erro
+    assert "segredo.relatorios" not in erro
