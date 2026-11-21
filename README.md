@@ -109,6 +109,16 @@ uv run python -m harness "Quanto vendemos?" --perfil Vendas --dados ./dados --mc
 
 > **Aviso.** Ferramentas MCP são conteúdo não confiável e vêm de fora do harness (canal externo). O que elas devolvem entra na sessão como qualquer dado externo, e a política contra a *lethal trifecta* só chega na Fase 4. Use só servidores confiáveis e, por enquanto, só ferramentas de leitura.
 
+### Avaliações (`python -m harness.evals`)
+
+Roda o agente de verdade contra casos com resposta conhecida e mede a taxa de sucesso. Os dados são sintéticos e gerados por semente; cada caso roda várias vezes (D13) em contêineres novos. Gasta tokens reais, então tem teto de gasto. Precisa das mesmas variáveis de ambiente da CLI.
+
+```bash
+uv run python -m harness.evals --rodadas 3 --semente 42 --categoria consulta --teto-usd 1
+```
+
+O relatório JSON vai para `avaliacoes/` e traz taxa por caso, categoria e total, variação entre rodadas, custo e tokens. Códigos de saída: 0 sem problemas, 1 houve erro de infraestrutura, 2 uso ou configuração inválidos, 3 teto de gasto estourado. Por enquanto há 4 casos de exemplo (Consulta, Cruzamento, Conformidade e Permissão).
+
 ### Desenvolvimento
 
 Requer Python 3.12, [uv](https://docs.astral.sh/uv/) e Docker.

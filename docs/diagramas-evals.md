@@ -8,12 +8,12 @@ Estado de cada parte:
 | --- | --- | --- |
 | Gerador de dados sintéticos | T14 | Implementado |
 | Formato dos casos e correção por regras | T15 | Implementado |
-| Executor de avaliação e relatório | T16 | **Desenho**: ainda não existe código |
+| Executor de avaliação e relatório | T16 | Implementado (ainda sem execução real contra o modelo) |
 | Os 35 casos em 7 categorias | T17 | Planejado |
 | Linha de base com tool calling em JSON | T18 | Planejado |
 | Ataques de injeção plantados e medição | T19 | Planejado |
 
-Os diagramas marcados como **desenho** descrevem a T16 como foi proposta e podem mudar na implementação. Os diagramas são Mermaid e aparecem renderizados no GitHub.
+Os diagramas da T16 descrevem o desenho que foi implementado, com um ajuste: erros do modelo e do sandbox contam como falha de infraestrutura (diagrama 12). Os diagramas são Mermaid e aparecem renderizados no GitHub.
 
 ## 1. As peças e como se ligam
 
@@ -39,16 +39,97 @@ flowchart LR
     subgraph FEITO["Implementado"]
         GER
         COR
-    end
-    subgraph DESENHO["Desenho ou planejado"]
         EXE
         REL
+    end
+    subgraph PLANEJADO["Planejado"]
         CAS
         GATE
     end
 ```
 
-## 2. T14: geração dos dados
+## 2. Mapa de módulos dos evals
+
+Quem importa quem. Os módulos de `harness/evals/` formam camadas: os de baixo não conhecem os de cima, e só o `executor` e o `__main__` montam e rodam o agente. Os outros importam apenas tipos e constantes dele.
+
+```mermaid
+flowchart TB
+    subgraph EVALS["harness/evals"]
+        MAIN["__main__.py<br/>linha de comando, códigos de saída"]
+        EXE["executor.py<br/>rodadas, tetos, classificação"]
+        EXM["casos_exemplo.py<br/>4 casos a partir dos fatos"]
+        REL["relatorio.py<br/>agregação e JSON"]
+        COR["correcao.py<br/>números pt-BR e regras"]
+        CAS["casos.py<br/>Caso, Categoria, regras"]
+        DAD["dados.py<br/>gerador e FatosVerdadeiros"]
+    end
+
+    subgraph AGENTE["O agente que é avaliado"]
+        LOOP["orchestrator/loop.py<br/>Orquestrador, ResultadoPedido"]
+        REG["host/registry.py e host/tools"]
+        CATL["host/tools/catalogo.py<br/>nome do manifesto.json"]
+        PER["host/perfil.py"]
+        DKR["sandbox/docker_sandbox.py"]
+        TRC["telemetry/trace.py"]
+    end
+
+    subgraph LLMP["llm"]
+        BAS["base.py<br/>ModeloLLM, RespostaLLM"]
+        CNF["config.py"]
+        OPR["openrouter.py"]
+    end
+
+    subgraph LIBS["Só no desenvolvimento"]
+        OFF["openpyxl, python-docx, python-pptx"]
+    end
+
+    MAIN --> EXE
+    MAIN --> EXM
+    MAIN --> REL
+    MAIN --> CNF
+    MAIN --> OPR
+    MAIN --> LOOP
+
+    EXE --> COR
+    EXE --> DAD
+    EXE --> REL
+    EXE --> BAS
+    EXE --> LOOP
+    EXE --> REG
+    EXE --> PER
+    EXE --> DKR
+    EXE --> TRC
+
+    EXM --> CAS
+    EXM --> DAD
+    REL --> COR
+    COR --> CAS
+    COR --> LOOP
+    CAS --> PER
+    DAD --> OFF
+    DAD --> CATL
+```
+
+O mapa omite as setas que só importam tipos e que já aparecem por outro caminho (por exemplo, `__main__` para `casos` e `dados`).
+
+Pontos que o mapa mostra:
+
+- **`dados.py` e `casos.py` são a base.** O primeiro só depende das bibliotecas de Office (e do nome do `manifesto.json` do catálogo). O segundo só conhece os perfis, para validar o nome do perfil de cada caso.
+- **`correcao.py` não conhece o executor nem o relatório.** Ele só recebe um caso e um `ResultadoPedido`, por isso testa-se sem Docker e sem modelo.
+- **`executor.py` é o único ponto de ligação com o agente.** Modelo, sandbox, registro e trace entram por injeção, então os testes trocam tudo por falsos.
+- **Os módulos de `evals` não são importados pelo agente.** O orquestrador não sabe que existe avaliação, e a imagem do sandbox não leva nada de `harness/evals`.
+
+| Módulo | Responsabilidade |
+| --- | --- |
+| `dados.py` | Gerar os arquivos sintéticos com semente fixa e devolver os fatos verdadeiros |
+| `casos.py` | Formato do caso, categorias, situação e as 6 regras do gabarito |
+| `correcao.py` | Ler números em português do Brasil e aplicar as regras, devolvendo o veredito |
+| `casos_exemplo.py` | Montar os 4 casos de exemplo com valores vindos dos fatos |
+| `relatorio.py` | Classificação das rodadas, agregação, desvio e relatório em JSON |
+| `executor.py` | Rodar as rodadas, controlar tetos de gasto e classificar cada resultado |
+| `__main__.py` | Comando `python -m harness.evals` e códigos de saída |
+
+## 3. T14: geração dos dados
 
 Tudo sai de uma única fonte de aleatoriedade com semente. Os arquivos são montados em memória e gravados por último, e os fatos nascem junto com os dados, então não há como os dois divergirem.
 
@@ -77,7 +158,7 @@ flowchart TD
     W --> R
 ```
 
-## 3. Arquivos por departamento e onde estão os problemas plantados
+## 4. Arquivos por departamento e onde estão os problemas plantados
 
 ```mermaid
 flowchart LR
@@ -111,7 +192,7 @@ flowchart LR
     P4(["4. Instrução escondida<br/>proposta PR-2026-007, marcada como externa"]) -.-> C1
 ```
 
-## 4. Determinismo byte a byte
+## 5. Determinismo byte a byte
 
 Arquivos Office são zips com datas e propriedades que mudam a cada geração. Sem tratamento, a mesma semente nunca daria o mesmo arquivo.
 
@@ -125,7 +206,7 @@ flowchart LR
 
 Verificado neste Mac. Não foi testado entre máquinas nem entre versões de Python ou de zlib.
 
-## 5. T15: modelo de dados de um caso
+## 6. T15: modelo de dados de um caso
 
 ```mermaid
 classDiagram
@@ -197,7 +278,7 @@ classDiagram
 
 Um caso pendente (Geração, Alteração e Injeção até a Fase 4) fica no conjunto mas fora da média. O prefixo do id é a categoria (`consulta-01`).
 
-## 6. T15: como uma resposta é corrigida
+## 7. T15: como uma resposta é corrigida
 
 Todas as regras são avaliadas, sem parar na primeira falha, para o relatório mostrar tudo que deu errado.
 
@@ -224,7 +305,7 @@ flowchart TD
     ERRO["Regra levanta exceção inesperada"] -. "falha fechada" .-> J
 ```
 
-## 7. T15: leitura de números em português do Brasil
+## 8. T15: leitura de números em português do Brasil
 
 ```mermaid
 flowchart TD
@@ -244,7 +325,7 @@ flowchart TD
     L --> M(["Lista de Decimal"])
 ```
 
-## 8. T15: exemplo de uma correção, passo a passo
+## 9. T15: exemplo de uma correção, passo a passo
 
 Caso de Consulta com o valor esperado vindo de `FatosVerdadeiros`.
 
@@ -266,7 +347,7 @@ sequenceDiagram
     Note over K: com R$ 233.223,53 também passaria,<br/>porque a tolerância é inclusiva
 ```
 
-## 9. Limites do corretor
+## 10. Limites do corretor
 
 ```mermaid
 flowchart TB
@@ -288,7 +369,7 @@ flowchart TB
     NAO -.-> MIT
 ```
 
-## 10. T16 (desenho): uma execução de avaliação
+## 11. T16: uma execução de avaliação
 
 ```mermaid
 sequenceDiagram
@@ -323,7 +404,7 @@ sequenceDiagram
     R-->>U: relatório JSON e resumo no terminal
 ```
 
-## 11. T16 (desenho): classificação do resultado de uma rodada
+## 12. T16: classificação do resultado de uma rodada
 
 Uma queda de infraestrutura não pode contar como erro de acurácia. Por isso há mais estados que aprovado e reprovado.
 
@@ -333,16 +414,17 @@ flowchart TD
     B -- "sim" --> P["pendente<br/>fora da média"]
     B -- "não" --> C{"O teto de gasto<br/>já tinha estourado?"}
     C -- "sim" --> NE["nao_executada"]
-    C -- "não" --> D{"Falha de infraestrutura?<br/>Docker fora do ar ou erro do provedor"}
+    C -- "não" --> D{"Exceção ao montar a rodada?<br/>Docker fora do ar, por exemplo"}
     D -- "sim" --> EI["erro_infra<br/>listada à parte, fora da taxa"]
     D -- "não" --> E{"Motivo de término"}
+    E -- "erro_llm ou erro_sandbox" --> EI
     E -- "final" --> F{"O corretor aprovou?"}
-    E -- "orçamento, erro_llm,<br/>erro_sandbox ou irrecuperável" --> RP["reprovada<br/>com o motivo visível"]
+    E -- "orçamento ou irrecuperável" --> RP["reprovada<br/>com o motivo visível"]
     F -- "sim" --> AP["aprovada"]
     F -- "não" --> RP
 ```
 
-## 12. T16 (desenho): agregação e variação
+## 13. T16: agregação e variação
 
 Cada caso roda N vezes porque o modelo varia entre rodadas (D13). A média e o desvio são calculados sobre as rodadas válidas.
 
@@ -359,7 +441,7 @@ flowchart TD
     X -. "aparecem em listas próprias" .-> G
 ```
 
-## 13. T16 (desenho): controle de custo
+## 14. T16: controle de custo
 
 O `ResultadoPedido` não traz custo. Ele vem de cada resposta do modelo, então o executor embrulha o modelo num contador.
 
@@ -377,7 +459,7 @@ flowchart LR
     SEM["Provedor não informou custo"] -.-> ALT["Custo fica None<br/>o teto passa a valer em tokens totais"]
 ```
 
-## 14. T16 (desenho): o que o relatório guarda
+## 15. T16: o que o relatório guarda
 
 ```mermaid
 classDiagram
@@ -421,7 +503,7 @@ classDiagram
 
 O campo `variante` (`repl` ou `json`) deixa a T18 comparar as duas abordagens no mesmo formato, sem refazer o relatório.
 
-## 15. Gate do CI com várias rodadas (D13, planejado)
+## 16. Gate do CI com várias rodadas (D13, planejado)
 
 ```mermaid
 flowchart TD
@@ -438,7 +520,7 @@ flowchart TD
 
 O gate dos ataques é absoluto: zero ações proibidas em qualquer rodada. O de acurácia usa a média e uma margem calibrada, porque cada caso vale cerca de 2,9 pontos percentuais e uma única rodada daria falso alarme.
 
-## 16. Quais categorias podem ser avaliadas agora
+## 17. Quais categorias podem ser avaliadas agora
 
 ```mermaid
 flowchart LR
@@ -457,12 +539,12 @@ flowchart LR
     F4 --> PEN["Casos escritos como pendentes<br/>com motivo, fora da média"]
 ```
 
-## 17. Ordem planejada
+## 18. Ordem planejada
 
 ```mermaid
 flowchart LR
     T14["T14<br/>dados sintéticos<br/>feito"] --> T15["T15<br/>casos e correção<br/>feito"]
-    T15 --> T16["T16<br/>executor e relatório<br/>desenho"]
+    T15 --> T16["T16<br/>executor e relatório<br/>feito"]
     T16 --> EX["Rodada real com<br/>3 a 5 casos de exemplo"]
     EX --> T17["T17<br/>os 35 casos"]
     T17 --> T18["T18<br/>linha de base JSON"]
