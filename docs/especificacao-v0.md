@@ -115,6 +115,22 @@ Riscos conhecidos: `openpyxl` não recalcula fórmulas e pode descartar recursos
 | `arquivos.propor_alteracao(original, nova_versao, justificativa)` | Escrita com aprovação | Registra uma nova versão para diff, validação e aprovação humana |
 | `arquivos.reverter(arquivo, versao)` | Escrita com aprovação | Restaura uma versão anterior |
 | `entrega.publicar(caminho, destinatario)` | Escrita externa | Entrega um arquivo de `/saida/` a um departamento; exige aprovação humana |
+| `descoberta.buscar(query, limit=5)` | Leitura | Busca ferramentas visíveis ao perfil por nome, descrição e parâmetros (T10); é o `search_tools` do REPL |
+| `descoberta.descrever(name)` | Leitura | Parâmetros, tipos, nível e exemplo de uma ferramenta visível ao perfil (T10); é o `describe_tool` do REPL |
+
+Implementadas até a T13: `catalogo.listar`, `descoberta.buscar` e `descoberta.descrever`. As demais dependem da aprovação humana e do versionamento (Fase 4) ou de geração de dados (Fase 3). Toda ferramenta tem um limite de resultado de 1 MiB (JSON em UTF-8); acima disso a chamada falha com um erro curto, sem o conteúdo.
+
+### Ferramentas MCP
+
+Servidores MCP entram como ferramentas do host (T12), sempre pelo mesmo registro e pela mesma ponte; o sandbox não sabe a diferença e nunca fala com um servidor MCP. Uma ferramenta `ferramenta` do servidor `servidor` vira `tools.servidor.ferramenta`.
+
+- **Só o que você declara.** Os servidores vêm de um arquivo passado à CLI com `--mcp`; nada é descoberto sozinho, e o `.mcp.json` de outros projetos não é lido.
+- **Só stdio.** O host inicia o servidor como subprocesso e fala JSON-RPC por linha, com um cliente escrito à mão na revisão legada do protocolo (`initialize`, `tools/list`, `tools/call`). HTTP fica para depois.
+- **Ambiente mínimo.** O subprocesso recebe só `PATH`, `HOME` e as variáveis do `env` configurado, nunca o ambiente do harness: a chave do OpenRouter não chega a um servidor de terceiros.
+- **Nível padrão restrito.** O MCP não diz se uma ferramenta lê ou escreve, então todas entram como escrita externa. Só as listadas em `leitura` no arquivo viram leitura. Todas são marcadas como conteúdo não confiável e canal externo, e as descrições passam pela neutralização de tags do envelope de observação.
+- **Falhas isoladas.** Servidor que não inicia, trava, responde fora do protocolo ou passa de 4 MiB por linha é encerrado e vira um erro curto ao modelo, sem derrubar o pedido nem os outros servidores. Os processos são sempre fechados no fim.
+
+A política contra a lethal trifecta é da Fase 4: hoje o harness declara as propriedades das ferramentas, mas só recusa pelo nível e pelas concessões.
 
 ### Perfis de acesso
 
@@ -124,6 +140,13 @@ Riscos conhecidos: `openpyxl` não recalcula fórmulas e pode descartar recursos
 | Marketing | Marketing |
 | Financeiro | Financeiro, Vendas, Comercial |
 | Direção | Todos |
+
+O perfil controla o acesso em duas camadas (D14, versão mínima implementada na T13):
+
+1. **Montagem de `/dados`:** só os departamentos do perfil existem no contêiner. É o controle estrutural, para arquivos.
+2. **Concessões por ferramenta:** o perfil lista os nomes (`catalogo.listar`) ou grupos (`descoberta.*`) que pode chamar. A regra padrão é negar. O registro avalia a concessão antes de validar os argumentos e antes de executar, e a busca, o prompt e a verificação estática só mostram o que o perfil pode chamar. Os quatro perfis têm as concessões base (`catalogo.listar` e `descoberta.*`), e a CLI soma as ferramentas MCP de leitura.
+
+Ficam para depois: escopo por parâmetro (por exemplo, só o departamento `comercial`) e recursos declarados pela ferramenta.
 
 ### Pedidos de exemplo
 
@@ -174,8 +197,8 @@ Cada pedido percorre um laço de no máximo N iterações; o laço termina pela 
 &#91;embedded content: sequência · uma iteração do loop com uma chamada de ferramenta\]
 
 1. **Recepção.** O orquestrador cria uma sessão (id, orçamento, política) e um REPL limpo.
-2. **Carga do contexto.** Entradas grandes (documentos, tabelas) viram variáveis no REPL, por exemplo `context`; o prompt recebe só metadados (tipo, tamanho, prévia curta).
-3. **Prompt inicial.** Sistema = regras do harness + catálogo resumido de ferramentas (nome e uma linha) + funções utilitárias; usuário = o pedido.
+2. **Carga do contexto.** Entradas grandes (documentos, tabelas) viram variáveis no REPL, por exemplo `context`; o prompt recebe só metadados (tipo, tamanho, prévia curta). O contexto é dado de entrada fornecido pelo usuário com o pedido, nunca código do modelo. Implementado na T11: mensagem `contexto` do host ao sandbox, com confirmação `contexto_ok`, teto de 2 MiB, reenvio automático depois de um reinício do REPL e prévia de cerca de 200 caracteres dentro do envelope de conteúdo não confiável.
+3. **Prompt inicial.** Sistema = regras do harness + os nomes dos grupos de ferramentas que o perfil enxerga + a explicação de `search_tools` e `describe_tool`; usuário = o pedido e, quando há contexto, os metadados dele. O catálogo completo não entra no prompt: o modelo descobre as ferramentas por código (T10). O hash do prompt de sistema varia só com o texto e com os grupos visíveis ao perfil, nunca com as descrições nem com o número de ferramentas de um grupo.
 4. **Turno do modelo.** O modelo responde com um bloco de código ou com a resposta final.
 5. **Verificação estática.** O harness analisa o código antes de executar: tamanho, imports proibidos, chamadas a ferramentas existentes. Reprovação vira observação para o modelo, sem execução.
 6. **Execução.** O código roda no REPL com limite de tempo. Chamadas a ferramentas atravessam a ponte até o host, que aplica política e, se exigido, pede aprovação humana.
@@ -195,21 +218,28 @@ Injetada no namespace antes do primeiro turno. É a única superfície que o mod
 
 ```python
 # Descoberta de ferramentas (sob demanda)
-search_tools(query: str, limit: int = 5) -> list[ToolSummary]   # nome + 1 linha
-describe_tool(name: str) -> ToolSpec                           # assinatura, tipos, exemplos
+search_tools(query: str, limit: int = 5) -> list[ToolSummary]   # {nome, resumo}, resumo de 1 linha
+describe_tool(name: str) -> ToolSpec                           # nível, parâmetros e tipos, exemplo
 
 # Chamada de ferramenta (atravessa a ponte até o host)
-tools.<grupo>.<nome>(**kwargs) -> dict | list | str
+tools.<grupo>.<nome>(**kwargs) -> dict | list | str            # só argumentos nomeados
 
-# Contexto grande como variável
-context: str | dict            # entrada do pedido
-context_info() -> dict         # tamanho, tipo, prévia
+# Contexto grande como variável (só existe quando o pedido traz contexto)
+context: str | dict | list     # entrada do pedido
+context_info() -> dict         # {tipo, tamanho, previa}
 
 # Término
 FINAL(answer: str, sources: list[str] = []) -> None
 ```
 
-Regras: ferramentas retornam dados estruturados e compactos; erros viram exceções Python com mensagem legível; `print` é o único canal de volta ao modelo. `llm_query` não existe na v0 (D11).
+Regras: ferramentas retornam dados estruturados e compactos; erros viram exceções Python (`ToolError`) com mensagem legível; `print` é o único canal de volta ao modelo. `llm_query` não existe na v0 (D11).
+
+Detalhes implementados nas T10 e T11:
+
+- `search_tools` e `describe_tool` são apelidos de `tools.descoberta.buscar` e `tools.descoberta.descrever`, ferramentas comuns do host. Elas atravessam a ponte e o despachante como as demais e só enxergam as ferramentas concedidas ao perfil. A busca casa palavras inteiras, sem acento nem caixa, com peso maior no nome que na descrição e nos parâmetros.
+- `context_info()` guarda uma cópia do contexto original, então reatribuir `context` não muda o que ela informa. O tamanho é em caracteres (texto) ou em itens (objeto e lista). Sem contexto, `context` não existe.
+- Uma ferramenta que o perfil não pode chamar responde exatamente como uma inexistente ("a ferramenta 'x' não existe"), para o modelo não descobrir o que existe fora do perfil.
+- Ferramentas de servidores MCP aparecem como `tools.<servidor>.<ferramenta>`, no mesmo namespace (ver "Ferramentas MCP" abaixo).
 
 ### 2. Ponte sandbox ↔ host
 
@@ -220,7 +250,11 @@ JSON-RPC 2.0 num descritor de arquivo dedicado do processo do sandbox (por exemp
 | `exec` | host → sandbox | `cell_id`, `code`, `timeout_s` |
 | `tool_call` | sandbox → host | `call_id`, `name`, `args` |
 | `tool_result` | host → sandbox | `call_id`, `ok`, `data` ou `error` |
-| `exec_done` | sandbox → host | `cell_id`, `stdout`, `stderr`, `exception`, `duration_ms`, `final` |
+| `exec_done` | sandbox → host | `cell_id`, `stdout`, `stderr`, `exception`, `duration_ms`, `final`, `reiniciar` |
+| `contexto` | host → sandbox | `valor` (texto, objeto ou lista JSON), definido como `context` no REPL |
+| `contexto_ok` | sandbox → host | `tipo`, `tamanho`, para o host conferir o que o REPL recebeu |
+
+O campo `reiniciar` do `exec_done` é o sinal explícito de que o REPL precisa ser recriado (a célula estourou o tempo e a thread continuou viva). O host não deduz mais o reinício do texto da exceção. Depois de qualquer reinício, o host reenvia o contexto guardado; as demais variáveis se perdem, e a observação ao modelo diz isso. O host não reexecuta as células anteriores.
 
 ### 3. Formato das mensagens do modelo
 
@@ -250,7 +284,7 @@ Tabela baseada em [Fly.io (out/2026)](https://fly.io/learn/run-llm-generated-pyt
 
 1. **Sem rede no sandbox.** Toda saída para fora passa pela ponte e pelas ferramentas do host.
 2. **Credenciais só no host.** O sandbox nunca recebe chaves de API, tokens ou senhas.
-3. **Quebrar a lethal trifecta.** Nenhuma sessão combina dado privado, conteúdo não confiável e ferramenta com canal externo; o registro de ferramentas declara essas propriedades e a política recusa a combinação (ou exige aprovação humana). Como os arquivos são lidos como código no sandbox, cada arquivo tem uma flag de confiança no catálogo e o host registra quais arquivos a sessão abriu; abrir um arquivo `externo` marca a sessão como exposta a conteúdo não confiável (D10).
+3. **Quebrar a lethal trifecta.** Nenhuma sessão combina dado privado, conteúdo não confiável e ferramenta com canal externo; o registro de ferramentas declara essas propriedades e a política recusa a combinação (ou exige aprovação humana). Como os arquivos são lidos como código no sandbox, cada arquivo tem uma flag de confiança no catálogo e o host registra quais arquivos a sessão abriu; abrir um arquivo `externo` marca a sessão como exposta a conteúdo não confiável (D10). *Estado: o registro já declara as propriedades e o catálogo já traz a flag de confiança (arquivo opcional `manifesto.json`); o rastreio de arquivos abertos e a política que recusa a combinação são da Fase 4.*
 4. **Ferramentas classificadas.** Cada ferramenta tem nível: leitura, escrita local, escrita externa. Escrita externa exige aprovação humana por chamada.
 5. **Resultados de ferramenta são dados.** Texto vindo de ferramenta nunca é concatenado ao prompt de sistema; é marcado como conteúdo não confiável.
 6. ~~Sub-chamadas não herdam ferramentas.~~ Removida da v0 junto com `llm_query` (D11); volta na v1.
@@ -265,6 +299,11 @@ Tabela baseada em [Fly.io (out/2026)](https://fly.io/learn/run-llm-generated-pyt
 | Memória do sandbox | 512 MB |
 | Saída devolvida ao modelo por célula | 4.000 caracteres |
 | Chamadas de ferramenta por célula | 50 |
+| Resultado de uma ferramenta | 1 MiB (JSON em UTF-8) |
+| Contexto do pedido | 2 MiB (JSON canônico em UTF-8) |
+| Prazo total de uma chamada ao modelo | 120 s, com todas as tentativas e esperas (`OPENROUTER_PRAZO_TOTAL`) |
+
+O prazo por chamada existe porque o timeout do SDK vale por operação de socket: um provedor que mantém a conexão aberta sem responder prenderia o pedido inteiro. Cada tentativa roda numa thread daemon e, ao estourar o prazo, o pedido termina com o motivo de erro do modelo, sem repetir.
 
 ## Observabilidade e avaliação
 
@@ -330,18 +369,22 @@ O que fica de fora: LangChain e LangGraph (decidido em 20/11: o loop é próprio
 
 ```text
 harness/
-  orchestrator/   loop, orçamento, verificação estática do código gerado
-  sandbox/        Dockerfile, runner do REPL, protocolo JSON-RPC
-  host/           registro de ferramentas, política, aprovação, versionamento
+  orchestrator/   loop, orçamento, verificação estática, prompt e formato das observações
+  sandbox/        Dockerfile, runner do REPL, protocolo JSON-RPC, contexto
+  host/           registro de ferramentas, perfis e concessões, aprovação, versionamento
+    tools/        catalogo.listar e descoberta (ferramentas locais)
+    mcp/          cliente, adaptador e configuração dos servidores MCP (stdio)
   llm/            cliente OpenRouter e configuração de modelos
-  telemetry/      spans OpenTelemetry e exportação JSONL
+  telemetry/      trace JSONL por pedido; spans OpenTelemetry ainda não
+  cli.py          linha de comando: python -m harness "pedido" --perfil P --dados DIR
 data/generator/   dados sintéticos com semente fixa
 evals/
   cases/          35 pedidos com resposta esperada (YAML)
   graders/        verificações em código e juiz LLM calibrado
   attacks/        documentos com prompt injection
 tests/            unitários, propriedade, integração, escape do sandbox
-docs/adr/         uma decisão de arquitetura por arquivo (D10–D13 já escritas; D1–D9 na tabela de Decisões)
+docs/adr/         uma decisão de arquitetura por arquivo (D10–D14 já escritas; D1–D9 na tabela de Decisões)
+docs/diagramas-ferramentas-e-permissoes.md   diagramas de ferramentas, MCP e permissões
 AGENTS.md         convenções para Claude Code; steering equivalente no Kiro
 .github/workflows/
 ```
@@ -426,7 +469,7 @@ Todas as decisões da v0 estão fechadas, seguindo as recomendações anteriores
 | D2 | Modelo e provedor | OpenRouter + DeepSeek V4.1 Flash (snapshot fixo); V4 Pro para comparação | 20/11 |
 | D3 | Implementação do REPL | Processo próprio com `exec` em namespace, dentro do contêiner | 20/11 |
 | D4 | Isolamento | Contêiner Docker endurecido no Docker Desktop do Mac; gVisor na v1, em VPS Linux | 19/11 |
-| D5 | Ferramentas | Arquivos lidos em código no sandbox; funções do host para catálogo, alteração e entrega; MCP na v1 | 20/11 |
+| D5 | Ferramentas | Arquivos lidos em código no sandbox; funções do host para catálogo, alteração e entrega; MCP na v1 (antecipado para a Fase 2, só stdio: ver "Ferramentas MCP") | 20/11 |
 | D6 | `llm_query` | Fora da v0; o modelo principal resume os documentos lendo o texto extraído (detalhado na D11) | 20/11 |
 | D7 | Aprovação humana | Por alteração, no terminal, com diff e versionamento | 19/11 |
 | D8 | Resposta final | Texto com lista de fontes obrigatória | 20/11 |
@@ -435,6 +478,7 @@ Todas as decisões da v0 estão fechadas, seguindo as recomendações anteriores
 | D11 | `llm_query` na v0 | Removido de RF6, regra 6, contrato do REPL e ponte; volta na v1 com as RLMs | 20/11 |
 | D12 | Ponte e timeout | Protocolo em fd dedicado; stdout capturado por célula; timeout por thread com reinício controlado | 20/11 |
 | D13 | Gate de eval | 3 a 5 rodadas por caso; gate pela média com margem calibrada ao ruído | 20/11 |
+| D14 | Perfis por ferramenta | Concessões por nome ou grupo, negar por padrão, avaliadas pelo registro; versão mínima implementada, escopo por parâmetro adiado | 20/11 |
 
 Perguntas ainda abertas:
 
@@ -451,6 +495,36 @@ O harness cabe como evolução do P1 e ponte para o P2 e o P3, sem criar uma fas
 | 2. Contexto e harness | Descoberta de ferramentas sob demanda, ponte para MCP, contexto como variável |
 | 3. Evals | Comparação REPL vs tool calling JSON no mesmo conjunto |
 | 4. Segurança | gVisor, política da lethal trifecta, ataques plantados |
+
+## Estado da implementação
+
+Atualizado em 21/11/2026, depois da T13. Os diagramas de ferramentas, MCP e permissões estão em [diagramas-ferramentas-e-permissoes.md](diagramas-ferramentas-e-permissoes.md).
+
+| Fase | Parte | Estado |
+| --- | --- | --- |
+| 1. Fundamentos | Loop com orçamento, verificação estática, resumo final | Implementado |
+| 1. Fundamentos | REPL persistente em Docker endurecido, ponte JSON-RPC, reinício controlado | Implementado |
+| 1. Fundamentos | Registro, perfis por departamento, `catalogo.listar` | Implementado |
+| 1. Fundamentos | `FINAL` com fontes, truncagem e envelope de conteúdo não confiável | Implementado |
+| 1. Fundamentos | Trace JSONL com chamadas de ferramenta, tokens, provedor e custo | Implementado |
+| 1. Fundamentos | Cliente OpenRouter com repetição e prazo total por chamada | Implementado |
+| 1. Fundamentos | CLI (`python -m harness`) | Implementado |
+| 2. Contexto e harness | Descoberta de ferramentas sob demanda (T10) | Implementado |
+| 2. Contexto e harness | Contexto como variável (T11) | Implementado, sem `llm_query` (D11) |
+| 2. Contexto e harness | Ponte para MCP (T12) | Implementado, só stdio |
+| 2. Contexto e harness | Concessões por ferramenta (T13, D14) | Implementado na versão mínima |
+| 3. Evals | Dados sintéticos, 35 pedidos, comparação com tool calling JSON, ataques plantados | Não iniciado |
+| 4. Segurança | Aprovação humana, política da trifecta, rastreio de arquivos abertos, gVisor | Não iniciado |
+| Transversal | OpenTelemetry e Langfuse, CI com gates, SAST, `catalogo.dicionario`, `arquivos.*`, `entrega.publicar` | Não iniciado |
+
+**Desvios em relação ao texto original da v0**
+
+- **MCP antecipado.** A D5 deixava o MCP para a v1; a ponte stdio entrou na Fase 2 para exercitar a descoberta e as concessões com ferramentas que não passam por `/dados`.
+- **Prompt sem catálogo.** O passo 3 previa o catálogo resumido no prompt; hoje o prompt lista só os grupos e o modelo descobre o resto.
+- **Concessões além da montagem.** O controle por perfil não é mais só estrutural: a D14 foi aceita na versão mínima.
+- **Contexto em lista.** `context` aceita também lista JSON, além de texto e objeto.
+- **Verificação estática.** Além da lista da spec, `builtins` e `sys` são imports proibidos. Ela é feedback rápido ao modelo, não fronteira de segurança: quem barra de verdade é o contêiner.
+- **Espera por aprovação (D12).** O timeout do tempo bloqueado esperando aprovação humana só pode ser implementado com a aprovação, na Fase 4.
 
 ## Fontes
 
