@@ -130,4 +130,6 @@ uv run pytest -m real_api
 - [Especificação v0](docs/especificacao-v0.md)
 - [Diagramas de ferramentas, MCP e permissões](docs/diagramas-ferramentas-e-permissoes.md)
 - [Diagramas de segurança e defesa](docs/diagramas-seguranca.md)
+- [Diagramas do fluxo do pedido, protocolo e módulos](docs/diagramas-fluxo-do-pedido.md)
+- [Diagramas das avaliações (evals)](docs/diagramas-evals.md)
 - [Decisões de arquitetura (ADRs)](docs/adr/README.md)
