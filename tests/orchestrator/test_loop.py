@@ -11,13 +11,14 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 
+import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from harness.host.perfil import Perfil, perfil_por_nome
 from harness.host.registry import Nivel, Registro
-from harness.llm.base import LLMFalso, Mensagem, ModeloLLM, RespostaLLM
+from harness.llm.base import ErroLLM, LLMFalso, Mensagem, ModeloLLM, RespostaLLM
 from harness.llm.config import ConfigModelo
 from harness.llm.openrouter import ClienteOpenRouter
 from harness.orchestrator.loop import (
@@ -509,6 +510,67 @@ def test_excecao_do_llm_termina_com_erro_llm_sem_propagar() -> None:
     assert sandbox.fechamentos == 1
 
 
+class ModeloQueLevanta:
+    """LLM que levanta a exceção dada em toda chamada."""
+
+    def __init__(self, erro: Exception) -> None:
+        self._erro = erro
+
+    def responder(self, mensagens: Sequence[Mensagem]) -> RespostaLLM:
+        raise self._erro
+
+
+def test_erro_llm_registra_tipo_e_mensagem_no_evento_e_no_detalhe() -> None:
+    mensagem = "falha ao consultar o OpenRouter (RateLimitError, status 429) após 3 tentativas"
+    recebidos: list[Evento] = []
+
+    resultado = _pedido(
+        ModeloQueLevanta(ErroLLM(mensagem)), SandboxFalso(), eventos=recebidos.append
+    )
+
+    assert resultado.motivo is MotivoTermino.ERRO_LLM
+    assert resultado.detalhe_erro == f"ErroLLM: {mensagem}"
+    evento = next(e for e in recebidos if e.tipo == "erro_llm")
+    assert evento.dados["tipo_excecao"] == "ErroLLM"
+    assert evento.dados["mensagem"] == mensagem
+    assert [e.tipo for e in recebidos][-2:] == ["erro_llm", "pedido_finalizado"]
+
+
+def test_excecao_qualquer_no_llm_registra_so_o_nome_da_classe() -> None:
+    recebidos: list[Evento] = []
+
+    resultado = _pedido(
+        ModeloQueLevanta(RuntimeError("chave-falsa-987654 e corpo da resposta")),
+        SandboxFalso(),
+        eventos=recebidos.append,
+    )
+
+    assert resultado.motivo is MotivoTermino.ERRO_LLM
+    assert resultado.detalhe_erro == "RuntimeError"
+    evento = next(e for e in recebidos if e.tipo == "erro_llm")
+    assert evento.dados["tipo_excecao"] == "RuntimeError"
+    assert "mensagem" not in evento.dados
+    # Nem o evento nem o resultado trazem o texto da exceção.
+    assert "chave-falsa" not in repr(recebidos)
+    assert "chave-falsa" not in resultado.model_dump_json()
+
+
+def test_detalhe_erro_so_existe_com_motivo_erro_llm() -> None:
+    with pytest.raises(ValidationError):
+        ResultadoPedido(
+            resposta="",
+            fontes=(),
+            motivo=MotivoTermino.ERRO_SANDBOX,
+            completo=False,
+            iteracoes=0,
+            tokens_entrada=0,
+            tokens_saida=0,
+            hash_prompt="hash",
+            passos=(),
+            detalhe_erro="RuntimeError",
+        )
+
+
 def test_erro_inesperado_no_loop_ainda_fecha_o_sandbox_exatamente_uma_vez() -> None:
     def relogio_quebrado() -> float:
         raise RuntimeError("relógio quebrado")
@@ -586,6 +648,31 @@ def test_turno_modelo_sem_metadados_registra_none() -> None:
         None,
         None,
     )
+    assert turno.dados["motivo_fim"] is None
+    assert turno.dados["tokens_raciocinio"] is None
+    assert turno.dados["tentativas_descartadas"] == 0
+
+
+def test_turno_modelo_traz_motivo_raciocinio_e_tentativas_descartadas() -> None:
+    resposta = RespostaLLM(
+        texto=FINAL_OK,
+        tokens_entrada=4,
+        tokens_saida=2,
+        motivo_fim="stop",
+        tokens_raciocinio=9,
+        tentativas_descartadas=2,
+    )
+    modelo = LLMFalso([resposta])
+    sandbox = SandboxFalso([Celula(final=RESPOSTA_FINAL)])
+    recebidos: list[Evento] = []
+    _pedido(modelo, sandbox, eventos=recebidos.append)
+
+    turno = next(e for e in recebidos if e.tipo == "turno_modelo")
+    assert turno.dados["motivo_fim"] == "stop"
+    assert turno.dados["tokens_raciocinio"] == 9
+    assert turno.dados["tentativas_descartadas"] == 2
+    # Só a contagem de raciocínio vai para a trace: nenhum campo com o texto dele.
+    assert [chave for chave in turno.dados if "raciocinio" in chave] == ["tokens_raciocinio"]
 
 
 # --- Limite de resultado de ferramenta e evento chamada_ferramenta -------------------------

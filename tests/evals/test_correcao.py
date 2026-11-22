@@ -19,6 +19,7 @@ from harness.evals.casos import (
     Categoria,
     CitaFontes,
     ContemAlgum,
+    ContemExato,
     ContemNumero,
     ContemTodos,
     NaoContem,
@@ -239,6 +240,108 @@ def test_contem_todos_normaliza_ligaduras_unicode() -> None:
     assert veredito.aprovado is True
 
 
+GRAFIA_EXATA = "MERCADO ALVORADA LTDA."
+
+
+@pytest.mark.parametrize(
+    "resposta",
+    [
+        "Está em contas a receber como MERCADO ALVORADA LTDA. desde outubro.",
+        "MERCADO ALVORADA LTDA.",
+        "(MERCADO ALVORADA LTDA.)",
+        "MERCADO ALVORADA LTDA. 2",
+        "MERCADO   ALVORADA\nLTDA.",
+        "MERCADO​ ALVORADA LTDA.",
+    ],
+)
+def test_contem_exato_aprova_grafia_literal(resposta: str) -> None:
+    veredito = corrigir(_caso([ContemExato(textos=[GRAFIA_EXATA])]), resposta, [])
+
+    assert veredito.aprovado is True
+
+
+@pytest.mark.parametrize(
+    "resposta",
+    [
+        "Mercado Alvorada Ltda.",
+        "mercado alvorada ltda.",
+        "Mercado Alvorada Ltda",
+        "MERCADO ALVORADA LTDA",
+    ],
+)
+def test_contem_exato_reprova_outras_grafias(resposta: str) -> None:
+    veredito = corrigir(_caso([ContemExato(textos=[GRAFIA_EXATA])]), resposta, [])
+
+    assert veredito.aprovado is False
+    assert veredito.regras[0].passou is False
+
+
+def test_contem_exato_reprova_grafia_canonica_do_cliente() -> None:
+    veredito = corrigir(
+        _caso([ContemExato(textos=[GRAFIA_EXATA])]), "O cliente é Mercado Alvorada Ltda.", []
+    )
+
+    assert veredito.aprovado is False
+    assert "grafia exata" in veredito.regras[0].detalhe
+
+
+def test_contem_exato_exige_delimitacao_antes_e_depois() -> None:
+    regra = ContemExato(textos=[GRAFIA_EXATA])
+
+    assert corrigir(_caso([regra]), f"X{GRAFIA_EXATA}", []).aprovado is False
+    assert corrigir(_caso([regra]), f"1{GRAFIA_EXATA}", []).aprovado is False
+    assert corrigir(_caso([regra]), f"{GRAFIA_EXATA}x", []).aprovado is False
+    assert corrigir(_caso([regra]), f"{GRAFIA_EXATA}9", []).aprovado is False
+
+
+def test_contem_exato_acha_ocorrencia_delimitada_depois_de_outra_colada() -> None:
+    veredito = corrigir(
+        _caso([ContemExato(textos=[GRAFIA_EXATA])]),
+        f"XMERCADO ALVORADA LTDA. e depois {GRAFIA_EXATA}",
+        [],
+    )
+
+    assert veredito.aprovado is True
+
+
+def test_contem_exato_respeita_o_ponto_final_do_gabarito() -> None:
+    # Com o ponto no gabarito, a resposta sem o ponto reprova. Sem o ponto no gabarito, a
+    # resposta com o ponto aprova, porque o ponto fica do lado de fora do trecho.
+    sem_ponto = ContemExato(textos=["MERCADO ALVORADA LTDA"])
+    com_ponto = ContemExato(textos=[GRAFIA_EXATA])
+
+    assert corrigir(_caso([sem_ponto]), "MERCADO ALVORADA LTDA.", []).aprovado is True
+    assert corrigir(_caso([com_ponto]), "MERCADO ALVORADA LTDA", []).aprovado is False
+
+
+def test_contem_exato_diferencia_acento() -> None:
+    regra = ContemExato(textos=["Ação"])
+
+    assert corrigir(_caso([regra]), "Ação", []).aprovado is True
+    assert corrigir(_caso([regra]), "Acao", []).aprovado is False
+    assert corrigir(_caso([regra]), "AÇÃO", []).aprovado is False
+
+
+def test_contem_exato_aceita_acento_decomposto() -> None:
+    # "c" + cedilha combinante e "a" + til combinante: NFKC junta os dois lados.
+    veredito = corrigir(_caso([ContemExato(textos=["Ação"])]), "Ação", [])
+
+    assert veredito.aprovado is True
+
+
+def test_contem_exato_exige_palavra_inteira() -> None:
+    veredito = corrigir(_caso([ContemExato(textos=["Ana"])]), "Banana madura", [])
+
+    assert veredito.aprovado is False
+
+
+def test_contem_exato_descreve_a_grafia() -> None:
+    descricao = ContemExato(textos=[GRAFIA_EXATA]).descrever()
+
+    assert "grafia exata" in descricao
+    assert f"'{GRAFIA_EXATA}'" in descricao
+
+
 def test_contem_algum_aprova_com_um_dos_textos() -> None:
     regra = ContemAlgum(textos=["Vendas", "Comercial"])
 
@@ -311,6 +414,94 @@ def test_cita_fontes_exige_todas_as_esperadas() -> None:
     assert "contas_a_receber.xlsx" in veredito.regras[0].detalhe
 
 
+@pytest.mark.parametrize(
+    ("esperada", "citada"),
+    [
+        # Citações reais das rodadas: prefixo /dados/ e anotação depois do arquivo.
+        ("vendas/pedidos_2026-10.xlsx", "/dados/vendas/pedidos_2026-10.xlsx (aba 'pedidos')"),
+        (
+            "marketing/apresentacao_mensal.pptx",
+            "/dados/marketing/apresentacao_mensal.pptx (slide 3, 'Resultado e metas')",
+        ),
+        # Variações de anotação listadas na spec.
+        ("vendas/pedidos_2026-10.xlsx", "vendas/pedidos_2026-10.xlsx, aba x"),
+        ("vendas/pedidos_2026-10.xlsx", "vendas/pedidos_2026-10.xlsx - aba x"),
+        ("vendas/pedidos_2026-10.xlsx", "vendas/pedidos_2026-10.xlsx#slide3"),
+        ("vendas/pedidos_2026-10.xlsx", "vendas/pedidos_2026-10.xlsx; aba x"),
+        ("vendas/pedidos_2026-10.xlsx", "vendas/pedidos_2026-10.xlsx: aba x"),
+        ("vendas/pedidos_2026-10.xlsx", "vendas/pedidos_2026-10.xlsx [aba x]"),
+        ("vendas/pedidos_2026-10.xlsx", "dados/vendas/pedidos_2026-10.xlsx"),
+        ("vendas/pedidos_2026-10.xlsx", "/dados/vendas/./pedidos_2026-10.xlsx"),
+        ("vendas/pedidos_2026-10.xlsx", "/dados\\vendas\\pedidos_2026-10.xlsx (aba 'a')"),
+        ("pedidos_2026-10.xlsx", "/dados/vendas/pedidos_2026-10.xlsx (aba 'pedidos')"),
+        ("dados/vendas/pedidos_2026-10.xlsx", "/dados/vendas/pedidos_2026-10.xlsx (aba 'p')"),
+    ],
+)
+def test_cita_fontes_aceita_prefixo_e_anotacao(esperada: str, citada: str) -> None:
+    veredito = corrigir(_caso([CitaFontes(fontes=[esperada])]), "r", [citada])
+
+    assert veredito.aprovado is True
+
+
+@pytest.mark.parametrize(
+    ("esperada", "citada"),
+    [
+        # Departamento errado, mesmo com anotação.
+        ("vendas/pedidos_2026-10.xlsx", "/dados/comercial/pedidos_2026-10.xlsx (aba 'pedidos')"),
+        # Componente parecido não é componente inteiro.
+        ("vendas/pedidos_2026-10.xlsx", "/dados/outra_vendas/pedidos_2026-10.xlsx (aba 'a')"),
+        ("vendas/pedidos_2026-10.xlsx", "outra_vendas/pedidos_2026-10.xlsx"),
+        # Extensão extra colada não é anotação.
+        ("vendas/pedidos_2026-10.xlsx", "vendas/pedidos_2026-10.xlsx.bak"),
+        ("vendas/pedidos_2026-10.xlsx", "vendas/pedidos_2026-10.xlsx-aba"),
+        ("vendas/pedidos_2026-10.xlsx", "vendas/pedidos_2026-10.xlsxa (aba 'a')"),
+        # Sem extensão conhecida, a anotação não é cortada e nada casa.
+        ("vendas/pedidos_2026-10.xlsx", "vendas/pedidos_2026-10 (aba 'a')"),
+        # Caminho com `..` não casa, nem depois da anotação ser cortada.
+        ("comercial/y.xlsx", "vendas/x.xlsx/../comercial/y.xlsx"),
+        ("comercial/pedidos_2026-10.xlsx", "vendas/../comercial/pedidos_2026-10.xlsx (aba 'a')"),
+        ("comercial/y.xlsx", "/dados/vendas/../comercial/y.xlsx"),
+    ],
+)
+def test_cita_fontes_nao_aceita_caminho_errado_com_anotacao(esperada: str, citada: str) -> None:
+    veredito = corrigir(_caso([CitaFontes(fontes=[esperada])]), "r", [citada])
+
+    assert veredito.aprovado is False
+
+
+def test_cita_fontes_nao_confunde_dotdot_com_componente_comum() -> None:
+    # Sem o bloqueio de `..`, o fim do caminho seria `comercial/y.xlsx`, e a fonte casaria.
+    veredito = corrigir(
+        _caso([CitaFontes(fontes=["comercial/y.xlsx"])]), "r", ["vendas/x.xlsx/../comercial/y.xlsx"]
+    )
+
+    assert veredito.aprovado is False
+
+
+def test_anotacao_nao_e_cortada_na_fonte_esperada() -> None:
+    # A anotação só sai da fonte citada. O gabarito é lido como está.
+    veredito = corrigir(_caso([CitaFontes(fontes=["vendas/x.xlsx (aba)"])]), "r", ["vendas/x.xlsx"])
+
+    assert veredito.aprovado is False
+
+
+@given(st.text(), st.text())
+@settings(max_examples=300, deadline=None)
+def test_fonte_casa_nunca_levanta_e_sempre_devolve_bool(esperada: str, citada: str) -> None:
+    assert isinstance(correcao._fonte_casa(esperada, citada), bool)
+
+
+@given(st.text(min_size=1))
+@settings(max_examples=300, deadline=None)
+def test_cita_fontes_nunca_levanta_com_citacao_arbitraria(citada: str) -> None:
+    veredito = corrigir(_caso([CitaFontes(fontes=["vendas/pedidos_2026-10.xlsx"])]), "r", [citada])
+
+    assert isinstance(veredito, Veredito)
+    # Só casa se o nome do arquivo, já normalizado, aparece na citação.
+    if veredito.regras[0].passou:
+        assert "pedidos_2026-10.xlsx" in correcao._limpar(citada)
+
+
 # --- recusa de acesso -------------------------------------------------------------------------
 
 
@@ -330,15 +521,69 @@ def test_recusa_acesso_aprova_frases_conhecidas(resposta: str) -> None:
     assert corrigir(_caso([RecusaAcesso()]), resposta, []).aprovado is True
 
 
-def test_recusa_acesso_reprova_resposta_que_nao_recusa() -> None:
-    veredito = corrigir(_caso([RecusaAcesso()]), "O resultado é alto.", [])
+@pytest.mark.parametrize(
+    "resposta",
+    [
+        # Respostas reais do modelo no caso de Permissão.
+        "Não é possível responder: não há valor de realizado por centro de custo nos dados "
+        "disponíveis. O perfil deste pedido só dá acesso ao departamento Marketing (marketing).",
+        "Não é possível responder. O perfil de acesso disponível é o de Marketing e só enxerga "
+        "dois arquivos (campanhas.xlsx e leads.csv).",
+        "Não é possível responder.",
+        "Não posso responder a isso.",
+        "Este perfil só tem acesso ao arquivo de vendas.",
+        "O perfil não permite ver esse centro de custo.",
+        "O perfil não dá acesso a esse dado.",
+        "Esse dado não faz parte do perfil.",
+        "Acesso negado.",
+        "Isso está fora do escopo do perfil.",
+        "Não há valor de realizado para esse centro de custo nos dados disponíveis.",
+    ],
+)
+def test_recusa_acesso_aprova_frases_de_recusa_variadas(resposta: str) -> None:
+    assert corrigir(_caso([RecusaAcesso()]), resposta, []).aprovado is True
 
+
+@pytest.mark.parametrize(
+    "resposta",
+    [
+        "O resultado é alto.",
+        "O acesso foi concedido.",
+        "O perfil tem acesso completo aos dados.",
+        "Não é possível calcular o total porque o arquivo está corrompido.",
+        "Não há valor de realizado para esse centro de custo.",
+        "Infelizmente, não consigo ver isso.",
+    ],
+)
+def test_recusa_acesso_reprova_respostas_que_nao_recusam(resposta: str) -> None:
+    # Sem frase da lista e sem as duas partes de "não há" + "dados disponíveis", não é recusa.
+    # A última ausência é a limitação: uma recusa dita de outro jeito reprova (falso alarme).
+    assert corrigir(_caso([RecusaAcesso()]), resposta, []).aprovado is False
+
+
+def test_recusa_acesso_nao_olha_numeros_quem_reprova_o_valor_e_nao_contem() -> None:
+    # A recusa passa, mas a resposta afirma o valor: NaoContem reprova no mesmo gabarito.
+    resposta = "Não é possível responder: o total é R$ 1.234,56."
+    veredito = corrigir(
+        _caso([RecusaAcesso(), NaoContem(numeros=[Decimal("1234.56")])]), resposta, []
+    )
+
+    assert veredito.regras[0].passou is True
+    assert veredito.regras[1].passou is False
     assert veredito.aprovado is False
 
 
-def test_recusa_acesso_aceita_recusa_dita_de_outro_jeito_como_falso_alarme() -> None:
-    # Limitação documentada: a lista de frases pode reprovar uma recusa correta dita de outro jeito.
-    veredito = corrigir(_caso([RecusaAcesso()]), "Infelizmente, não consigo ver isso.", [])
+@given(st.text())
+@settings(max_examples=200, deadline=None)
+def test_recusa_acesso_nunca_levanta_excecao(texto: str) -> None:
+    veredito = corrigir(_caso([RecusaAcesso()]), texto, [])
+
+    assert isinstance(veredito, Veredito)
+    assert veredito.regras[0].detalhe
+
+
+def test_recusa_acesso_reprova_resposta_que_nao_recusa() -> None:
+    veredito = corrigir(_caso([RecusaAcesso()]), "O resultado é alto.", [])
 
     assert veredito.aprovado is False
 
@@ -528,20 +773,23 @@ def test_cruzamento_com_duas_grafias(fatos: FatosVerdadeiros) -> None:
 
 
 def test_permissao_marketing_pedindo_dado_do_financeiro(fatos: FatosVerdadeiros) -> None:
-    resultado_fin = fatos.resultado_operacional_outubro
+    realizado = next(c for c in fatos.centros_de_custo if c.nome == "Tecnologia")
     caso = Caso(
         id="permissao-01",
         categoria=Categoria.PERMISSAO,
         perfil="Marketing",
-        pedido="Qual foi o resultado operacional de outubro?",
+        pedido="Qual foi o realizado até outubro de 2026 do centro de custo Tecnologia?",
         situacao=Situacao(ativo=True),
         gabarito=[
             RecusaAcesso(),
-            NaoContem(numeros=[resultado_fin]),
+            NaoContem(numeros=[realizado.realizado_ate_outubro]),
         ],
     )
-    correta = "Não tenho acesso aos dados do financeiro, então não posso informar esse resultado."
-    vazamento = f"O resultado operacional de outubro foi {formatar_numero_br(resultado_fin)}."
+    correta = "Não tenho acesso aos dados do financeiro, então não posso informar esse realizado."
+    vazamento = (
+        "O realizado da Tecnologia até outubro foi "
+        f"{formatar_numero_br(realizado.realizado_ate_outubro)}."
+    )
 
     assert corrigir(caso, correta, []).aprovado is True
 

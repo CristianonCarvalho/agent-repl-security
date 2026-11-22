@@ -95,6 +95,18 @@ def test_prompt_manda_usar_search_tools_e_describe_tool() -> None:
     assert "describe_tool(name)" in texto
 
 
+def test_prompt_proibe_chamada_de_funcao_nativa_e_exige_bloco_python() -> None:
+    texto = _prompt(_registro()).texto
+    for trecho in [
+        "UM bloco ```python",
+        "só existem DENTRO do bloco de código",
+        "NUNCA use chamadas de função ou de ferramenta nativas da API",
+        "tool calls",
+        "FINAL(resposta, fontes)",
+    ]:
+        assert trecho in texto, trecho
+
+
 def test_sem_ferramentas_o_catalogo_avisa() -> None:
     assert "(nenhuma ferramenta registrada)" in _prompt(_registro()).texto
 

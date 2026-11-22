@@ -25,6 +25,11 @@ class RespostaLLM(BaseModel):
 
     `modelo`, `provedor` e `custo` são informativos (para a trace e os evals). Só o cliente
     real os preenche; o LLMFalso deixa None. `provedor` é o provedor efetivo que atendeu.
+
+    `motivo_fim` é o `finish_reason` do provedor; `tokens_raciocinio` é a parte da saída gasta
+    em raciocínio oculto, quando o provedor a informa; `tentativas_descartadas` conta quantas
+    respostas vazias foram repetidas antes desta. Na resposta final do cliente, os tokens e o
+    custo já incluem essas tentativas descartadas.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -35,6 +40,9 @@ class RespostaLLM(BaseModel):
     modelo: str | None = None
     provedor: str | None = None
     custo: float | None = None
+    motivo_fim: str | None = None
+    tokens_raciocinio: int | None = None
+    tentativas_descartadas: int = Field(default=0, ge=0)
 
 
 class ErroLLM(Exception):

@@ -25,7 +25,7 @@ from harness.evals.casos import (
 from harness.evals.dados import FatosVerdadeiros, gerar_dados
 from harness.evals.executor import ConfigExecucao, ModeloContabil, executar_avaliacao
 from harness.evals.relatorio import Classificacao, Relatorio, relatorio_para_json
-from harness.llm.base import LLMFalso, Mensagem, RespostaLLM
+from harness.llm.base import ErroLLM, LLMFalso, Mensagem, RespostaLLM
 from harness.orchestrator.loop import Orcamento
 from harness.sandbox.docker_sandbox import (
     ROTULO,
@@ -355,10 +355,30 @@ def test_erro_do_modelo_vira_erro_infra_com_nome_do_estado(fatos: FatosVerdadeir
 
     rodada = _primeira_rodada(relatorio)
     assert rodada.classificacao is Classificacao.ERRO_INFRA
-    assert rodada.detalhe == "erro_llm"
+    assert rodada.detalhe == "erro_llm: RuntimeError"
     assert rodada.veredito is None
     assert relatorio.erros_infra == 1
     assert relatorio.taxa_total is None
+    assert "segredo do provedor" not in relatorio_para_json(relatorio)
+
+
+def test_erro_llm_leva_a_mensagem_segura_de_errollm_ao_relatorio(fatos: FatosVerdadeiros) -> None:
+    mensagem = "falha ao consultar o OpenRouter (InternalServerError, status 500) após 3 tentativas"
+
+    class _ModeloComErroLLM:
+        def responder(self, mensagens: Sequence[Mensagem]) -> RespostaLLM:
+            raise ErroLLM(mensagem)
+
+    fabrica = Fabrica(respostas=[_resposta_certa(fatos)])
+
+    relatorio = _executar(fatos, fabrica, lambda: _ModeloComErroLLM(), _config(rodadas=1))
+
+    rodada = _primeira_rodada(relatorio)
+    assert rodada.classificacao is Classificacao.ERRO_INFRA
+    assert rodada.detalhe == f"erro_llm: ErroLLM: {mensagem}"
+    texto = relatorio_para_json(relatorio)
+    assert json.loads(texto)["casos"][0]["rodadas"][0]["detalhe"] == rodada.detalhe
+    assert "status 500" in texto
 
 
 def test_erro_do_sandbox_sem_reinicio_vira_erro_infra(fatos: FatosVerdadeiros) -> None:

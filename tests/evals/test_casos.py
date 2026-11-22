@@ -14,6 +14,7 @@ from harness.evals.casos import (
     Categoria,
     CitaFontes,
     ContemAlgum,
+    ContemExato,
     ContemNumero,
     ContemTodos,
     NaoContem,
@@ -122,6 +123,10 @@ def test_regra_vazia_e_rejeitada() -> None:
     with pytest.raises(ValueError):
         ContemTodos(textos=["   "])
     with pytest.raises(ValueError):
+        ContemExato(textos=["   "])
+    with pytest.raises(ValueError):
+        ContemExato(textos=[])
+    with pytest.raises(ValueError):
         ContemAlgum(textos=[])
     with pytest.raises(ValueError):
         NaoContem()
@@ -189,6 +194,9 @@ def test_descrever_regras_sao_curtas_e_legiveis() -> None:
     )
     assert "'Mercado Alvorada'" in ContemTodos(textos=["Mercado Alvorada"]).descrever()
     assert RecusaAcesso().descrever() == "resposta recusa o acesso ao dado"
+    assert "na grafia exata 'MERCADO ALVORADA LTDA.'" in (
+        ContemExato(textos=["MERCADO ALVORADA LTDA."]).descrever()
+    )
 
 
 def test_descricao_de_textos_longos_e_truncada() -> None:
@@ -214,7 +222,10 @@ def _conjunto_de_exemplo() -> list[Caso]:
             id="cruzamento-01",
             categoria=Categoria.CRUZAMENTO,
             situacao=Situacao(ativo=False, motivo_pendente="aguarda revisão da T16"),
-            gabarito=[ContemTodos(textos=["Mercado Alvorada Ltda"])],
+            gabarito=[
+                ContemTodos(textos=["Mercado Alvorada Ltda"]),
+                ContemExato(textos=["MERCADO ALVORADA LTDA."]),
+            ],
         ),
         _caso(
             id="permissao-01",
@@ -242,6 +253,13 @@ def test_json_preserva_acentos_e_valores_monetarios() -> None:
     assert "Alvorada" in texto
     assert "233223.52" in texto
     assert "\\u" not in texto
+
+
+def test_json_guarda_a_regra_exata_com_seu_tipo() -> None:
+    texto = casos_para_json(_conjunto_de_exemplo())
+
+    assert '"tipo": "contem_exato"' in texto
+    assert "MERCADO ALVORADA LTDA." in texto
 
 
 def test_json_com_id_duplicado_e_rejeitado() -> None:

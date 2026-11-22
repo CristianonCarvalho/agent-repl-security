@@ -172,9 +172,80 @@ def test_usage_ausente_zera_os_tokens_sem_falhar() -> None:
     assert resposta.custo is None
 
 
-def test_content_none_vira_texto_vazio() -> None:
-    cliente, _, _ = _cliente([_completion(conteudo=None)])
-    assert cliente.responder(MENSAGENS).texto == ""
+def _resposta_em_dict(
+    conteudo: object = "ok",
+    *,
+    motivo: object = "stop",
+    reasoning: object = None,
+    com_detalhes: bool = True,
+) -> dict[str, Any]:
+    """Resposta no formato de dicionário, como o SDK pode devolver os extras."""
+    usage: dict[str, Any] = {"prompt_tokens": 1, "completion_tokens": 2}
+    if com_detalhes:
+        usage["completion_tokens_details"] = {"reasoning_tokens": reasoning}
+    return {
+        "choices": [{"finish_reason": motivo, "message": {"content": conteudo}}],
+        "usage": usage,
+    }
+
+
+def test_finish_reason_e_reasoning_tokens_lidos_de_objeto() -> None:
+    cliente, _, _ = _cliente([_completion(conteudo="ok")])
+    resposta = cliente.responder(MENSAGENS)
+    assert resposta.motivo_fim == "stop"
+    assert resposta.tokens_raciocinio is None
+    assert resposta.tentativas_descartadas == 0
+
+
+def test_finish_reason_e_reasoning_tokens_lidos_de_dict() -> None:
+    cliente, _, _ = _cliente([_resposta_em_dict("ok", motivo="length", reasoning=5)])
+
+    resposta = cliente.responder(MENSAGENS)
+
+    assert resposta.texto == "ok"
+    assert resposta.motivo_fim == "length"
+    assert resposta.tokens_raciocinio == 5
+
+
+def test_reasoning_tokens_de_objeto_do_sdk_sao_lidos() -> None:
+    usage = SimpleNamespace(
+        prompt_tokens=3,
+        completion_tokens=9,
+        completion_tokens_details=SimpleNamespace(reasoning_tokens=7),
+    )
+    resposta_sdk = SimpleNamespace(
+        choices=[
+            SimpleNamespace(finish_reason="stop", message=SimpleNamespace(content="texto final"))
+        ],
+        usage=usage,
+    )
+    cliente, _, _ = _cliente([resposta_sdk])
+
+    resposta = cliente.responder(MENSAGENS)
+
+    assert resposta.tokens_raciocinio == 7
+    assert resposta.motivo_fim == "stop"
+
+
+def test_campos_ausentes_viram_none_sem_falhar() -> None:
+    cliente, _, _ = _cliente([_resposta_em_dict("ok", motivo=None, com_detalhes=False)])
+
+    resposta = cliente.responder(MENSAGENS)
+
+    assert resposta.motivo_fim is None
+    assert resposta.tokens_raciocinio is None
+    assert resposta.texto == "ok"
+
+
+@pytest.mark.parametrize("invalido", ["muitos", -1, True, 1.5])
+def test_reasoning_tokens_invalido_vira_none(invalido: object) -> None:
+    cliente, _, _ = _cliente([_resposta_em_dict("ok", reasoning=invalido)])
+    assert cliente.responder(MENSAGENS).tokens_raciocinio is None
+
+
+def test_motivo_fim_longo_e_truncado_em_64_caracteres() -> None:
+    cliente, _, _ = _cliente([_resposta_em_dict("ok", motivo="x" * 200)])
+    assert cliente.responder(MENSAGENS).motivo_fim == "x" * 64
 
 
 def test_provedor_e_custo_ausentes_ficam_none_sem_inventar_valor() -> None:
@@ -286,6 +357,140 @@ def test_resposta_sem_choices_levanta_erro_llm() -> None:
 
     with pytest.raises(ErroLLM, match="sem escolhas"):
         cliente.responder(MENSAGENS)
+
+
+# --- Resposta vazia ------------------------------------------------------------------------
+
+
+def test_resposta_vazia_seguida_de_boa_devolve_a_boa_com_tokens_e_custo_somados() -> None:
+    cliente, falso, esperas = _cliente(
+        [_completion(conteudo="", cost=0.0001), _completion(cost=0.0002)]
+    )
+
+    resposta = cliente.responder(MENSAGENS)
+
+    assert resposta.texto == "oi, tudo bem"
+    assert resposta.tentativas_descartadas == 1
+    assert (resposta.tokens_entrada, resposta.tokens_saida) == (240, 16)
+    assert resposta.custo == pytest.approx(0.0003)
+    assert resposta.provedor == "Novita"
+    assert len(falso.chamadas) == 2
+    assert esperas == [1.0]
+
+
+def test_vazio_em_todas_as_tentativas_devolve_a_ultima_vazia_sem_lancar() -> None:
+    cliente, falso, esperas = _cliente([_completion(conteudo=None, cost=0.1) for _ in range(3)])
+
+    resposta = cliente.responder(MENSAGENS)
+
+    assert resposta.texto == ""
+    assert resposta.tentativas_descartadas == 2
+    assert resposta.motivo_fim == "stop"
+    assert (resposta.tokens_entrada, resposta.tokens_saida) == (360, 24)
+    assert resposta.custo == pytest.approx(0.3)
+    assert len(falso.chamadas) == 3
+    assert esperas == [1.0, 2.0]
+    assert CHAVE_FALSA not in repr(resposta)
+
+
+def test_vazio_sem_espera_que_caiba_no_prazo_devolve_a_vazia_sem_dormir() -> None:
+    relogio = RelogioFalso()
+    cliente, falso, esperas = _cliente_no_relogio(
+        [_completion(conteudo=""), _completion(conteudo="")],
+        relogio,
+        timeout_s=0.5,
+        prazo_total_s=1.5,
+    )
+
+    resposta = cliente.responder(MENSAGENS)
+
+    # A primeira espera (1 s) cabe; a segunda (2 s) não cabe nos 0,5 s restantes.
+    assert resposta.texto == ""
+    assert resposta.tentativas_descartadas == 1
+    assert len(falso.chamadas) == 2
+    assert esperas == [1.0]
+
+
+def test_vazio_com_espera_que_nao_cabe_nem_na_primeira_vez_nao_dorme() -> None:
+    relogio = RelogioFalso()
+    cliente, falso, esperas = _cliente_no_relogio(
+        [_completion(conteudo="")], relogio, timeout_s=0.5, prazo_total_s=0.5
+    )
+
+    resposta = cliente.responder(MENSAGENS)
+
+    assert resposta.texto == ""
+    assert resposta.tentativas_descartadas == 0
+    assert len(falso.chamadas) == 1
+    assert esperas == []
+
+
+@pytest.mark.parametrize("vazio", ["", "   ", "\n\t ", "​", "﻿ ​"])
+def test_conteudo_so_com_espacos_ou_invisiveis_conta_como_vazio(vazio: str) -> None:
+    cliente, falso, _ = _cliente([_completion(conteudo=vazio), _completion()])
+
+    resposta = cliente.responder(MENSAGENS)
+
+    assert resposta.texto == "oi, tudo bem"
+    assert resposta.tentativas_descartadas == 1
+    assert len(falso.chamadas) == 2
+
+
+def test_finish_reason_length_com_texto_nao_repete() -> None:
+    cliente, falso, esperas = _cliente([_resposta_em_dict("parcial", motivo="length")])
+
+    resposta = cliente.responder(MENSAGENS)
+
+    assert resposta.texto == "parcial"
+    assert resposta.motivo_fim == "length"
+    assert resposta.tentativas_descartadas == 0
+    assert len(falso.chamadas) == 1
+    assert esperas == []
+
+
+def test_tokens_de_raciocinio_das_tentativas_vazias_sao_somados() -> None:
+    cliente, _, _ = _cliente(
+        [_resposta_em_dict("", reasoning=4), _resposta_em_dict("ok", reasoning=6)]
+    )
+
+    resposta = cliente.responder(MENSAGENS)
+
+    assert resposta.tokens_raciocinio == 10
+    assert (resposta.tokens_entrada, resposta.tokens_saida) == (2, 4)
+
+
+def test_custo_fica_none_quando_nenhuma_tentativa_informou() -> None:
+    cliente, _, _ = _cliente([_completion(conteudo="", cost=None), _completion(cost=None)])
+    assert cliente.responder(MENSAGENS).custo is None
+
+
+@pytest.mark.parametrize(
+    ("custos", "esperado"),
+    [((0.5, None), 0.5), ((None, 0.25), 0.25)],
+)
+def test_custo_soma_so_as_tentativas_que_informaram(
+    custos: tuple[float | None, float | None], esperado: float
+) -> None:
+    cliente, _, _ = _cliente(
+        [_completion(conteudo="", cost=custos[0]), _completion(cost=custos[1])]
+    )
+    assert cliente.responder(MENSAGENS).custo == pytest.approx(esperado)
+
+
+def test_erro_transitorio_depois_de_vazio_continua_levantando_erro_llm() -> None:
+    cliente, falso, esperas = _cliente(
+        [
+            _completion(conteudo=""),
+            _erro_http(openai.InternalServerError, 500),
+            _erro_http(openai.InternalServerError, 500),
+        ]
+    )
+
+    with pytest.raises(ErroLLM, match="3 tentativas"):
+        cliente.responder(MENSAGENS)
+
+    assert len(falso.chamadas) == 3
+    assert esperas == [1.0, 2.0]
 
 
 # --- Parâmetros enviados -------------------------------------------------------------------

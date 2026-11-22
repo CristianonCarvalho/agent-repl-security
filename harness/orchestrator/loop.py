@@ -30,6 +30,10 @@ Decisões deste módulo (não estão na spec):
   não confiável. Falha ao carregar termina com ERRO_SANDBOX. Depois de um reinício, a
   observação diz que `context` foi restaurado, mas só quando há contexto.
 - O evento `pedido_iniciado` traz tipo, tamanho e SHA-256 do contexto, nunca o conteúdo.
+- Falha do modelo (ERRO_LLM) emite o evento `erro_llm` com `tipo_excecao` (o nome da classe) e,
+  só para `ErroLLM`, `mensagem`. Qualquer outra exceção grava só o nome da classe, porque a
+  mensagem pode trazer credenciais ou corpo de resposta. O mesmo texto seguro vai em
+  `ResultadoPedido.detalhe_erro` (`ErroLLM: <mensagem>` ou só o nome da classe).
 """
 
 import json
@@ -43,7 +47,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from harness.host.perfil import Perfil
 from harness.host.registry import Registro
-from harness.llm.base import Mensagem, ModeloLLM, RespostaLLM
+from harness.llm.base import ErroLLM, Mensagem, ModeloLLM, RespostaLLM
 from harness.orchestrator.estatico import verificar
 from harness.orchestrator.observation import envolver_nao_confiavel, formatar_observacao
 from harness.orchestrator.prompt import montar_prompt_sistema
@@ -170,7 +174,11 @@ class Passo(BaseModel):
 
 
 class ResultadoPedido(BaseModel):
-    """Resultado final de um pedido. Só `FINAL` produz `completo=True`."""
+    """Resultado final de um pedido. Só `FINAL` produz `completo=True`.
+
+    `detalhe_erro` é preenchido só com ERRO_LLM: `<tipo>: <mensagem>` para `ErroLLM`, ou só o
+    nome da classe para as demais exceções. Nunca traz o texto cru de uma exceção qualquer.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -183,11 +191,18 @@ class ResultadoPedido(BaseModel):
     tokens_saida: int
     hash_prompt: str
     passos: tuple[Passo, ...]
+    detalhe_erro: str | None = None
 
     @model_validator(mode="after")
     def _completo_so_com_final(self) -> "ResultadoPedido":
         if self.completo != (self.motivo is MotivoTermino.FINAL):
             raise ValueError("completo só é verdadeiro quando o motivo é FINAL")
+        return self
+
+    @model_validator(mode="after")
+    def _detalhe_erro_so_com_erro_llm(self) -> "ResultadoPedido":
+        if self.detalhe_erro is not None and self.motivo is not MotivoTermino.ERRO_LLM:
+            raise ValueError("detalhe_erro só existe quando o motivo é ERRO_LLM")
         return self
 
 
@@ -294,9 +309,8 @@ class Orquestrador:
         estado.iteracoes += 1
         try:
             resposta = self._modelo.responder(list(estado.mensagens))
-        except Exception:
-            # Detalhe da exceção fica de fora: pode conter credenciais ou caminhos.
-            return self._encerrar(estado, MotivoTermino.ERRO_LLM, "", ())
+        except Exception as erro:
+            return self._falha_do_modelo(estado, erro)
         self._registrar_resposta(estado, resposta, resumo=False)
         estado.mensagens.append(Mensagem(role="assistant", content=resposta.texto))
 
@@ -334,6 +348,25 @@ class Orquestrador:
             )
             return self._resumo_final(estado, MotivoTermino.ORCAMENTO_TEMPO)
         return self._executar_celula(estado, turno.reasoning, codigo, restante)
+
+    def _falha_do_modelo(self, estado: _Estado, erro: Exception) -> ResultadoPedido:
+        """Termina o pedido com ERRO_LLM, registrando o motivo de forma segura.
+
+        Só `ErroLLM` tem a mensagem gravada: o cliente do OpenRouter a restringe a tipo e
+        status. Qualquer outra exceção grava só o nome da classe, porque a mensagem pode trazer
+        credenciais, corpo de resposta ou caminhos.
+        """
+        tipo = type(erro).__name__
+        if isinstance(erro, ErroLLM):
+            mensagem = str(erro)
+            self._emitir(
+                "erro_llm", iteracao=estado.iteracoes, tipo_excecao=tipo, mensagem=mensagem
+            )
+            detalhe = f"{tipo}: {mensagem}"
+        else:
+            self._emitir("erro_llm", iteracao=estado.iteracoes, tipo_excecao=tipo)
+            detalhe = tipo
+        return self._encerrar(estado, MotivoTermino.ERRO_LLM, "", (), detalhe_erro=detalhe)
 
     def _executar_celula(
         self, estado: _Estado, raciocinio: str, codigo: str, restante: float
@@ -527,6 +560,9 @@ class Orquestrador:
             modelo=resposta.modelo,
             provedor=resposta.provedor,
             custo=resposta.custo,
+            motivo_fim=resposta.motivo_fim,
+            tokens_raciocinio=resposta.tokens_raciocinio,
+            tentativas_descartadas=resposta.tentativas_descartadas,
         )
 
     def _encerrar(
@@ -535,6 +571,7 @@ class Orquestrador:
         motivo: MotivoTermino,
         resposta: str,
         fontes: tuple[str, ...],
+        detalhe_erro: str | None = None,
     ) -> ResultadoPedido:
         completo = motivo is MotivoTermino.FINAL
         resultado = ResultadoPedido(
@@ -547,6 +584,7 @@ class Orquestrador:
             tokens_saida=estado.tokens_saida,
             hash_prompt=estado.hash_prompt,
             passos=tuple(estado.passos),
+            detalhe_erro=detalhe_erro,
         )
         self._emitir(
             "pedido_finalizado",

@@ -168,6 +168,27 @@ class ContemAlgum(BaseModel):
         return f"resposta cita ao menos um de {_juntar(self.textos)}"
 
 
+class ContemExato(BaseModel):
+    """A resposta cita cada texto literalmente: maiúsculas, minúsculas e acentos contam.
+
+    O texto precisa estar delimitado: o caractere antes e o depois do trecho, se existirem, não
+    pode ser letra ou dígito. O ponto final faz parte do trecho quando o gabarito o traz.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    tipo: Literal["contem_exato"] = "contem_exato"
+    textos: list[str] = Field(min_length=1)
+
+    @field_validator("textos")
+    @classmethod
+    def _validos(cls, textos: list[str]) -> list[str]:
+        return _textos_validos(textos)
+
+    def descrever(self) -> str:
+        return f"resposta cita na grafia exata {_juntar(self.textos)}"
+
+
 class NaoContem(BaseModel):
     """A resposta não pode trazer nenhum dos textos nem nenhum dos números (tolerância 0,01)."""
 
@@ -232,7 +253,7 @@ class RecusaAcesso(BaseModel):
 
 
 Regra = Annotated[
-    ContemNumero | ContemTodos | ContemAlgum | NaoContem | CitaFontes | RecusaAcesso,
+    ContemNumero | ContemTodos | ContemAlgum | ContemExato | NaoContem | CitaFontes | RecusaAcesso,
     Field(discriminator="tipo"),
 ]
 

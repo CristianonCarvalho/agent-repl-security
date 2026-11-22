@@ -28,17 +28,33 @@ Decisões deste módulo (não estão na spec):
   é que não espera por ela.
 - Erro transitório com prazo restante: a repetição segue as esperas de 1, 2, 4 s. Se a espera
   já não cabe no prazo restante, falha logo com o ErroLLM de prazo, sem dormir.
+- Resposta vazia (conteúdo ausente, vazio, só espaços ou só caracteres invisíveis) é falha
+  transitória: repete com as mesmas esperas e dentro do mesmo prazo. Ao esgotar as tentativas
+  ou o prazo com a resposta ainda vazia, NÃO levanta erro: devolve a última resposta vazia, com
+  texto "" e `tentativas_descartadas` contando as vazias repetidas antes dela. Quem consome
+  (orquestrador) a trata como turno inválido, como antes. Erros transitórios e de prazo de
+  tentativa continuam levantando `ErroLLM`, mesmo depois de uma resposta vazia.
+- Tokens de entrada, de saída, de raciocínio e custo das tentativas vazias descartadas são
+  somados na resposta final. O custo fica None se nenhuma tentativa informou custo.
+- `finish_reason` vira `motivo_fim` (truncado em 64 caracteres). `finish_reason == "length"`
+  com texto não vazio é resposta normal: não repete.
+- `tokens_raciocinio` vem de `usage.completion_tokens_details.reasoning_tokens`. Ausente, não
+  inteiro, negativo ou booleano vira None. O texto do raciocínio nunca é lido.
+- Campos lidos por `_campo` aceitam objeto do SDK e dict (o SDK pode devolver qualquer um).
 """
 
 import threading
 import time
+import unicodedata
 from collections.abc import Callable, Sequence
-from typing import Any
+from typing import Any, Final
 
 import openai
 
 from harness.llm.base import ErroLLM, Mensagem, RespostaLLM
 from harness.llm.config import ConfigModelo
+
+_TAMANHO_MAXIMO_MOTIVO: Final = 64
 
 
 class _Tentativa:
@@ -83,6 +99,7 @@ class ClienteOpenRouter:
         parametros = self._parametros(mensagens)
         inicio = self._relogio()
         tentativa_numero = 0
+        descartadas: list[RespostaLLM] = []
         while True:
             tentativa_numero += 1
             if self._restante(inicio) <= 0:
@@ -91,7 +108,18 @@ class ClienteOpenRouter:
             if tentativa is None:
                 raise self._erro_de_prazo()
             if tentativa.erro is None:
-                return _converter(tentativa.resposta)
+                resposta = _converter(tentativa.resposta)
+                if not _vazio(resposta.texto):
+                    return _somar(resposta, descartadas)
+                # Resposta vazia: repete como falha transitória, mas, se não couber, devolve a
+                # última vazia (o orquestrador a trata como turno inválido).
+                espera = float(2 ** (tentativa_numero - 1))
+                esgotou = tentativa_numero >= self._config.max_tentativas
+                if esgotou or espera >= self._restante(inicio):
+                    return _somar(resposta, descartadas)
+                descartadas.append(resposta)
+                self._dormir(espera)
+                continue
             erro = tentativa.erro
             if not isinstance(erro, Exception):
                 # Interrupções (BaseException) não são classificadas: seguem como estavam.
@@ -189,29 +217,68 @@ def _mensagem_de_erro(erro: Exception, tentativas: int) -> str:
 
 
 def _converter(resposta: Any) -> RespostaLLM:
-    """Converte o objeto do SDK em `RespostaLLM`. Resposta sem escolhas é erro do modelo."""
-    escolhas = getattr(resposta, "choices", None)
+    """Converte o objeto do SDK em `RespostaLLM`. Resposta sem escolhas é erro do modelo.
+
+    Texto vazio (ou só invisível) vira "", para que a repetição o reconheça.
+    """
+    escolhas = _campo(resposta, "choices")
     if not escolhas:
         raise ErroLLM("resposta do OpenRouter sem escolhas")
-    conteudo = _campo(_campo(escolhas[0], "message"), "content")
-    usage = getattr(resposta, "usage", None)
-    modelo = getattr(resposta, "model", None)
+    escolha = escolhas[0]
+    conteudo = _campo(_campo(escolha, "message"), "content")
+    usage = _campo(resposta, "usage")
+    modelo = _campo(resposta, "model")
     provedor = _campo(resposta, "provider")
     custo = _campo(usage, "cost")
+    raciocinio = _campo(_campo(usage, "completion_tokens_details"), "reasoning_tokens")
     return RespostaLLM(
-        texto=conteudo if isinstance(conteudo, str) else "",
+        texto=conteudo if isinstance(conteudo, str) and not _vazio(conteudo) else "",
         tokens_entrada=_contagem(_campo(usage, "prompt_tokens")),
         tokens_saida=_contagem(_campo(usage, "completion_tokens")),
         modelo=modelo if isinstance(modelo, str) else None,
         provedor=provedor if isinstance(provedor, str) else None,
         custo=float(custo) if _eh_numero(custo) else None,
+        motivo_fim=_motivo(_campo(escolha, "finish_reason")),
+        tokens_raciocinio=_contagem_opcional(raciocinio),
     )
 
 
+def _somar(final: RespostaLLM, descartadas: Sequence[RespostaLLM]) -> RespostaLLM:
+    """Soma tokens, raciocínio e custo das tentativas vazias descartadas à resposta final."""
+    if not descartadas:
+        return final
+    todas = [*descartadas, final]
+    custos = [r.custo for r in todas if r.custo is not None]
+    raciocinios = [r.tokens_raciocinio for r in todas if r.tokens_raciocinio is not None]
+    return final.model_copy(
+        update={
+            "tokens_entrada": sum(r.tokens_entrada for r in todas),
+            "tokens_saida": sum(r.tokens_saida for r in todas),
+            "custo": float(sum(custos)) if custos else None,
+            "tokens_raciocinio": sum(raciocinios) if raciocinios else None,
+            "tentativas_descartadas": len(descartadas),
+        }
+    )
+
+
+def _vazio(texto: str) -> bool:
+    """Sem nenhum caractere visível: vazio, só espaços ou só caracteres de controle/formato."""
+    return all(c.isspace() or unicodedata.category(c) in ("Cc", "Cf") for c in texto)
+
+
+def _motivo(valor: Any) -> str | None:
+    """`finish_reason` curto. Não-texto ou vazio vira None."""
+    if not isinstance(valor, str):
+        return None
+    return valor.strip()[:_TAMANHO_MAXIMO_MOTIVO] or None
+
+
 def _campo(objeto: Any, nome: str) -> Any:
-    """Lê um campo do objeto do SDK, inclusive os extras que o OpenRouter acrescenta."""
+    """Lê um campo do objeto do SDK (ou de um dict), inclusive os extras do OpenRouter."""
     if objeto is None:
         return None
+    if isinstance(objeto, dict):
+        return objeto.get(nome)
     valor = getattr(objeto, nome, None)
     if valor is None:
         extras = getattr(objeto, "model_extra", None)
@@ -222,9 +289,14 @@ def _campo(objeto: Any, nome: str) -> Any:
 
 def _contagem(valor: Any) -> int:
     """Contagem de tokens. Ausente ou inválida vira zero."""
+    return _contagem_opcional(valor) or 0
+
+
+def _contagem_opcional(valor: Any) -> int | None:
+    """Contagem de tokens inteira e não negativa. Ausente ou inválida vira None."""
     if isinstance(valor, int) and not isinstance(valor, bool) and valor >= 0:
         return valor
-    return 0
+    return None
 
 
 def _eh_numero(valor: Any) -> bool:

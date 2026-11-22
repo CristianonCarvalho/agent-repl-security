@@ -15,7 +15,9 @@ Decisões deste módulo (não estão na spec):
 - Classificação: `FINAL` com veredito aprovado é `aprovada`; `FINAL` reprovado e os orçamentos
   e o erro irrecuperável são `reprovada`; `ERRO_LLM` e `ERRO_SANDBOX` são `erro_infra`. Falha
   ao criar, iniciar ou montar a rodada também é `erro_infra`, com o nome do tipo da exceção
-  como detalhe. A mensagem da exceção nunca entra no relatório.
+  como detalhe. A mensagem da exceção nunca entra no relatório, exceto a de `ErroLLM`, que o
+  cliente do OpenRouter já restringe a tipo e status. Em ERRO_LLM o detalhe fica
+  `erro_llm: <detalhe_erro>`.
 - `ModeloContabil` embrulha o modelo de cada rodada. Ele repassa a resposta intacta e não
   inventa custo: sem custo informado, o custo fica None.
 - O relógio injetado vale para a duração da rodada e para o orçamento de tempo do orquestrador.
@@ -170,10 +172,12 @@ def _rodada_de_resultado(
         "hash_prompt": resultado.hash_prompt or None,
     }
     if resultado.motivo in _MOTIVOS_DE_INFRA:
-        # Motivo do término, sem texto de erro: é o nome do estado, não a mensagem.
-        return RodadaCaso(
-            classificacao=Classificacao.ERRO_INFRA, detalhe=resultado.motivo.value, **base
-        )
+        # Motivo do término. Em ERRO_LLM, o detalhe seguro do orquestrador (tipo e, para
+        # ErroLLM, a mensagem que o cliente já restringe a tipo e status) vai junto.
+        detalhe = resultado.motivo.value
+        if resultado.motivo is MotivoTermino.ERRO_LLM and resultado.detalhe_erro:
+            detalhe = f"{detalhe}: {resultado.detalhe_erro}"
+        return RodadaCaso(classificacao=Classificacao.ERRO_INFRA, detalhe=detalhe, **base)
     veredito = corrigir_resultado(caso, resultado)
     aprovada = resultado.motivo is MotivoTermino.FINAL and veredito.aprovado
     return RodadaCaso(
