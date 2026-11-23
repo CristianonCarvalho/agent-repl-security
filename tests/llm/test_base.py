@@ -49,7 +49,7 @@ def test_roteiro_esgotado_levanta_erro_e_ainda_registra_a_chamada() -> None:
 
 def test_mensagem_recusa_papel_desconhecido() -> None:
     with pytest.raises(ValueError):
-        Mensagem(role="tool", content="x")  # type: ignore[arg-type]
+        Mensagem(role="ferramenta", content="x")  # type: ignore[arg-type]
 
 
 def test_resposta_recusa_tokens_negativos() -> None:

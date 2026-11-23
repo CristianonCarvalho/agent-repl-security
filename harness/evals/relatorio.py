@@ -30,6 +30,20 @@ Decisões deste módulo (não estão na spec):
   Todos esses campos são opcionais: relatórios antigos continuam carregando.
 - `provedor_solicitado` é o nome fixado em `OPENROUTER_PROVEDOR` ou em `--provedor` (None se
   não houve). `provedores` continua sendo o que de fato respondeu. Relatório antigo carrega sem.
+
+Métricas de contexto (T18a, nas duas variantes). Calculadas só sobre as rodadas válidas
+(aprovada ou reprovada), porque rodada de erro de infraestrutura pode ter parado no meio:
+- `tokens_entrada_por_turno` (por rodada): entrada de cada chamada ao modelo que devolveu
+  resposta, na ordem, incluindo o resumo final. `pico_contexto` é o maior desses valores.
+- `caracteres_observacao` (por rodada): soma do texto de cada observação devolvida ao modelo.
+- `curva_de_contexto`: pares (número do turno, média de `tokens_entrada` do turno), começando
+  em 1. Só entra o turno com pelo menos 10 rodadas válidas. A média é arredondada.
+- `pico_contexto_medio` e `caracteres_observacao_medio`: média entre as rodadas válidas que
+  têm o dado.
+- `custo_por_acerto`: custo total da execução dividido pelo número de rodadas aprovadas. None
+  sem aprovada ou sem custo.
+- `variante` (padrão "repl"), `ferramentas_json` (nome do conjunto) e `hash_ferramentas` (SHA-256
+  dos esquemas enviados ao modelo) vão para a procedência. Relatório antigo carrega sem eles.
 """
 
 import hashlib
@@ -44,6 +58,9 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from harness.evals.casos import GRUPOS_DE_CASOS, Caso, Categoria, GrupoCaso, casos_para_json
 from harness.evals.correcao import Veredito
+
+MINIMO_RODADAS_PARA_CURVA: Final = 10
+VarianteRelatorio = Literal["repl", "json", "json-agregacao"]
 
 
 class ErroDeRelatorio(Exception):
@@ -86,6 +103,10 @@ class RodadaCaso(BaseModel):
     caminho_trace: str | None = None
     hash_prompt: str | None = None
     detalhe: str | None = None
+    # Métricas de contexto (T18a). Vazias quando o orquestrador não chegou a iniciar.
+    tokens_entrada_por_turno: tuple[int, ...] = ()
+    pico_contexto: int | None = Field(default=None, ge=0)
+    caracteres_observacao: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def _coerente(self) -> Self:
@@ -143,7 +164,7 @@ class Relatorio(BaseModel):
 
     model_config = ConfigDict(frozen=True)
 
-    variante: Literal["repl", "json"] = "repl"
+    variante: VarianteRelatorio = "repl"
     semente: int
     rodadas_por_caso: int = Field(ge=1)
     modelo: str | None = None
@@ -185,6 +206,13 @@ class Relatorio(BaseModel):
     linha_de_base: str | None = None
     # Provedor pedido ao OpenRouter (None se não fixado). Relatório antigo não o tem.
     provedor_solicitado: str | None = None
+    # Variante JSON (T18a). Relatórios antigos não têm estes campos.
+    ferramentas_json: str | None = None
+    hash_ferramentas: str | None = None
+    curva_de_contexto: tuple[tuple[int, int], ...] = ()
+    pico_contexto_medio: float | None = None
+    caracteres_observacao_medio: float | None = None
+    custo_por_acerto: float | None = None
 
     @model_validator(mode="after")
     def _coerente(self) -> Self:
@@ -286,24 +314,48 @@ def _taxas_por_rodada(ativos: Sequence[ResumoCaso], total: int) -> tuple[float |
     return tuple(taxas)
 
 
+def _curva_de_contexto(validas: Sequence[RodadaCaso]) -> tuple[tuple[int, int], ...]:
+    """Média de `tokens_entrada` por turno (a partir de 1), nos turnos com rodadas suficientes."""
+    maior = max((len(r.tokens_entrada_por_turno) for r in validas), default=0)
+    curva: list[tuple[int, int]] = []
+    for indice in range(maior):
+        valores = [
+            r.tokens_entrada_por_turno[indice]
+            for r in validas
+            if len(r.tokens_entrada_por_turno) > indice
+        ]
+        if len(valores) >= MINIMO_RODADAS_PARA_CURVA:
+            curva.append((indice + 1, round(statistics.fmean(valores))))
+    return tuple(curva)
+
+
+def _custo_por_acerto(custo_total: float | None, aprovadas: int) -> float | None:
+    if custo_total is None or aprovadas == 0:
+        return None
+    return custo_total / aprovadas
+
+
 def agregar(
     casos: Sequence[Caso],
     rodadas: Mapping[str, Sequence[RodadaCaso]],
     *,
     semente: int,
     rodadas_por_caso: int,
-    variante: Literal["repl", "json"] = "repl",
+    variante: VarianteRelatorio = "repl",
     modelo: str | None = None,
     provedores: Iterable[str] = (),
     teto_motivo: str | None = None,
     falhas_telemetria: int | None = None,
     orcamento: Mapping[str, float | int] | None = None,
+    ferramentas_json: str | None = None,
+    hash_ferramentas: str | None = None,
 ) -> Relatorio:
     """Monta o relatório a partir dos casos e das rodadas de cada um. Não faz I/O.
 
     `rodadas` tem uma entrada por id de caso; casos sem entrada ficam sem rodadas. Levanta
     ValueError se uma rodada não bate com o caso (pendente em caso ativo, número fora da faixa).
-    `orcamento` são os limites que valeram na execução, copiados para o relatório.
+    `orcamento` são os limites que valeram na execução, copiados para o relatório. As métricas de
+    contexto (T18a) são calculadas aqui, a partir das rodadas válidas.
     """
     ids = {caso.id for caso in casos}
     desconhecidos = sorted(set(rodadas) - ids)
@@ -323,6 +375,15 @@ def agregar(
     todas = [rodada for resumo in resumos for rodada in resumo.rodadas]
     custos = [r.custo for r in todas if r.custo is not None]
     hash_prompt = next((r.hash_prompt for r in todas if r.hash_prompt is not None), None)
+    validas_rodadas = [r for r in todas if r.classificacao in _VALIDAS]
+    picos = [float(r.pico_contexto) for r in validas_rodadas if r.pico_contexto is not None]
+    caracteres = [
+        float(r.caracteres_observacao)
+        for r in validas_rodadas
+        if r.caracteres_observacao is not None
+    ]
+    aprovadas = sum(1 for r in todas if r.classificacao is Classificacao.APROVADA)
+    custo_total = sum(custos) if custos else None
 
     return Relatorio(
         variante=variante,
@@ -342,7 +403,7 @@ def agregar(
         ),
         tokens_entrada_total=sum(r.tokens_entrada for r in todas),
         tokens_saida_total=sum(r.tokens_saida for r in todas),
-        custo_total=sum(custos) if custos else None,
+        custo_total=custo_total,
         rodadas_sem_custo=sum(
             1 for r in todas if r.custo is None and r.tokens_entrada + r.tokens_saida > 0
         ),
@@ -353,6 +414,12 @@ def agregar(
         teto_motivo=teto_motivo,
         falhas_telemetria=falhas_telemetria,
         orcamento=dict(orcamento) if orcamento is not None else None,
+        ferramentas_json=ferramentas_json,
+        hash_ferramentas=hash_ferramentas,
+        curva_de_contexto=_curva_de_contexto(validas_rodadas),
+        pico_contexto_medio=_media(picos),
+        caracteres_observacao_medio=_media(caracteres),
+        custo_por_acerto=_custo_por_acerto(custo_total, aprovadas),
     )
 
 

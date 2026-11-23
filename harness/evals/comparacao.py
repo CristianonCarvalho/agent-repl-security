@@ -240,6 +240,9 @@ def _formatar_orcamento(orcamento: dict[str, float | int] | None) -> str | None:
 
 def _contexto(base: Relatorio, novo: Relatorio) -> tuple[DiferencaContexto, ...]:
     pares: list[tuple[str, str | None, str | None]] = [
+        ("variante", base.variante, novo.variante),
+        ("conjunto de ferramentas JSON", base.ferramentas_json, novo.ferramentas_json),
+        ("hash das ferramentas", base.hash_ferramentas, novo.hash_ferramentas),
         ("modelo", base.modelo, novo.modelo),
         ("provedores", ", ".join(base.provedores) or None, ", ".join(novo.provedores) or None),
         ("hash do prompt", base.hash_prompt, novo.hash_prompt),
@@ -276,6 +279,17 @@ def _diferenca(nome: str, base: float | None, novo: float | None) -> DiferencaVa
     return DiferencaValor(nome=nome, base=base, novo=novo, delta=delta)
 
 
+# Métricas de contexto (T18a): podem faltar num dos lados (relatório antigo). Quando faltam nos
+# dois, não aparecem na tabela; quando falta num só, a comparação avisa.
+_METRICAS_OPCIONAIS: Final = frozenset(
+    {
+        "pico de contexto médio (tokens)",
+        "caracteres de observação médios",
+        "custo por acerto (US$)",
+    }
+)
+
+
 def _valores(base: Relatorio, novo: Relatorio) -> tuple[DiferencaValor, ...]:
     return (
         _diferenca("custo total (US$)", base.custo_total, novo.custo_total),
@@ -292,7 +306,31 @@ def _valores(base: Relatorio, novo: Relatorio) -> tuple[DiferencaValor, ...]:
             _iteracoes_medias(base),
             _iteracoes_medias(novo),
         ),
+        _diferenca(
+            "pico de contexto médio (tokens)", base.pico_contexto_medio, novo.pico_contexto_medio
+        ),
+        _diferenca(
+            "caracteres de observação médios",
+            base.caracteres_observacao_medio,
+            novo.caracteres_observacao_medio,
+        ),
+        _diferenca("custo por acerto (US$)", base.custo_por_acerto, novo.custo_por_acerto),
     )
+
+
+def _avisos_de_metricas(base: Relatorio, novo: Relatorio) -> list[str]:
+    """Aviso para cada métrica de contexto que existe só num dos lados."""
+    avisos: list[str] = []
+    for valor in _valores(base, novo):
+        if valor.nome not in _METRICAS_OPCIONAIS:
+            continue
+        if (valor.base is None) != (valor.novo is None):
+            lado = "a linha de base" if valor.base is None else "a execução nova"
+            avisos.append(
+                f"{valor.nome}: não informado em {lado} (relatório antigo ou sem o dado); "
+                "a diferença não é calculada"
+            )
+    return avisos
 
 
 def _vazia(
@@ -352,6 +390,7 @@ def comparar(
         raise ValueError("limite_caso precisa estar entre 0 (sem zero) e 1")
 
     avisos: list[str] = _avisos_de_provedor(base, novo)
+    avisos += _avisos_de_metricas(base, novo)
     contexto = _contexto(base, novo)
     desvio_base_pp = (
         _pp(base.desvio_entre_rodadas) if base.desvio_entre_rodadas is not None else None
@@ -578,10 +617,18 @@ def _linhas_contexto(comparacao: Comparacao) -> list[str]:
     if not linhas:
         linhas.append("  o contexto é o mesmo nas duas execuções")
     for valor in comparacao.valores:
+        if valor.base is None and valor.novo is None and valor.nome in _METRICAS_OPCIONAIS:
+            continue
         if valor.base is None or valor.novo is None:
             linhas.append(f"  {valor.nome}: não informado em uma das execuções")
             continue
-        casas = 4 if "custo" in valor.nome else 0 if "tokens" in valor.nome else 1
+        casas = (
+            4
+            if "custo" in valor.nome
+            else 0
+            if ("tokens" in valor.nome or "caracteres" in valor.nome)
+            else 1
+        )
         delta = _br(valor.delta or 0.0, casas, sinal=True)
         linhas.append(
             f"  {valor.nome}: base {_br(valor.base, casas)} -> novo {_br(valor.novo, casas)} "

@@ -30,6 +30,14 @@ Decisões deste módulo (não estão na spec):
 - Pausa (`pausa_s`): espera entre uma rodada executada e a próxima, com o `dormir` injetado de
   `executar_avaliacao`. Não há pausa antes da primeira rodada nem depois da última, e rodada não
   executada (teto, pendente) não conta. A espera fica fora da duração da rodada.
+
+T18a (variantes JSON): `ConfigExecucao.variante` escolhe o agente. Nas variantes JSON não há
+sandbox: o registro de arquivos (`ferramentas_json`) e o `OrquestradorJson` são montados por
+rodada, e o modelo é chamado com `responder_com_ferramentas`. `ModeloContabil` embrulha também
+essa chamada, com a mesma contabilidade. Métricas de contexto, nas duas variantes, saem dos
+eventos: `tokens_entrada_por_turno` e `pico_contexto` (de `turno_modelo`) e
+`caracteres_observacao` (soma do texto das observações enviadas ao modelo; ver
+`_ColetorDeContexto`). Só contam as rodadas que o orquestrador chegou a iniciar.
 """
 
 import contextlib
@@ -39,18 +47,20 @@ import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Final, Protocol
+from typing import Any, Final, Literal, Protocol
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from harness.evals.casos import Caso, validar_conjunto
 from harness.evals.correcao import corrigir_resultado
 from harness.evals.dados import FatosVerdadeiros, gerar_dados
+from harness.evals.ferramentas_json import nome_do_conjunto, perfil_json, registro_json
 from harness.evals.relatorio import Classificacao, Relatorio, RodadaCaso, agregar
 from harness.host.perfil import montagens_do_perfil, perfil_por_nome
 from harness.host.registry import Registro
 from harness.host.tools import registrar_todas
 from harness.llm.base import Mensagem, ModeloLLM, RespostaLLM
+from harness.llm.ferramentas import EsquemaFerramenta, hash_dos_esquemas
 from harness.orchestrator.loop import (
     Evento,
     MotivoTermino,
@@ -59,10 +69,12 @@ from harness.orchestrator.loop import (
     ResultadoPedido,
     SandboxLike,
 )
+from harness.orchestrator.loop_json import OrquestradorJson, esquemas_do_registro
 from harness.sandbox.docker_sandbox import IMAGEM_PADRAO, DockerSandbox
 from harness.telemetry.trace import TraceJsonl
 
 _MOTIVOS_DE_INFRA: Final = frozenset({MotivoTermino.ERRO_LLM, MotivoTermino.ERRO_SANDBOX})
+VARIANTES: Final = ("repl", "json", "json-agregacao")
 
 
 class SandboxIniciavel(SandboxLike, Protocol):
@@ -117,6 +129,8 @@ class ConfigExecucao(BaseModel):
     pasta_trace: Path | None = None
     orcamento: Orcamento | None = None
     pausa_s: float = Field(default=0.0, ge=0, allow_inf_nan=False)
+    # Agente da execução: REPL (Code Mode, com sandbox) ou uma das variantes JSON (T18a).
+    variante: Literal["repl", "json", "json-agregacao"] = "repl"
 
     @field_validator("teto_usd")
     @classmethod
@@ -152,7 +166,22 @@ class ModeloContabil:
         self._modelos: set[str] = set()
 
     def responder(self, mensagens: Sequence[Mensagem]) -> RespostaLLM:
-        resposta = self._modelo.responder(mensagens)
+        return self._contar(self._modelo.responder(mensagens))
+
+    def responder_com_ferramentas(
+        self,
+        mensagens: Sequence[Mensagem],
+        ferramentas: Sequence[EsquemaFerramenta],
+        *,
+        escolha: Literal["auto", "none"] = "auto",
+    ) -> RespostaLLM:
+        """Mesma contabilidade de `responder`. Exige que o modelo embrulhado aceite ferramentas."""
+        modelo: Any = self._modelo
+        return self._contar(
+            modelo.responder_com_ferramentas(mensagens, ferramentas, escolha=escolha)
+        )
+
+    def _contar(self, resposta: RespostaLLM) -> RespostaLLM:
         self.respostas += 1
         self.tokens_entrada += resposta.tokens_entrada
         self.tokens_saida += resposta.tokens_saida
@@ -194,6 +223,56 @@ def _fechar(sandbox: SandboxIniciavel) -> None:
         sandbox.close()
 
 
+@dataclass
+class _ColetorDeContexto:
+    """Métricas de contexto de uma rodada, lidas dos eventos (T18a). Não altera nada.
+
+    `tokens_entrada_por_turno` tem a entrada de cada chamada ao modelo que devolveu resposta
+    (turnos e o resumo final, nessa ordem). `caracteres_observacao` soma o texto das observações
+    que foram ENVIADAS ao modelo: uma observação só conta quando há uma chamada seguinte ao
+    modelo. A observação do turno final (o `FINAL`) nunca volta ao modelo, então não conta. Vale
+    igual para as duas variantes.
+    """
+
+    iniciou: bool = False
+    entradas: list[int] = field(default_factory=list)
+    caracteres: int = 0
+    _pendente: int = 0
+
+    def __call__(self, evento: Evento) -> None:
+        if evento.tipo == "pedido_iniciado":
+            self.iniciou = True
+        elif evento.tipo == "turno_modelo":
+            self._enviar_pendente()
+            entrada = evento.dados.get("tokens_entrada")
+            if isinstance(entrada, int) and not isinstance(entrada, bool):
+                self.entradas.append(entrada)
+        elif evento.tipo == "erro_llm":
+            # A chamada que falhou também levou as observações pendentes.
+            self._enviar_pendente()
+        elif evento.tipo == "observacao":
+            texto = evento.dados.get("texto")
+            if isinstance(texto, str):
+                self._pendente += len(texto)
+        elif evento.tipo == "pedido_finalizado":
+            # Quem termina não manda nada de volta ao modelo.
+            self._pendente = 0
+
+    def _enviar_pendente(self) -> None:
+        self.caracteres += self._pendente
+        self._pendente = 0
+
+    def metricas(self) -> dict[str, Any]:
+        """Campos de `RodadaCaso`. Sem pedido iniciado, tudo fica vazio (None)."""
+        if not self.iniciou:
+            return {}
+        return {
+            "tokens_entrada_por_turno": tuple(self.entradas),
+            "pico_contexto": max(self.entradas) if self.entradas else None,
+            "caracteres_observacao": self.caracteres,
+        }
+
+
 def _rodada_de_resultado(
     numero: int,
     caso: Caso,
@@ -201,6 +280,7 @@ def _rodada_de_resultado(
     contabil: ModeloContabil,
     duracao_s: float,
     caminho_trace: str | None,
+    coletor: _ColetorDeContexto | None = None,
 ) -> RodadaCaso:
     base: dict[str, Any] = {
         "numero": numero,
@@ -212,6 +292,7 @@ def _rodada_de_resultado(
         "duracao_s": duracao_s,
         "caminho_trace": caminho_trace,
         "hash_prompt": resultado.hash_prompt or None,
+        **(coletor.metricas() if coletor is not None else {}),
     }
     if resultado.motivo in _MOTIVOS_DE_INFRA:
         # Motivo do término. Em ERRO_LLM, o detalhe seguro do orquestrador (tipo e, para
@@ -274,13 +355,17 @@ def _falhas_de(telemetria: TelemetriaDeRodada) -> int:
 
 
 def _consumidor(
-    trace: TraceJsonl | None, telemetria: TelemetriaDeRodada | None
+    trace: TraceJsonl | None,
+    telemetria: TelemetriaDeRodada | None,
+    coletor: _ColetorDeContexto | None = None,
 ) -> Callable[[Evento], None] | None:
-    """Um único callback de eventos para o trace JSONL e para a telemetria."""
-    if trace is None and telemetria is None:
+    """Um único callback de eventos para o trace JSONL, a telemetria e o coletor de contexto."""
+    if trace is None and telemetria is None and coletor is None:
         return None
 
     def consumir(evento: Evento) -> None:
+        if coletor is not None:
+            coletor(evento)
         if trace is not None:
             trace(evento)
         if telemetria is not None:
@@ -354,31 +439,47 @@ def _executar_rodada(
     inicio = relogio()
     contabil: ModeloContabil | None = None
     caminho_trace: str | None = None
+    coletor = _ColetorDeContexto()
     telemetria, falhas_criacao = _abrir_telemetria(fabrica_telemetria)
     try:
         contabil = ModeloContabil(fabrica_modelo())
         perfil = perfil_por_nome(caso.perfil)
-        registro = Registro()
-        registrar_todas(registro, raiz)
-        sandbox = fabrica_sandbox(montagens_do_perfil(perfil, raiz))
-        try:
-            sandbox.start()
+        if config.variante == "repl":
+            registro = Registro()
+            registrar_todas(registro, raiz)
+            sandbox = fabrica_sandbox(montagens_do_perfil(perfil, raiz))
+            try:
+                sandbox.start()
+                trace = TraceJsonl(config.pasta_trace) if config.pasta_trace is not None else None
+                caminho_trace = str(trace.caminho) if trace is not None else None
+                orquestrador = Orquestrador(
+                    contabil,
+                    sandbox,
+                    registro,
+                    perfil,
+                    orcamento=config.orcamento,
+                    relogio=relogio,
+                    eventos=_consumidor(trace, telemetria, coletor),
+                )
+            except BaseException:
+                # Sem Orquestrador, ninguém fecharia o sandbox: fecha aqui e repassa o erro.
+                _fechar(sandbox)
+                raise
+            resultado = orquestrador.executar_pedido(caso.pedido)
+        else:
+            # Variante JSON (T18a): sem sandbox. O registro e o perfil são da variante.
             trace = TraceJsonl(config.pasta_trace) if config.pasta_trace is not None else None
             caminho_trace = str(trace.caminho) if trace is not None else None
-            orquestrador = Orquestrador(
+            orquestrador_json = OrquestradorJson(
                 contabil,
-                sandbox,
-                registro,
-                perfil,
+                registro_json(raiz, config.variante),
+                perfil_json(perfil, config.variante),
                 orcamento=config.orcamento,
                 relogio=relogio,
-                eventos=_consumidor(trace, telemetria),
+                eventos=_consumidor(trace, telemetria, coletor),
+                variante=config.variante,
             )
-        except BaseException:
-            # Sem Orquestrador, ninguém fecharia o sandbox: fecha aqui e repassa o erro.
-            _fechar(sandbox)
-            raise
-        resultado = orquestrador.executar_pedido(caso.pedido)
+            resultado = orquestrador_json.executar_pedido(caso.pedido)
     except Exception as erro:
         rodada = _rodada_de_excecao(numero, erro, contabil, relogio() - inicio, caminho_trace)
         falhas = _exportar_rodada(telemetria, caso, config, rodada, contabil, caminho_trace)
@@ -387,7 +488,7 @@ def _executar_rodada(
     vistos.provedores.update(contabil.provedores)
     vistos.modelos.update(contabil.modelos)
     rodada = _rodada_de_resultado(
-        numero, caso, resultado, contabil, relogio() - inicio, caminho_trace
+        numero, caso, resultado, contabil, relogio() - inicio, caminho_trace, coletor
     )
     falhas = _exportar_rodada(telemetria, caso, config, rodada, contabil, caminho_trace)
     return rodada, falhas_criacao + falhas
@@ -467,17 +568,28 @@ def _executar_casos(
             if aoprogresso is not None:
                 aoprogresso(caso.id, numero, rodada.classificacao)
 
+    variante_json = config.variante != "repl"
     return agregar(
         casos,
         rodadas,
         semente=config.semente,
         rodadas_por_caso=config.rodadas,
+        variante=config.variante,
         modelo=", ".join(sorted(vistos.modelos)) or None,
         provedores=vistos.provedores,
         teto_motivo=teto_motivo,
         falhas_telemetria=falhas_telemetria if fabrica_telemetria is not None else None,
         orcamento=orcamento_usado(config),
+        ferramentas_json=nome_do_conjunto(config.variante) if variante_json else None,
+        hash_ferramentas=_hash_das_ferramentas(config.variante, raiz) if variante_json else None,
     )
+
+
+def _hash_das_ferramentas(variante: str, raiz: Path) -> str:
+    """SHA-256 dos esquemas que a variante JSON envia ao modelo. Os perfis concedem o mesmo
+    conjunto, então o perfil usado aqui não muda o resultado."""
+    perfil = perfil_json(perfil_por_nome("Direção"), variante)
+    return hash_dos_esquemas(esquemas_do_registro(registro_json(raiz, variante), perfil))
 
 
 def executar_avaliacao(

@@ -35,6 +35,10 @@ LIMITE_STDOUT: Final = 4000
 LIMITE_STDERR: Final = 1000
 LIMITE_EXCECAO: Final = 2000
 
+AVISO_TRUNCAGEM_RESULTADO: Final = (
+    "\n[resultado truncado: {omitidos} caracteres a mais; para ver o resto, peça outra página com "
+    "os parâmetros de paginação da ferramenta (inicio ou limite)]"
+)
 _NOME_DELIMITADOR: Final = "saida_nao_confiavel"
 _ABERTURA: Final = f"<{_NOME_DELIMITADOR}>"
 _FECHAMENTO: Final = f"</{_NOME_DELIMITADOR}>"
@@ -220,3 +224,25 @@ def formatar_observacao(cell_id: int, done: ExecDone, ferramentas: Mapping[str, 
         linhas.append("FINAL recebido.")
 
     return "\n".join(linhas)
+
+
+def envelopar_resultado(texto: str, limite: int) -> str:
+    """Envelope `<saida_nao_confiavel>` para o resultado de uma ferramenta (variante JSON, T18a).
+
+    Usa a mesma sequência do REPL: NFKC, quebras escapadas e neutralização do delimitador. A
+    diferença é a truncagem: em vez de cortar o meio, mantém os primeiros `limite` caracteres
+    (o JSON começa pelo que importa) e acrescenta um aviso explícito com a dica de paginar.
+    O aviso fica fora do envelope do conteúdo e não conta no limite.
+
+    Decisão: o mesmo envelope vale para resultado e para erro de ferramenta. Assim o modelo vê
+    uma só forma de conteúdo não confiável, e um nome de função que ele mesmo escreveu não
+    consegue fechar o bloco.
+    """
+    if limite < 1:
+        raise ValueError("o limite do resultado precisa ser pelo menos 1")
+    preparado = _preparar(texto)
+    corpo = _neutralizar(preparado[:limite])
+    if len(preparado) > limite:
+        omitidos = len(preparado) - limite
+        corpo += AVISO_TRUNCAGEM_RESULTADO.format(omitidos=omitidos)
+    return "\n".join([_ABERTURA, corpo, _FECHAMENTO])

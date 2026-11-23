@@ -39,9 +39,9 @@ class PromptSistema:
     hash_sha256: str
 
 
-def carregar_modelo() -> str:
+def carregar_modelo(nome_arquivo: str = NOME_ARQUIVO_PROMPT) -> str:
     """Lê o arquivo versionado do prompt, ainda com o marcador `{grupos}`."""
-    arquivo = resources.files(PACOTE_PROMPTS).joinpath(NOME_ARQUIVO_PROMPT)
+    arquivo = resources.files(PACOTE_PROMPTS).joinpath(nome_arquivo)
     return arquivo.read_text(encoding="utf-8")
 
 
@@ -58,8 +58,15 @@ def grupos_resumidos(registro: Registro, perfil: Perfil) -> str:
     return "\n".join(linhas) if linhas else SEM_FERRAMENTAS
 
 
-def montar_prompt_sistema(registro: Registro, perfil: Perfil) -> PromptSistema:
-    """Monta o prompt com os grupos visíveis ao perfil e calcula o hash do texto final."""
-    texto = carregar_modelo().replace(MARCADOR_GRUPOS, grupos_resumidos(registro, perfil))
+def montar_prompt_sistema(
+    registro: Registro, perfil: Perfil, nome_arquivo: str = NOME_ARQUIVO_PROMPT
+) -> PromptSistema:
+    """Monta o prompt com os grupos visíveis ao perfil e calcula o hash do texto final.
+
+    `nome_arquivo` escolhe o modelo: `sistema.md` (REPL, padrão) ou `sistema_json.md` (T18a).
+    """
+    texto = carregar_modelo(nome_arquivo).replace(
+        MARCADOR_GRUPOS, grupos_resumidos(registro, perfil)
+    )
     hash_sha256 = hashlib.sha256(texto.encode("utf-8")).hexdigest()
     return PromptSistema(texto=texto, hash_sha256=hash_sha256)

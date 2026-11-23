@@ -447,7 +447,14 @@ class _Montador:
             if self._completo:
                 self._definir(ferramenta, "langfuse.observation.status_message", erro)
         self._json_se_completo(ferramenta, "langfuse.observation.input", dados.get("args"))
-        pai = self._celula if self._celula is not None else self.raiz
+        # No REPL a chamada acontece dentro da célula. No agente JSON não há célula: a chamada é
+        # filha do turno que a pediu (T18a). Sem nenhum dos dois, vai para a raiz.
+        if self._celula is not None:
+            pai = self._celula
+        elif self._turno is not None:
+            pai = self._turno
+        else:
+            pai = self.raiz
         pai.filhos.append(ferramenta)
 
     def _execucao(self, instante: int, dados: dict[str, Any]) -> None:

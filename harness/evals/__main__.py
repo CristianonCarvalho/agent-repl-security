@@ -65,7 +65,12 @@ from harness.evals.comparacao import (
 from harness.evals.congelamento import ErroDeCongelamento, congelar
 from harness.evals.conjunto import VERSAO_CONJUNTO, conjunto_completo
 from harness.evals.dados import FatosVerdadeiros, gerar_dados
-from harness.evals.executor import ConfigExecucao, executar_avaliacao, orcamento_usado
+from harness.evals.executor import (
+    VARIANTES,
+    ConfigExecucao,
+    executar_avaliacao,
+    orcamento_usado,
+)
 from harness.evals.procedencia import (
     RAIZ_DO_REPOSITORIO,
     ErroDeLinhaDeBase,
@@ -203,6 +208,13 @@ def _parser() -> argparse.ArgumentParser:
         metavar="SEGUNDOS",
         help="espera entre uma rodada e a próxima, em segundos (padrão: 0)",
     )
+    parser.add_argument(
+        "--variante",
+        choices=VARIANTES,
+        default="repl",
+        help="agente da avaliação: repl (Code Mode, padrão), json (tool calling em JSON) ou "
+        "json-agregacao (JSON com agregação de planilhas)",
+    )
     return parser
 
 
@@ -250,6 +262,7 @@ def _config(args: argparse.Namespace) -> ConfigExecucao:
             pasta_trace=args.trace,
             orcamento=orcamento,
             pausa_s=args.pausa_s,
+            variante=args.variante,
         )
     except ValidationError as erro:
         campos = "; ".join(
@@ -359,9 +372,15 @@ def _br(valor: float) -> str:
     return f"{valor:.4f}".replace(".", ",")
 
 
+def _inteiro_br(valor: float) -> str:
+    """Inteiro com separador de milhar com ponto, como no resto do resumo (ex.: 1.234)."""
+    return f"{valor:,.0f}".replace(",", ".")
+
+
 def _resumo(saida: TextIO, relatorio: Relatorio, caminho: Path | None) -> None:
     linhas = [
         "",
+        f"Variante: {relatorio.variante}",
         f"Taxa total de sucesso: {_percentual(relatorio.taxa_total)}",
     ]
     if relatorio.desvio_entre_rodadas is not None:
@@ -389,6 +408,16 @@ def _resumo(saida: TextIO, relatorio: Relatorio, caminho: Path | None) -> None:
     linhas.append(
         f"Tokens: entrada {relatorio.tokens_entrada_total}, saída {relatorio.tokens_saida_total}"
     )
+    if relatorio.pico_contexto_medio is not None:
+        pico = _inteiro_br(relatorio.pico_contexto_medio)
+        linhas.append(f"Pico de contexto médio: {pico} tokens por chamada")
+    if relatorio.caracteres_observacao_medio is not None:
+        linhas.append(
+            "Caracteres de observação médios por rodada: "
+            f"{_inteiro_br(relatorio.caracteres_observacao_medio)}"
+        )
+    if relatorio.custo_por_acerto is not None:
+        linhas.append(f"Custo por acerto: US$ {_br(relatorio.custo_por_acerto)}")
     linhas.append(f"Erros de infraestrutura: {relatorio.erros_infra}")
     linhas.append(f"Rodadas não executadas: {relatorio.nao_executadas}")
     if relatorio.pendentes:

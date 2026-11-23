@@ -54,7 +54,13 @@ COR_GRADE: Final = "#e1e0d9"
 COR_BASE: Final = "#c3c2b7"
 PALETA: Final = ("#2a78d6", "#eb6834", "#6250d6", "#1baf7a", "#e87ba4")
 FORMAS: Final = ("circulo", "triangulo", "quadrado", "losango")
-ROTULOS_VARIANTE: Final = {"repl": "REPL (Code Mode)", "json": "Tool calling em JSON"}
+ROTULOS_VARIANTE: Final = {
+    "repl": "REPL (Code Mode)",
+    "json": "Tool calling em JSON",
+    "json-agregacao": "Tool calling em JSON, com agregação",
+}
+# Aqua para a variante JSON com agregação (T18a). Fora da PALETA, que segue igual para o REPL.
+COR_JSON_AGREGACAO: Final = "#2bb5c8"
 TETO_NOTA_CURTA: Final = 60
 PASTA_GRAFICOS: Final = Path("docs") / "relatorios" / "graficos"
 NOME_PAGINA: Final = "graficos.html"
@@ -605,6 +611,8 @@ def _cores_variantes(variantes: Sequence[str]) -> dict[str, str]:
             cores[variante] = PALETA[0]
         elif variante == "json":
             cores[variante] = PALETA[1]
+        elif variante == "json-agregacao":
+            cores[variante] = COR_JSON_AGREGACAO
         else:
             cores[variante] = extras[len(cores) % len(extras)]
     return cores

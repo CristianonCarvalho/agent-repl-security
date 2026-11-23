@@ -53,18 +53,20 @@ Decisões deste módulo (não estão na spec):
 - Campos lidos por `_campo` aceitam objeto do SDK e dict (o SDK pode devolver qualquer um).
 """
 
+import json
 import logging
 import re
 import threading
 import time
 import unicodedata
 from collections.abc import Callable, Sequence
-from typing import Any, Final
+from typing import Any, Final, Literal
 
 import openai
 
-from harness.llm.base import ErroLLM, Mensagem, RespostaLLM
+from harness.llm.base import ChamadaFerramenta, ErroLLM, Mensagem, RespostaLLM
 from harness.llm.config import ConfigModelo
+from harness.llm.ferramentas import EsquemaFerramenta
 
 _TAMANHO_MAXIMO_MOTIVO: Final = 64
 _ESPERAS_429: Final = (2.0, 5.0, 10.0, 20.0)
@@ -113,7 +115,27 @@ class ClienteOpenRouter:
 
         O prazo `prazo_total_s` cobre todas as tentativas e esperas desta chamada.
         """
-        parametros = self._parametros(mensagens)
+        return self._responder_com_repeticao(self._parametros(mensagens), com_ferramentas=False)
+
+    def responder_com_ferramentas(
+        self,
+        mensagens: Sequence[Mensagem],
+        ferramentas: Sequence[EsquemaFerramenta],
+        *,
+        escolha: Literal["auto", "none"] = "auto",
+    ) -> RespostaLLM:
+        """Como `responder`, mas envia as ferramentas (`tools`) e a escolha (`tool_choice`).
+
+        Vale o mesmo prazo, as mesmas repetições e o mesmo provedor fixo. Uma resposta com chamadas
+        de ferramenta NÃO é vazia, mesmo com texto vazio. Sem ferramentas, o pedido não leva
+        `tools`, porque a API recusa a lista vazia.
+        """
+        parametros = self._parametros(mensagens, ferramentas=ferramentas, escolha=escolha)
+        return self._responder_com_repeticao(parametros, com_ferramentas=True)
+
+    def _responder_com_repeticao(
+        self, parametros: dict[str, Any], *, com_ferramentas: bool
+    ) -> RespostaLLM:
         inicio = self._relogio()
         tentativa_numero = 0
         descartadas: list[RespostaLLM] = []
@@ -126,7 +148,7 @@ class ClienteOpenRouter:
                 raise self._erro_de_prazo()
             if tentativa.erro is None:
                 resposta = _converter(tentativa.resposta)
-                if not _vazio(resposta.texto):
+                if not _sem_conteudo(resposta, com_ferramentas=com_ferramentas):
                     return self._conferido(_somar(resposta, descartadas))
                 # Resposta vazia: repete como falha transitória, mas, se não couber, devolve a
                 # última vazia (o orquestrador a trata como turno inválido).
@@ -196,11 +218,17 @@ class ClienteOpenRouter:
             f"a chamada ao modelo passou do prazo total de {self._config.prazo_total_s:g} s"
         )
 
-    def _parametros(self, mensagens: Sequence[Mensagem]) -> dict[str, Any]:
+    def _parametros(
+        self,
+        mensagens: Sequence[Mensagem],
+        *,
+        ferramentas: Sequence[EsquemaFerramenta] = (),
+        escolha: Literal["auto", "none"] = "auto",
+    ) -> dict[str, Any]:
         config = self._config
         parametros: dict[str, Any] = {
             "model": config.slug,
-            "messages": [{"role": m.role, "content": m.content} for m in mensagens],
+            "messages": [_mensagem_para_api(m) for m in mensagens],
             "temperature": config.temperatura,
             "extra_body": {"provider": _roteamento(config)},
         }
@@ -208,7 +236,41 @@ class ClienteOpenRouter:
             parametros["seed"] = config.seed
         if config.max_tokens_saida is not None:
             parametros["max_tokens"] = config.max_tokens_saida
+        if ferramentas:
+            parametros["tools"] = [_ferramenta_para_api(e) for e in ferramentas]
+            parametros["tool_choice"] = escolha
         return parametros
+
+
+def _mensagem_para_api(mensagem: Mensagem) -> dict[str, Any]:
+    """Formato da API para uma mensagem. Mensagens sem ferramenta seguem o formato de sempre."""
+    if mensagem.role == "tool":
+        return {"role": "tool", "tool_call_id": mensagem.tool_call_id, "content": mensagem.content}
+    if mensagem.chamadas_ferramenta:
+        return {
+            "role": "assistant",
+            "content": mensagem.content or None,
+            "tool_calls": [
+                {
+                    "id": chamada.id,
+                    "type": "function",
+                    "function": {"name": chamada.nome, "arguments": chamada.argumentos_brutos},
+                }
+                for chamada in mensagem.chamadas_ferramenta
+            ],
+        }
+    return {"role": mensagem.role, "content": mensagem.content}
+
+
+def _ferramenta_para_api(esquema: EsquemaFerramenta) -> dict[str, Any]:
+    return {
+        "type": "function",
+        "function": {
+            "name": esquema.nome,
+            "description": esquema.descricao,
+            "parameters": esquema.parametros,
+        },
+    }
 
 
 def _criar_sdk(config: ConfigModelo, api_key: str) -> Any:
@@ -296,7 +358,8 @@ def _converter(resposta: Any) -> RespostaLLM:
     if not escolhas:
         raise ErroLLM("resposta do OpenRouter sem escolhas")
     escolha = escolhas[0]
-    conteudo = _campo(_campo(escolha, "message"), "content")
+    mensagem = _campo(escolha, "message")
+    conteudo = _campo(mensagem, "content")
     usage = _campo(resposta, "usage")
     modelo = _campo(resposta, "model")
     provedor = _campo(resposta, "provider")
@@ -311,7 +374,57 @@ def _converter(resposta: Any) -> RespostaLLM:
         custo=float(custo) if _eh_numero(custo) else None,
         motivo_fim=_motivo(_campo(escolha, "finish_reason")),
         tokens_raciocinio=_contagem_opcional(raciocinio),
+        chamadas_ferramenta=_chamadas(mensagem),
     )
+
+
+def _chamadas(mensagem: Any) -> tuple[ChamadaFerramenta, ...]:
+    """Chamadas de ferramenta da mensagem, na ordem. Campo ausente ou inválido vira tupla vazia.
+
+    Id ausente ganha um id sintético (`chamada_N`), para que a resposta à chamada tenha onde se
+    prender. Nome ausente vira texto vazio, e o laço o trata como função desconhecida. Os
+    argumentos ficam como texto cru: validar é papel do laço, e nada aqui levanta exceção.
+    """
+    brutas = _campo(mensagem, "tool_calls")
+    if not isinstance(brutas, list | tuple):
+        return ()
+    chamadas: list[ChamadaFerramenta] = []
+    for indice, bruta in enumerate(brutas, start=1):
+        identificador = _campo(bruta, "id")
+        funcao = _campo(bruta, "function")
+        nome = _campo(funcao, "name")
+        chamadas.append(
+            ChamadaFerramenta(
+                id=identificador
+                if isinstance(identificador, str) and identificador
+                else f"chamada_{indice}",
+                nome=nome if isinstance(nome, str) else "",
+                argumentos_brutos=_argumentos_em_texto(_campo(funcao, "arguments")),
+            )
+        )
+    return tuple(chamadas)
+
+
+def _argumentos_em_texto(valor: Any) -> str:
+    """Argumentos como texto. Texto passa como veio; objeto vira JSON; o resto vira vazio."""
+    if isinstance(valor, str):
+        return valor
+    if isinstance(valor, dict):
+        try:
+            return json.dumps(valor, ensure_ascii=False)
+        except (TypeError, ValueError):
+            return ""
+    return ""
+
+
+def _sem_conteudo(resposta: RespostaLLM, *, com_ferramentas: bool) -> bool:
+    """Resposta vazia (repetida como falha transitória). Com ferramentas, chamada é conteúdo.
+
+    Sem ferramentas, a regra é a de antes, só pelo texto.
+    """
+    if com_ferramentas and resposta.chamadas_ferramenta:
+        return False
+    return _vazio(resposta.texto)
 
 
 def _somar(final: RespostaLLM, descartadas: Sequence[RespostaLLM]) -> RespostaLLM:
