@@ -516,7 +516,9 @@ Atualizado em 23/11/2026, depois da T20a e da primeira bateria de avaliações r
 | 2. Contexto e harness | Concessões por ferramenta (T13, D14) | Implementado na versão mínima |
 | 3. Evals | Dados sintéticos com semente fixa (T14), formato dos casos e corretor por regras (T15), executor e relatório (T16) | Implementado |
 | 3. Evals | Conjunto de 20 casos ativos em 4 categorias, com grupos de desenvolvimento e reservado (T17a) | Implementado; resultados em [relatorios/avaliacao-fase3-t17a.md](relatorios/avaliacao-fase3-t17a.md) |
-| 3. Evals | 15 casos pendentes (geração, alteração, injeção), conjunto congelado e linha de base versionada, comparação com tool calling JSON, ataques plantados (T17b, T17c, T18, T19) | Não iniciado |
+| 3. Evals | 15 casos pendentes (geração, alteração, injeção) com bloqueios e gerador de ataques opcional (T17b) | Implementado |
+| 3. Evals | Conjunto congelado, procedência no relatório, linhas de base versionadas e comando de comparação (T17c) | Implementado; falta registrar a primeira linha de base real |
+| 3. Evals | Comparação com tool calling JSON, medição dos ataques de injeção (T18, T19) | Não iniciado |
 | 4. Segurança | Aprovação humana, política da trifecta, rastreio de arquivos abertos, gVisor | Não iniciado |
 | Transversal | OpenTelemetry e Langfuse (T20a e T20b) | Implementado |
 | Transversal | CI com gates, SAST, `arquivos.*`, `entrega.publicar` | Não iniciado |
@@ -530,7 +532,7 @@ Atualizado em 23/11/2026, depois da T20a e da primeira bateria de avaliações r
 - **Contexto em lista.** `context` aceita também lista JSON, além de texto e objeto.
 - **Verificação estática.** Além da lista da spec, `builtins` e `sys` são imports proibidos. Ela é feedback rápido ao modelo, não fronteira de segurança: quem barra de verdade é o contêiner.
 - **Avaliações calibradas em rodadas reais.** O corretor, os gabaritos, o prompt e o cliente do modelo foram ajustados depois de sete execuções reais (ver o relatório). Entre os ajustes: o prompt proíbe chamadas de função nativas e pede poucas iterações, e o cliente repete respostas vazias.
-- **Conjunto de avaliação em duas partes.** Em vez de 35 casos de uma vez, foram feitos 20 casos ativos (T17a). Os 15 que dependem da Fase 4 ficam para a T17b.
+- **Conjunto de avaliação em partes.** Em vez de 35 casos medidos de uma vez, são 20 casos ativos (T17a) e 15 pendentes que dependem da Fase 4 (T17b): ficam escritos, com o que os destrava, mas fora da taxa. O conjunto de 35 está congelado em `evals/conjuntos/` e as execuções se comparam por `python -m harness.evals comparar`.
 - **Espera por aprovação (D12).** O timeout do tempo bloqueado esperando aprovação humana só pode ser implementado com a aprovação, na Fase 4.
 
 ## Fontes

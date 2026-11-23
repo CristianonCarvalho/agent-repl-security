@@ -389,6 +389,18 @@ def _executar_rodada(
     return rodada, falhas_criacao + falhas
 
 
+def orcamento_usado(config: ConfigExecucao) -> dict[str, float | int]:
+    """Limites que valem na execução: os da configuração, ou os padrões do `Orcamento`."""
+    orcamento = config.orcamento or Orcamento()
+    return {
+        "max_iteracoes": orcamento.max_iteracoes,
+        "max_tokens": orcamento.max_tokens,
+        "max_segundos": orcamento.max_segundos,
+        "timeout_celula_s": orcamento.timeout_celula_s,
+        "max_invalidos_seguidos": orcamento.max_invalidos_seguidos,
+    }
+
+
 def _motivo_de_teto(config: ConfigExecucao, custo: float | None, tokens: int) -> str | None:
     """Motivo do teto estourado pelo acumulado, ou None se ainda cabe."""
     if config.teto_usd is not None and custo is not None and custo > config.teto_usd:
@@ -455,6 +467,7 @@ def _executar_casos(
         provedores=vistos.provedores,
         teto_motivo=teto_motivo,
         falhas_telemetria=falhas_telemetria if fabrica_telemetria is not None else None,
+        orcamento=orcamento_usado(config),
     )
 
 

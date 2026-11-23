@@ -22,7 +22,8 @@ Estado de cada parte:
 | Formato dos casos e correção por regras | T15 | Implementado |
 | Executor de avaliação e relatório | T16 | Implementado (ainda sem execução real contra o modelo) |
 | Conjunto de 20 casos ativos (4 categorias) | T17a | Implementado |
-| 15 casos pendentes (Geração, Alteração, Injeção) e conjunto congelado com linha de base | T17b e T17c | Planejado |
+| 15 casos pendentes (Geração, Alteração, Injeção) com bloqueios e gerador de ataques opcional | T17b | Implementado |
+| Conjunto congelado, procedência no relatório, linhas de base versionadas e comando de comparação | T17c | Implementado (falta a primeira linha de base real) |
 | Linha de base com tool calling em JSON | T18 | Planejado |
 | Ataques de injeção plantados e medição | T19 | Planejado |
 
@@ -569,7 +570,7 @@ flowchart LR
     T14["T14<br/>dados sintéticos<br/>feito"] --> T15["T15<br/>casos e correção<br/>feito"]
     T15 --> T16["T16<br/>executor e relatório<br/>feito"]
     T16 --> EX["Rodadas reais<br/>com 4 e depois 20 casos"]
-    EX --> T17["T17a feito<br/>20 casos ativos<br/>T17b e T17c planejados"]
+    EX --> T17["T17a, T17b e T17c feitos<br/>35 casos, conjunto congelado,<br/>comparação de execuções"]
     T17 --> T18["T18<br/>linha de base JSON"]
     T18 --> T19["T19<br/>ataques de injeção"]
     T19 --> CI["Gate no CI<br/>D13"]
@@ -577,11 +578,50 @@ flowchart LR
 
 A rodada real antes dos 35 casos serve para descobrir cedo se os gabaritos são justos, por exemplo quando o modelo acerta e o corretor reprova.
 
+## 19. T17c: o ponto de controle
+
+Como uma execução vira uma referência e como duas execuções são comparadas.
+
+```mermaid
+flowchart TD
+    COD["Código do harness<br/>conjunto_completo, semente 42"] --> TST{"Teste de congelamento:<br/>igual ao arquivo<br/>evals/conjuntos/v1-semente42.json?"}
+    TST -- "não" --> FALHA(["Teste falha:<br/>mudar pergunta ou gabarito<br/>exige nova versão v2"])
+    TST -- "sim" --> RUN["Execução real<br/>35 casos, 3 ou mais rodadas"]
+    RUN --> REL["Relatório com procedência<br/>commit, árvore suja, versão do conjunto,<br/>prompt, modelo, orçamento, hash por caso"]
+    REL --> SAL{"--salvar-linha-de-base NOME<br/>árvore limpa, conjunto completo,<br/>sem erro nem teto?"}
+    SAL -- "não" --> NAO(["Recusa antes de rodar o modelo"])
+    SAL -- "sim" --> LB["evals/linhas-de-base/NOME.json<br/>sem caminhos de trace, sem chaves"]
+    LB --> GIT(["Versionado no git"])
+```
+
+```mermaid
+flowchart TD
+    A(["comparar BASE.json NOVO.json"]) --> B{"Mesma semente e algum caso<br/>com o mesmo hash em comum?"}
+    B -- "não" --> I(["incomparável, saída 2"])
+    B -- "sim" --> C["Só os casos com o mesmo hash entram nas médias<br/>alterados e ausentes ficam listados à parte"]
+    C --> D["Delta em pontos percentuais<br/>total, categoria, grupo e caso"]
+    D --> E["Margem = o maior entre 2 pontos e 2 vezes<br/>o desvio entre rodadas da base<br/>escalada nos recortes menores"]
+    E --> F{"Delta em relação à margem"}
+    F -- "queda maior" --> R["regressão provável"]
+    F -- "dentro" --> N["dentro do ruído"]
+    F -- "alta maior" --> M["melhorou"]
+    R --> G{"No total ou no grupo reservado?"}
+    G -- "sim" --> X(["veredito: regressão provável, saída 1"])
+    G -- "não" --> OK
+    N --> OK(["veredito: ok, saída 0"])
+    M --> OK
+```
+
+Os casos de um relatório antigo, sem hash por caso, são casados pelo id, com um aviso. O contexto que difere entre as execuções (modelo, prompt, commit, orçamento, rodadas) aparece numa seção própria, porque é justamente o que se quer comparar.
+
 ## Onde cada parte está no código
 
 | Assunto | Arquivo |
 | --- | --- |
 | Gerador de dados e `FatosVerdadeiros` | [`harness/evals/dados.py`](../harness/evals/dados.py) |
+| Conjunto congelado e seu teste | [`harness/evals/congelamento.py`](../harness/evals/congelamento.py), [`evals/conjuntos/`](../evals/conjuntos/LEIAME.md) |
+| Comparação de execuções | [`harness/evals/comparacao.py`](../harness/evals/comparacao.py) |
+| Procedência e linhas de base | [`harness/evals/procedencia.py`](../harness/evals/procedencia.py), [`evals/linhas-de-base/`](../evals/linhas-de-base/LEIAME.md) |
 | Formato dos casos e das regras | [`harness/evals/casos.py`](../harness/evals/casos.py) |
 | Corretor e leitura de números | [`harness/evals/correcao.py`](../harness/evals/correcao.py) |
 | Testes do gerador | [`tests/evals/test_dados.py`](../tests/evals/test_dados.py) |

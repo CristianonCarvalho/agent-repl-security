@@ -61,6 +61,10 @@ from harness.evals.dados import (
     PropostaResumo,
 )
 
+# Versão do conjunto congelado em `evals/conjuntos/`. Mudar pergunta ou gabarito exige uma versão
+# nova (`congelar --versao v2`) e trocar esta constante. O teste de congelamento confere isso.
+VERSAO_CONJUNTO: Final = "v1"
+
 CATEGORIAS_ATIVAS: Final = frozenset(
     {Categoria.CONSULTA, Categoria.CRUZAMENTO, Categoria.CONFORMIDADE, Categoria.PERMISSAO}
 )

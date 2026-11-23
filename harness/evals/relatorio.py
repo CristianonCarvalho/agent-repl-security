@@ -23,6 +23,11 @@ Decisões deste módulo (não estão na spec):
 - `grupos` tem a taxa de cada grupo (desenvolvimento e reservado), com a mesma regra da taxa
   total: média das taxas dos casos ativos do grupo que têm taxa. Relatório antigo sem `grupo`
   em `ResumoCaso` carrega como desenvolvimento, e sem `grupos` carrega com a tupla vazia.
+- Procedência (T17c): `hash_caso` é o SHA-256 de `casos_para_json([caso])`, o JSON canônico
+  daquele caso. Muda quando a pergunta, o gabarito ou o perfil mudam, e é o que a comparação usa
+  para saber se dois casos com o mesmo id são o mesmo caso. `orcamento` vem de quem executa (o
+  executor); versão do conjunto, commit, árvore suja, início e nome da linha de base vêm da CLI.
+  Todos esses campos são opcionais: relatórios antigos continuam carregando.
 """
 
 import hashlib
@@ -107,6 +112,8 @@ class ResumoCaso(BaseModel):
     taxa: float | None = None
     desvio: float | None = None
     grupo: GrupoCaso = "desenvolvimento"
+    # SHA-256 do JSON canônico deste caso (`hash_do_caso`). None em relatório antigo.
+    hash_caso: str | None = None
 
 
 class ResumoCategoria(BaseModel):
@@ -161,6 +168,19 @@ class Relatorio(BaseModel):
     # Falhas de telemetria somadas em todas as rodadas. None quando a telemetria está desligada;
     # zero também é um número válido, quando ela está ligada e nada falhou.
     falhas_telemetria: int | None = Field(default=None, ge=0)
+    # Procedência (T17c). Todos opcionais: relatório antigo não os tem.
+    # Versão do conjunto de casos usada (ex.: "v1"), ou None.
+    versao_conjunto: str | None = None
+    # Hash completo do HEAD do git, e se a árvore tinha alterações. None quando o git não respondeu.
+    commit: str | None = None
+    commit_sujo: bool | None = None
+    # Limites que valeram de fato: max_iteracoes, max_tokens, max_segundos, timeout_celula_s e
+    # max_invalidos_seguidos. None em relatório antigo.
+    orcamento: dict[str, float | int] | None = None
+    # Início da execução em UTC, ISO 8601. None em relatório antigo.
+    iniciado_em: str | None = None
+    # Nome da linha de base, preenchido só ao gravar uma em `evals/linhas-de-base/`.
+    linha_de_base: str | None = None
 
     @model_validator(mode="after")
     def _coerente(self) -> Self:
@@ -196,6 +216,15 @@ def _conferir_rodadas(caso: Caso, rodadas: Sequence[RodadaCaso], total: int) -> 
             raise ValueError(f"caso pendente {caso.id} não tem rodadas executadas")
 
 
+def hash_do_caso(caso: Caso) -> str:
+    """SHA-256 hex do JSON canônico de um caso (`casos_para_json` com um caso só).
+
+    É estável entre execuções: o mesmo caso dá o mesmo hash, e qualquer mudança no pedido, no
+    perfil, na situação ou no gabarito muda o hash.
+    """
+    return hashlib.sha256(casos_para_json([caso]).encode("utf-8")).hexdigest()
+
+
 def _resumir(caso: Caso, rodadas: tuple[RodadaCaso, ...]) -> ResumoCaso:
     pontos = _pontos(rodadas)
     taxa = sum(pontos) / len(pontos) if pontos else None
@@ -208,6 +237,7 @@ def _resumir(caso: Caso, rodadas: tuple[RodadaCaso, ...]) -> ResumoCaso:
         taxa=taxa,
         desvio=desvio,
         grupo=caso.grupo,
+        hash_caso=hash_do_caso(caso),
     )
 
 
@@ -263,11 +293,13 @@ def agregar(
     provedores: Iterable[str] = (),
     teto_motivo: str | None = None,
     falhas_telemetria: int | None = None,
+    orcamento: Mapping[str, float | int] | None = None,
 ) -> Relatorio:
     """Monta o relatório a partir dos casos e das rodadas de cada um. Não faz I/O.
 
     `rodadas` tem uma entrada por id de caso; casos sem entrada ficam sem rodadas. Levanta
     ValueError se uma rodada não bate com o caso (pendente em caso ativo, número fora da faixa).
+    `orcamento` são os limites que valeram na execução, copiados para o relatório.
     """
     ids = {caso.id for caso in casos}
     desconhecidos = sorted(set(rodadas) - ids)
@@ -316,6 +348,7 @@ def agregar(
         teto_estourado=teto_motivo is not None,
         teto_motivo=teto_motivo,
         falhas_telemetria=falhas_telemetria,
+        orcamento=dict(orcamento) if orcamento is not None else None,
     )
 
 

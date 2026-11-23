@@ -24,27 +24,55 @@ Decisões deste módulo (não estão na spec):
   de qualquer rodada. O relatório ganha `telemetria` ("langfuse-us") só quando está ligada.
 - Falhas de telemetria: o resumo mostra `Falhas de telemetria: N` quando a telemetria está ligada,
   com um aviso se N > 0. Falha de telemetria não muda o código de saída.
+
+Subcomandos (T17c), reconhecidos só quando são o primeiro argumento exato: `comparar BASE NOVO`
+(0 ok, 1 regressão provável, 2 incomparável ou erro) e `congelar --versao vN` (cria o conjunto em
+evals/conjuntos/, recusa sobrescrever). Sem subcomando, roda a avaliação, como antes.
+`--salvar-linha-de-base NOME` confere tudo antes de rodar (conjunto completo, 3+ rodadas, nome
+válido, arquivo novo, árvore limpa) e só grava se a execução não teve teto, erro de infraestrutura
+nem rodada não executada. A procedência (commit, árvore suja, versão do conjunto, orçamento e
+início) vai para todo relatório.
 """
 
 import argparse
+import math
 import os
 import sys
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final, TextIO
 
 from pydantic import ValidationError
 
 from harness.evals.casos import GRUPOS_DE_CASOS, Caso, Categoria
-from harness.evals.conjunto import conjunto_completo
+from harness.evals.comparacao import (
+    FATOR_RUIDO_PADRAO,
+    PISO_PP_PADRAO,
+    comparar,
+    formatar_json,
+    formatar_texto,
+)
+from harness.evals.congelamento import ErroDeCongelamento, congelar
+from harness.evals.conjunto import VERSAO_CONJUNTO, conjunto_completo
 from harness.evals.dados import FatosVerdadeiros, gerar_dados
-from harness.evals.executor import ConfigExecucao, executar_avaliacao
+from harness.evals.executor import ConfigExecucao, executar_avaliacao, orcamento_usado
+from harness.evals.procedencia import (
+    RAIZ_DO_REPOSITORIO,
+    ErroDeLinhaDeBase,
+    ObterProcedencia,
+    caminho_da_linha_de_base,
+    escrever_linha_de_base,
+    obter_git,
+    validar_nome_da_linha,
+)
 from harness.evals.relatorio import (
     Classificacao,
     ErroDeRelatorio,
     Relatorio,
     escrever_relatorio,
+    relatorio_de_json,
 )
 from harness.llm.base import ModeloLLM
 from harness.llm.config import carregar_env, config_de_ambiente
@@ -70,6 +98,7 @@ CODIGO_OK: Final = 0
 CODIGO_ERRO_INFRA: Final = 1
 CODIGO_USO: Final = 2
 CODIGO_TETO: Final = 3
+CODIGO_REGRESSAO: Final = 1
 
 
 class ErroDeUso(Exception):
@@ -134,6 +163,18 @@ def _parser() -> argparse.ArgumentParser:
         type=_inteiro_positivo,
         default=None,
         help="limite de chamadas ao modelo por pedido (padrão: o do Orcamento)",
+    )
+    parser.add_argument(
+        "--salvar-linha-de-base",
+        metavar="NOME",
+        default=None,
+        help="grava o relatório em evals/linhas-de-base/NOME.json (conjunto completo, 3+ rodadas, "
+        "árvore do git limpa)",
+    )
+    parser.add_argument(
+        "--permitir-arvore-suja",
+        action="store_true",
+        help="com --salvar-linha-de-base, grava mesmo com alterações no git (registra commit_sujo)",
     )
     return parser
 
@@ -315,26 +356,173 @@ def _resumo(saida: TextIO, relatorio: Relatorio, caminho: Path | None) -> None:
     saida.write("\n".join(linhas) + "\n")
 
 
+def _nao_negativo(texto: str) -> float:
+    try:
+        valor = float(texto)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"esperado um número, recebido {texto!r}") from None
+    if not math.isfinite(valor) or valor < 0:
+        raise argparse.ArgumentTypeError("deve ser um número finito e não negativo")
+    return valor
+
+
+def _ler_relatorio(caminho: str, rotulo: str) -> Relatorio:
+    """Relatório de um arquivo JSON. Arquivo ausente, ilegível ou inválido vira ErroDeUso."""
+    try:
+        texto = Path(caminho).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise ErroDeUso(f"{rotulo}: arquivo não encontrado: {caminho}") from None
+    except (OSError, UnicodeDecodeError) as erro:
+        motivo = getattr(erro, "strerror", None) or type(erro).__name__
+        raise ErroDeUso(f"{rotulo}: não foi possível ler {caminho}: {motivo}") from None
+    try:
+        return relatorio_de_json(texto)
+    except ValidationError:
+        raise ErroDeUso(f"{rotulo}: {caminho} não é um relatório de avaliação válido") from None
+
+
+def _parser_comparar() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="python -m harness.evals comparar",
+        description="Compara uma execução com a linha de base e diz se houve regressão.",
+    )
+    parser.add_argument("base", help="relatório JSON da linha de base")
+    parser.add_argument("novo", help="relatório JSON da execução nova")
+    parser.add_argument(
+        "--piso-pp",
+        type=_nao_negativo,
+        default=PISO_PP_PADRAO,
+        help=f"margem mínima em pontos percentuais (padrão: {PISO_PP_PADRAO:g})",
+    )
+    parser.add_argument(
+        "--fator-ruido",
+        type=_nao_negativo,
+        default=FATOR_RUIDO_PADRAO,
+        help=f"vezes o desvio entre rodadas da base (padrão: {FATOR_RUIDO_PADRAO:g})",
+    )
+    parser.add_argument(
+        "--formato", choices=("texto", "json"), default="texto", help="formato da saída"
+    )
+    return parser
+
+
+def _comparar_cli(argumentos: Sequence[str], saida: TextIO) -> int:
+    """`comparar BASE NOVO`: 0 ok, 1 regressão provável, 2 incomparável ou erro de leitura."""
+    try:
+        args = _parser_comparar().parse_args(argumentos)
+    except SystemExit as erro:
+        return erro.code if isinstance(erro.code, int) else CODIGO_USO
+    try:
+        base = _ler_relatorio(args.base, "linha de base")
+        novo = _ler_relatorio(args.novo, "execução nova")
+    except ErroDeUso as erro:
+        saida.write(f"{erro}\n")
+        return CODIGO_USO
+    comparacao = comparar(base, novo, piso_pp=args.piso_pp, fator_ruido=args.fator_ruido)
+    saida.write(formatar_json(comparacao) if args.formato == "json" else formatar_texto(comparacao))
+    if comparacao.veredito == "incomparavel":
+        return CODIGO_USO
+    if comparacao.veredito == "regressao_provavel":
+        return CODIGO_REGRESSAO
+    return CODIGO_OK
+
+
+def _congelar_cli(argumentos: Sequence[str], saida: TextIO, raiz: Path) -> int:
+    """`congelar --versao vN [--semente 42]`: cria o arquivo do conjunto. Recusa sobrescrever."""
+    parser = argparse.ArgumentParser(
+        prog="python -m harness.evals congelar",
+        description="Congela o conjunto de casos em evals/conjuntos/. Não sobrescreve.",
+    )
+    parser.add_argument("--versao", required=True, help="versão do conjunto, no formato vN")
+    parser.add_argument("--semente", type=int, default=42, help="semente da geração (padrão: 42)")
+    try:
+        args = parser.parse_args(argumentos)
+    except SystemExit as erro:
+        return erro.code if isinstance(erro.code, int) else CODIGO_USO
+    try:
+        caminho = congelar(args.versao, args.semente, raiz)
+    except ErroDeCongelamento as erro:
+        saida.write(f"{erro}\n")
+        return CODIGO_USO
+    relativo = caminho.relative_to(raiz) if caminho.is_relative_to(raiz) else caminho
+    saida.write(f"Conjunto congelado: {relativo}\n")
+    return CODIGO_OK
+
+
+def _validar_linha_de_base(
+    args: argparse.Namespace,
+    categorias: frozenset[Categoria],
+    raiz: Path,
+    obter: ObterProcedencia,
+) -> tuple[str | None, bool | None]:
+    """Tudo que `--salvar-linha-de-base` exige, antes de qualquer execução. Devolve (commit, sujo).
+
+    Não lê o `.env`, não chama o modelo e não gera dados.
+    """
+    nome: str = args.salvar_linha_de_base
+    try:
+        validar_nome_da_linha(nome)
+    except ErroDeLinhaDeBase as erro:
+        raise ErroDeUso(str(erro)) from None
+    if categorias or args.grupo != "todos":
+        raise ErroDeUso("linha de base exige o conjunto completo: não use --categoria nem --grupo")
+    if args.rodadas < 3:
+        raise ErroDeUso(
+            "linha de base exige pelo menos 3 rodadas por caso (use --rodadas 3 ou mais)"
+        )
+    if caminho_da_linha_de_base(nome, raiz).exists():
+        raise ErroDeUso(f"a linha de base {nome!r} já existe: não sobrescrevo")
+    commit, sujo = obter(raiz)
+    if commit is None or sujo is None:
+        if not args.permitir_arvore_suja:
+            raise ErroDeUso(
+                "não foi possível confirmar a árvore do git (sem git ou fora de repositório). "
+                "Use --permitir-arvore-suja para gravar mesmo assim."
+            )
+        return (None, None)
+    if sujo and not args.permitir_arvore_suja:
+        raise ErroDeUso(
+            "a árvore do git tem alterações: faça commit antes de gravar a linha de base "
+            "(ou use --permitir-arvore-suja, e o relatório registra commit_sujo)"
+        )
+    return (commit, sujo)
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
     saida: TextIO = sys.stdout,
     executar: Callable[..., Relatorio] | None = None,
     fabrica_modelo: Callable[[], ModeloLLM] | None = None,
+    raiz: Path | None = None,
+    obter_procedencia: ObterProcedencia | None = None,
 ) -> int:
-    """Roda a avaliação pela linha de comando e devolve o código de saída.
+    """Roda a avaliação, ou um subcomando (`comparar`, `congelar`), e devolve o código de saída.
 
-    `executar` e `fabrica_modelo` existem para os testes: sem eles, usam o executor real e o
-    cliente do OpenRouter (configurado pelo `.env` e pelo ambiente).
+    `executar`, `fabrica_modelo`, `raiz` (raiz do repositório) e `obter_procedencia` (o `obter_git`)
+    existem para os testes: sem eles, usam o executor real, o cliente do OpenRouter, o repositório
+    onde o pacote está e o git de verdade.
     """
+    itens = list(sys.argv[1:]) if argv is None else list(argv)
+    raiz_repo = raiz if raiz is not None else RAIZ_DO_REPOSITORIO
+    obter = obter_procedencia if obter_procedencia is not None else obter_git
+    if itens and itens[0] == "comparar":
+        return _comparar_cli(itens[1:], saida)
+    if itens and itens[0] == "congelar":
+        return _congelar_cli(itens[1:], saida, raiz_repo)
+
     try:
-        args = _parser().parse_args(argv)
+        args = _parser().parse_args(itens)
     except SystemExit as erro:
         return erro.code if isinstance(erro.code, int) else CODIGO_USO
 
+    procedencia: tuple[str | None, bool | None] | None = None
     try:
         categorias = _categorias(args.categoria)
         config = _config(args)
+        # Linha de base: tudo é conferido antes de gerar dados, ler o `.env` ou chamar o modelo.
+        if args.salvar_linha_de_base is not None:
+            procedencia = _validar_linha_de_base(args, categorias, raiz_repo, obter)
     except ErroDeUso as erro:
         saida.write(f"{erro}\n")
         return CODIGO_USO
@@ -354,6 +542,7 @@ def main(
     except ErroDeUso as erro:
         saida.write(f"{erro}\n")
         return CODIGO_USO
+    chave = ambiente.get("OPENROUTER_API_KEY", "").strip()
 
     fabrica_telemetria: Callable[[], TelemetriaOtel | None] | None = None
     if configuracao_telemetria is not None:
@@ -362,6 +551,12 @@ def main(
 
     def progresso(caso_id: str, numero: int, classificacao: Classificacao) -> None:
         saida.write(f"{caso_id} rodada {numero}/{config.rodadas}: {classificacao.value}\n")
+
+    # Procedência tirada antes da execução: é o estado do código que foi rodado.
+    if procedencia is None:
+        procedencia = obter(raiz_repo)
+    commit, sujo = procedencia
+    iniciado = datetime.now(UTC).isoformat(timespec="seconds")
 
     executor = executar if executar is not None else executar_avaliacao
     extra: dict[str, Any] = {}
@@ -382,6 +577,17 @@ def main(
         relatorio = relatorio.model_copy(
             update={"telemetria": rotulo_telemetria(configuracao_telemetria)}
         )
+    relatorio = relatorio.model_copy(
+        update={
+            "versao_conjunto": VERSAO_CONJUNTO,
+            "commit": commit,
+            "commit_sujo": sujo,
+            "iniciado_em": iniciado,
+            "orcamento": relatorio.orcamento
+            if relatorio.orcamento is not None
+            else orcamento_usado(config),
+        }
+    )
 
     caminho: Path | None = None
     try:
@@ -390,11 +596,41 @@ def main(
         saida.write(f"{erro}\n")
     _resumo(saida, relatorio, caminho)
 
+    falha_linha = False
+    if args.salvar_linha_de_base is not None:
+        falha_linha = not _gravar_linha_de_base(
+            saida, relatorio, args.salvar_linha_de_base, raiz_repo, [chave] if chave else []
+        )
+
     if relatorio.teto_estourado:
         return CODIGO_TETO
-    if relatorio.erros_infra or caminho is None:
+    if relatorio.erros_infra or caminho is None or falha_linha:
         return CODIGO_ERRO_INFRA
     return CODIGO_OK
+
+
+def _gravar_linha_de_base(
+    saida: TextIO,
+    relatorio: Relatorio,
+    nome: str,
+    raiz: Path,
+    segredos: list[str],
+) -> bool:
+    """Grava a linha de base, se a execução serve para isso. Devolve False se não gravou."""
+    if relatorio.teto_estourado or relatorio.erros_infra or relatorio.nao_executadas:
+        saida.write(
+            "linha de base não gravada: a execução teve teto estourado, erro de infraestrutura "
+            "ou rodada não executada. Rode de novo.\n"
+        )
+        return False
+    try:
+        gravado = escrever_linha_de_base(relatorio, nome, raiz, segredos=segredos)
+    except (ErroDeLinhaDeBase, ErroDeRelatorio) as erro:
+        saida.write(f"{erro}\n")
+        return False
+    relativo = gravado.relative_to(raiz)
+    saida.write(f"Linha de base gravada: {relativo}\n")
+    return True
 
 
 if __name__ == "__main__":

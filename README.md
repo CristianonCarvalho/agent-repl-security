@@ -121,6 +121,18 @@ uv run python -m harness.evals --rodadas 3 --semente 42 --categoria consulta --t
 
 O relatório JSON vai para `avaliacoes/` e traz taxa por caso, categoria e total, variação entre rodadas, custo e tokens. Códigos de saída: 0 sem problemas, 1 houve erro de infraestrutura, 2 uso ou configuração inválidos, 3 teto de gasto estourado. O conjunto atual tem 20 casos ativos (5 de Consulta, Cruzamento, Conformidade e Permissão), separados em desenvolvimento e reservados; `--grupo` e `--categoria` filtram. Resultados e conclusões: [relatório da avaliação](docs/relatorios/avaliacao-fase3-t17a.md).
 
+**Ponto de controle.** O conjunto completo (35 casos, 20 ativos e 15 pendentes) está congelado em `evals/conjuntos/v1-semente42.json`, e um teste falha se o código divergir dele. Cada relatório grava a procedência (commit, versão do conjunto, prompt, modelo, orçamento e hash por caso). Para guardar uma linha de base versionada e comparar execuções:
+
+```bash
+# registra uma linha de base (conjunto completo, 3 ou mais rodadas, árvore do git limpa)
+uv run python -m harness.evals --rodadas 5 --salvar-linha-de-base deepseek-v4-1-flash-v1-5x
+
+# compara duas execuções: saída 0 ok, 1 regressão provável, 2 incomparável ou erro
+uv run python -m harness.evals comparar evals/linhas-de-base/NOME.json avaliacoes/NOVO.json
+```
+
+A comparação só usa os casos idênticos nas duas execuções e diz "dentro do ruído" quando a diferença não passa da margem (o maior entre 2 pontos percentuais e 2 vezes o desvio entre rodadas da base). Mais em [evals/linhas-de-base/LEIAME.md](evals/linhas-de-base/LEIAME.md) e nos [diagramas das avaliações](docs/diagramas-evals.md).
+
 ### Telemetria no Langfuse
 
 Os traces de cada pedido (e de cada rodada de avaliação) podem ser enviados ao Langfuse por OpenTelemetry, em paralelo ao trace JSONL local, que continua sendo a fonte confiável. Fica desligado por padrão. Para ligar, ponha no `.env` (nunca no git):
