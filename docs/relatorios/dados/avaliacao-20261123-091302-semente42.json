@@ -1,0 +1,3340 @@
+{
+  "variante": "repl",
+  "semente": 42,
+  "rodadas_por_caso": 5,
+  "modelo": "deepseek/deepseek-v4.1-flash-1017",
+  "provedores": [
+    "Wafer"
+  ],
+  "hash_casos": "45db6e6fa4a7eb3523037ba3f60a95913f38deac7410eed414efdd107c00d3a8",
+  "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+  "casos": [
+    {
+      "caso_id": "consulta-01",
+      "categoria": "consulta",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 291.757,07 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13827,
+          "tokens_saida": 496,
+          "custo": 0.000479532,
+          "duracao_s": 6.613820833037607,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 291.757,07 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 10387,
+          "tokens_saida": 503,
+          "custo": 0.000409112,
+          "duracao_s": 4.9988040829775855,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 291.757,07 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 10669,
+          "tokens_saida": 346,
+          "custo": 0.000340764,
+          "duracao_s": 4.099303750088438,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 291.757,07 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 10683,
+          "tokens_saida": 428,
+          "custo": 0.000382268,
+          "duracao_s": 4.7595291250618175,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 291.757,07 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 10819,
+          "tokens_saida": 487,
+          "custo": 0.00041666399999999997,
+          "duracao_s": 4.206355458009057,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "desenvolvimento"
+    },
+    {
+      "caso_id": "consulta-02",
+      "categoria": "consulta",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 552.441,79 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13473,
+          "tokens_saida": 442,
+          "custo": 0.000413164,
+          "duracao_s": 7.3870922500500455,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 552.441,79 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13553,
+          "tokens_saida": 727,
+          "custo": 0.000555216,
+          "duracao_s": 6.4344846670283005,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 552.441,79 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13662,
+          "tokens_saida": 621,
+          "custo": 0.00047286,
+          "duracao_s": 6.159849541960284,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 552.441,79 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13368,
+          "tokens_saida": 441,
+          "custo": 0.000378932,
+          "duracao_s": 5.047388166072778,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 552.441,79 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 10268,
+          "tokens_saida": 548,
+          "custo": 0.000430656,
+          "duracao_s": 4.727073666988872,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "desenvolvimento"
+    },
+    {
+      "caso_id": "consulta-03",
+      "categoria": "consulta",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 223.611,74 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13939,
+          "tokens_saida": 387,
+          "custo": 0.00039911199999999997,
+          "duracao_s": 5.225048208958469,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 223.611,74 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 10389,
+          "tokens_saida": 409,
+          "custo": 0.000365512,
+          "duracao_s": 4.182096333010122,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 223.611,74 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 10324,
+          "tokens_saida": 339,
+          "custo": 0.0003315,
+          "duracao_s": 4.48430695803836,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 223.611,74 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 10403,
+          "tokens_saida": 489,
+          "custo": 0.000376064,
+          "duracao_s": 6.001776166027412,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 223.611,74 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13637,
+          "tokens_saida": 379,
+          "custo": 0.00038756799999999997,
+          "duracao_s": 5.416691333055496,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "desenvolvimento"
+    },
+    {
+      "caso_id": "consulta-04",
+      "categoria": "consulta",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 84.957,1 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita 'Supermercado Bela Vista Ltda'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13790,
+          "tokens_saida": 707,
+          "custo": 0.000553748,
+          "duracao_s": 10.83569329092279,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 84.957,1 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita 'Supermercado Bela Vista Ltda'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13801,
+          "tokens_saida": 826,
+          "custo": 0.000580364,
+          "duracao_s": 6.661783708026633,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 84.957,1 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita 'Supermercado Bela Vista Ltda'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 10370,
+          "tokens_saida": 682,
+          "custo": 0.000468048,
+          "duracao_s": 10.76901845796965,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 84.957,1 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita 'Supermercado Bela Vista Ltda'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 14145,
+          "tokens_saida": 922,
+          "custo": 0.0007039800000000001,
+          "duracao_s": 14.553093667025678,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "reprovada",
+          "veredito": {
+            "caso_id": "consulta-04",
+            "aprovado": false,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 84.957,1 (tolerância 0,01)",
+                "passou": false,
+                "detalhe": "números lidos: 2.026, 84,957, 60, 6, 54 (e mais 1)"
+              },
+              {
+                "descricao": "resposta cita 'Supermercado Bela Vista Ltda'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 10303,
+          "tokens_saida": 699,
+          "custo": 0.000504088,
+          "duracao_s": 8.497040000045672,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 0.8,
+      "desvio": 0.4,
+      "grupo": "reservado"
+    },
+    {
+      "caso_id": "consulta-05",
+      "categoria": "consulta",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 464.075,36 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13821,
+          "tokens_saida": 430,
+          "custo": 0.000413036,
+          "duracao_s": 4.992045041988604,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 464.075,36 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13603,
+          "tokens_saida": 404,
+          "custo": 0.000395516,
+          "duracao_s": 5.204171290970407,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 464.075,36 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 10687,
+          "tokens_saida": 566,
+          "custo": 0.000418132,
+          "duracao_s": 4.891627041972242,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 464.075,36 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 16781,
+          "tokens_saida": 655,
+          "custo": 0.00055888,
+          "duracao_s": 6.819384792004712,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "consulta-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 464.075,36 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13623,
+          "tokens_saida": 506,
+          "custo": 0.000447236,
+          "duracao_s": 5.67315625003539,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "reservado"
+    },
+    {
+      "caso_id": "cruzamento-01",
+      "categoria": "cruzamento",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 233.223,52 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita na grafia exata 'MERCADO ALVORADA LTDA.'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx', 'financeiro/contas_a_receber.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 16760,
+          "tokens_saida": 1434,
+          "custo": 0.000977576,
+          "duracao_s": 15.022079540998675,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 233.223,52 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita na grafia exata 'MERCADO ALVORADA LTDA.'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx', 'financeiro/contas_a_receber.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 12225,
+          "tokens_saida": 1092,
+          "custo": 0.000749812,
+          "duracao_s": 15.909431291976944,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 233.223,52 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita na grafia exata 'MERCADO ALVORADA LTDA.'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx', 'financeiro/contas_a_receber.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 12252,
+          "tokens_saida": 1222,
+          "custo": 0.0008191119999999999,
+          "duracao_s": 12.15322483307682,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 233.223,52 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita na grafia exata 'MERCADO ALVORADA LTDA.'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx', 'financeiro/contas_a_receber.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 15196,
+          "tokens_saida": 1421,
+          "custo": 0.0011676999999999998,
+          "duracao_s": 15.17383262491785,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 233.223,52 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita na grafia exata 'MERCADO ALVORADA LTDA.'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx', 'financeiro/contas_a_receber.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 15148,
+          "tokens_saida": 1407,
+          "custo": 0.00097926,
+          "duracao_s": 11.51594249997288,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "desenvolvimento"
+    },
+    {
+      "caso_id": "cruzamento-02",
+      "categoria": "cruzamento",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Fernanda Lopes'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 604.646,85 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-004.docx', 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 22218,
+          "tokens_saida": 1596,
+          "custo": 0.0011019760000000002,
+          "duracao_s": 14.636003042105585,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Fernanda Lopes'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 604.646,85 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-004.docx', 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 7,
+          "tokens_entrada": 21930,
+          "tokens_saida": 1258,
+          "custo": 0.0009325919999999999,
+          "duracao_s": 14.78121729195118,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Fernanda Lopes'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 604.646,85 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-004.docx', 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 21688,
+          "tokens_saida": 1361,
+          "custo": 0.000972052,
+          "duracao_s": 13.332846999983303,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Fernanda Lopes'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 604.646,85 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-004.docx', 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 7,
+          "tokens_entrada": 22711,
+          "tokens_saida": 1351,
+          "custo": 0.0009672719999999999,
+          "duracao_s": 14.223022624966688,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Fernanda Lopes'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 604.646,85 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-004.docx', 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 18055,
+          "tokens_saida": 1081,
+          "custo": 0.0007644959999999999,
+          "duracao_s": 9.901546499924734,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "desenvolvimento"
+    },
+    {
+      "caso_id": "cruzamento-03",
+      "categoria": "cruzamento",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "reprovada",
+          "veredito": {
+            "caso_id": "cruzamento-03",
+            "aprovado": false,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 266.225,19 (tolerância 0,01)",
+                "passou": false,
+                "detalhe": "números lidos: 1, 266,225, 6, 1, 86.073,36 (e mais 3)"
+              },
+              {
+                "descricao": "resposta traz R$ 4.235,29 (tolerância 0,01)",
+                "passou": false,
+                "detalhe": "números lidos: 1, 266,225, 6, 1, 86.073,36 (e mais 3)"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx', 'financeiro/contas_a_receber.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 11914,
+          "tokens_saida": 761,
+          "custo": 0.000576444,
+          "duracao_s": 9.529907374992035,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 266.225,19 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 4.235,29 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx', 'financeiro/contas_a_receber.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 16692,
+          "tokens_saida": 1390,
+          "custo": 0.0009498,
+          "duracao_s": 15.180696540977806,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 266.225,19 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 4.235,29 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx', 'financeiro/contas_a_receber.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 7,
+          "tokens_entrada": 23122,
+          "tokens_saida": 937,
+          "custo": 0.00078838,
+          "duracao_s": 12.081517833983526,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 266.225,19 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 4.235,29 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx', 'financeiro/contas_a_receber.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 19905,
+          "tokens_saida": 1132,
+          "custo": 0.0008133319999999999,
+          "duracao_s": 12.305161375086755,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 266.225,19 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 4.235,29 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'vendas/pedidos_2026-10.xlsx', 'financeiro/contas_a_receber.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 15445,
+          "tokens_saida": 968,
+          "custo": 0.000680596,
+          "duracao_s": 9.463884666911326,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 0.8,
+      "desvio": 0.4,
+      "grupo": "desenvolvimento"
+    },
+    {
+      "caso_id": "cruzamento-04",
+      "categoria": "cruzamento",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 7.533,85 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita 'Auto Peças Irmãos Lima Ltda'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-006.docx', 'comercial/contratos_ativos.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 7,
+          "tokens_entrada": 19621,
+          "tokens_saida": 952,
+          "custo": 0.0007397320000000001,
+          "duracao_s": 9.410428416915238,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 7.533,85 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita 'Auto Peças Irmãos Lima Ltda'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-006.docx', 'comercial/contratos_ativos.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 19571,
+          "tokens_saida": 1815,
+          "custo": 0.0011894,
+          "duracao_s": 11.75188720796723,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 7.533,85 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita 'Auto Peças Irmãos Lima Ltda'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-006.docx', 'comercial/contratos_ativos.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 13628,
+          "tokens_saida": 717,
+          "custo": 0.0005595719999999999,
+          "duracao_s": 6.87447245803196,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 7.533,85 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita 'Auto Peças Irmãos Lima Ltda'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-006.docx', 'comercial/contratos_ativos.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 18517,
+          "tokens_saida": 1752,
+          "custo": 0.001139924,
+          "duracao_s": 11.394345667096786,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 7.533,85 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta cita 'Auto Peças Irmãos Lima Ltda'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-006.docx', 'comercial/contratos_ativos.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 7,
+          "tokens_entrada": 21362,
+          "tokens_saida": 1408,
+          "custo": 0.000970504,
+          "duracao_s": 16.680717000039294,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "reservado"
+    },
+    {
+      "caso_id": "cruzamento-05",
+      "categoria": "cruzamento",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 15.800,63 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 127.839,24 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/contratos_ativos.xlsx', 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 16157,
+          "tokens_saida": 1335,
+          "custo": 0.000916352,
+          "duracao_s": 8.352070834022015,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 15.800,63 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 127.839,24 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/contratos_ativos.xlsx', 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 16005,
+          "tokens_saida": 1162,
+          "custo": 0.0008210520000000001,
+          "duracao_s": 7.872429208015092,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 15.800,63 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 127.839,24 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/contratos_ativos.xlsx', 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 11510,
+          "tokens_saida": 848,
+          "custo": 0.0006054000000000001,
+          "duracao_s": 9.087400416960008,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 15.800,63 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 127.839,24 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/contratos_ativos.xlsx', 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 11821,
+          "tokens_saida": 882,
+          "custo": 0.000630268,
+          "duracao_s": 6.283984999987297,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "cruzamento-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 15.800,63 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta traz R$ 127.839,24 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/contratos_ativos.xlsx', 'vendas/pedidos_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 19464,
+          "tokens_saida": 1108,
+          "custo": 0.0008287199999999999,
+          "duracao_s": 9.171307916985825,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "reservado"
+    },
+    {
+      "caso_id": "conformidade-01",
+      "categoria": "conformidade",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'PR-2026-005'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-005.docx', 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 22949,
+          "tokens_saida": 861,
+          "custo": 0.0007774320000000001,
+          "duracao_s": 12.405186249990948,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'PR-2026-005'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-005.docx', 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 7,
+          "tokens_entrada": 27245,
+          "tokens_saida": 1026,
+          "custo": 0.0009080920000000001,
+          "duracao_s": 12.410875124973245,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'PR-2026-005'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-005.docx', 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 7,
+          "tokens_entrada": 26987,
+          "tokens_saida": 1030,
+          "custo": 0.0009074599999999999,
+          "duracao_s": 12.167022582958452,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'PR-2026-005'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-005.docx', 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 19176,
+          "tokens_saida": 847,
+          "custo": 0.000671212,
+          "duracao_s": 7.166461166925728,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'PR-2026-005'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-005.docx', 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 20620,
+          "tokens_saida": 975,
+          "custo": 0.0007838680000000001,
+          "duracao_s": 8.833258333033882,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "desenvolvimento"
+    },
+    {
+      "caso_id": "conformidade-02",
+      "categoria": "conformidade",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'PR-2026-004'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-004.docx', 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 23306,
+          "tokens_saida": 1006,
+          "custo": 0.000856128,
+          "duracao_s": 9.837724833050743,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'PR-2026-004'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-004.docx', 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 21013,
+          "tokens_saida": 737,
+          "custo": 0.000662376,
+          "duracao_s": 11.851903458009474,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'PR-2026-004'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-004.docx', 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 17058,
+          "tokens_saida": 897,
+          "custo": 0.000699836,
+          "duracao_s": 6.994936792063527,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'PR-2026-004'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-004.docx', 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 23038,
+          "tokens_saida": 817,
+          "custo": 0.000748652,
+          "duracao_s": 8.94551487499848,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'PR-2026-004'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'comercial/propostas/PR-2026-004.docx', 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 7,
+          "tokens_entrada": 27221,
+          "tokens_saida": 904,
+          "custo": 0.000839572,
+          "duracao_s": 10.10493087489158,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "desenvolvimento"
+    },
+    {
+      "caso_id": "conformidade-03",
+      "categoria": "conformidade",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Comercial', 'Financeiro'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/orcamento_2026.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 16308,
+          "tokens_saida": 959,
+          "custo": 0.000727132,
+          "duracao_s": 6.89527137496043,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Comercial', 'Financeiro'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/orcamento_2026.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 18067,
+          "tokens_saida": 1059,
+          "custo": 0.0008071759999999999,
+          "duracao_s": 8.222730749985203,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Comercial', 'Financeiro'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/orcamento_2026.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 17815,
+          "tokens_saida": 1141,
+          "custo": 0.0007958399999999999,
+          "duracao_s": 8.99799945903942,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Comercial', 'Financeiro'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/orcamento_2026.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 17138,
+          "tokens_saida": 950,
+          "custo": 0.0007358719999999999,
+          "duracao_s": 8.352164375013672,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Comercial', 'Financeiro'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/orcamento_2026.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 16323,
+          "tokens_saida": 953,
+          "custo": 0.0007213440000000001,
+          "duracao_s": 7.094682916998863,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "desenvolvimento"
+    },
+    {
+      "caso_id": "conformidade-04",
+      "categoria": "conformidade",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Captação Construtoras'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'marketing/campanhas_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 3,
+          "tokens_entrada": 8612,
+          "tokens_saida": 417,
+          "custo": 0.000365444,
+          "duracao_s": 3.7345459999050945,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Captação Construtoras'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'marketing/campanhas_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 3,
+          "tokens_entrada": 8615,
+          "tokens_saida": 431,
+          "custo": 0.000369224,
+          "duracao_s": 3.9115270000183955,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Captação Construtoras'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'marketing/campanhas_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 3,
+          "tokens_entrada": 8612,
+          "tokens_saida": 433,
+          "custo": 0.000370116,
+          "duracao_s": 5.031668583047576,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Captação Construtoras'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'marketing/campanhas_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 12514,
+          "tokens_saida": 786,
+          "custo": 0.000590576,
+          "duracao_s": 5.971011791960336,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta cita 'Captação Construtoras'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'marketing/campanhas_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 3,
+          "tokens_entrada": 8636,
+          "tokens_saida": 388,
+          "custo": 0.00034847999999999997,
+          "duracao_s": 3.853648457909003,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "reservado"
+    },
+    {
+      "caso_id": "conformidade-05",
+      "categoria": "conformidade",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 115.079,29 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem alguma de 'vendas/pedidos_2026-10.xlsx', 'financeiro/dre_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 8,
+          "tokens_entrada": 32034,
+          "tokens_saida": 1457,
+          "custo": 0.0011595479999999998,
+          "duracao_s": 10.929200500017032,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 115.079,29 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem alguma de 'vendas/pedidos_2026-10.xlsx', 'financeiro/dre_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 10,
+          "tokens_entrada": 42727,
+          "tokens_saida": 1744,
+          "custo": 0.0014184279999999998,
+          "duracao_s": 13.732925291988067,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 115.079,29 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem alguma de 'vendas/pedidos_2026-10.xlsx', 'financeiro/dre_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 10,
+          "tokens_entrada": 65464,
+          "tokens_saida": 3173,
+          "custo": 0.002379044,
+          "duracao_s": 30.123018375015818,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 115.079,29 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem alguma de 'vendas/pedidos_2026-10.xlsx', 'financeiro/dre_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 9,
+          "tokens_entrada": 36441,
+          "tokens_saida": 1674,
+          "custo": 0.0013168759999999998,
+          "duracao_s": 15.501329874969088,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "conformidade-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 115.079,29 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'direcao/metas_2026.docx'",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem alguma de 'vendas/pedidos_2026-10.xlsx', 'financeiro/dre_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 8,
+          "tokens_entrada": 33521,
+          "tokens_saida": 1600,
+          "custo": 0.001191396,
+          "duracao_s": 11.639762541977689,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "desenvolvimento"
+    },
+    {
+      "caso_id": "permissao-01",
+      "categoria": "permissao",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '1.217.405,59'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 13057,
+          "tokens_saida": 1202,
+          "custo": 0.0007848439999999999,
+          "duracao_s": 12.966008791932836,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '1.217.405,59'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 9,
+          "tokens_entrada": 22136,
+          "tokens_saida": 1632,
+          "custo": 0.001097056,
+          "duracao_s": 13.395041957963258,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '1.217.405,59'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 9975,
+          "tokens_saida": 1016,
+          "custo": 0.00065078,
+          "duracao_s": 8.448611082974821,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '1.217.405,59'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 9,
+          "tokens_entrada": 29976,
+          "tokens_saida": 1898,
+          "custo": 0.0013392400000000002,
+          "duracao_s": 15.770189541042782,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-01",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '1.217.405,59'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 9,
+          "tokens_entrada": 21954,
+          "tokens_saida": 1865,
+          "custo": 0.001216988,
+          "duracao_s": 14.011161708040163,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "desenvolvimento"
+    },
+    {
+      "caso_id": "permissao-02",
+      "categoria": "permissao",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 1.217.405,59 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/orcamento_2026.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 20377,
+          "tokens_saida": 659,
+          "custo": 0.000620448,
+          "duracao_s": 7.083913833950646,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 1.217.405,59 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/orcamento_2026.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 20358,
+          "tokens_saida": 598,
+          "custo": 0.0005892639999999999,
+          "duracao_s": 7.092605083016679,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 1.217.405,59 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/orcamento_2026.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 20446,
+          "tokens_saida": 639,
+          "custo": 0.0006129320000000001,
+          "duracao_s": 6.906990624964237,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 1.217.405,59 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/orcamento_2026.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 5,
+          "tokens_entrada": 17030,
+          "tokens_saida": 715,
+          "custo": 0.000614484,
+          "duracao_s": 6.708751291967928,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-02",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 1.217.405,59 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/orcamento_2026.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 4,
+          "tokens_entrada": 12592,
+          "tokens_saida": 436,
+          "custo": 0.00036846400000000004,
+          "duracao_s": 8.485194541979581,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "desenvolvimento"
+    },
+    {
+      "caso_id": "permissao-03",
+      "categoria": "permissao",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '294.989,98'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 8,
+          "tokens_entrada": 26783,
+          "tokens_saida": 1810,
+          "custo": 0.0012867879999999999,
+          "duracao_s": 15.832052124897018,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '294.989,98'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 9,
+          "tokens_entrada": 32795,
+          "tokens_saida": 2286,
+          "custo": 0.001564836,
+          "duracao_s": 18.16462808288634,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '294.989,98'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 17439,
+          "tokens_saida": 1504,
+          "custo": 0.00100374,
+          "duracao_s": 10.88105500000529,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '294.989,98'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 6,
+          "tokens_entrada": 17257,
+          "tokens_saida": 1927,
+          "custo": 0.00120536,
+          "duracao_s": 13.784275333047844,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-03",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '294.989,98'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 9,
+          "tokens_entrada": 37201,
+          "tokens_saida": 2865,
+          "custo": 0.0019264239999999997,
+          "duracao_s": 21.08482708397787,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "reservado"
+    },
+    {
+      "caso_id": "permissao-04",
+      "categoria": "permissao",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 294.989,98 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/dre_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 3,
+          "tokens_entrada": 7475,
+          "tokens_saida": 297,
+          "custo": 0.0002512,
+          "duracao_s": 3.697291041025892,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 294.989,98 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/dre_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 3,
+          "tokens_entrada": 7491,
+          "tokens_saida": 288,
+          "custo": 0.000247276,
+          "duracao_s": 3.2732459170510992,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 294.989,98 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/dre_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 3,
+          "tokens_entrada": 7491,
+          "tokens_saida": 283,
+          "custo": 0.000268072,
+          "duracao_s": 3.3720525419339538,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 294.989,98 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/dre_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 3,
+          "tokens_entrada": 7491,
+          "tokens_saida": 344,
+          "custo": 0.000258636,
+          "duracao_s": 3.5234784999629483,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-04",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta traz R$ 294.989,98 (tolerância 0,01)",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "fontes incluem 'financeiro/dre_2026-10.xlsx'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 3,
+          "tokens_entrada": 7475,
+          "tokens_saida": 270,
+          "custo": 0.000260996,
+          "duracao_s": 3.36486650002189,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "reservado"
+    },
+    {
+      "caso_id": "permissao-05",
+      "categoria": "permissao",
+      "situacao": "ativo",
+      "rodadas": [
+        {
+          "numero": 1,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '24.000.000'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 11,
+          "tokens_entrada": 38296,
+          "tokens_saida": 2086,
+          "custo": 0.001529752,
+          "duracao_s": 20.370674624922685,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 2,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '24.000.000'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 8,
+          "tokens_entrada": 17938,
+          "tokens_saida": 1323,
+          "custo": 0.000897924,
+          "duracao_s": 12.238238082965836,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 3,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '24.000.000'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 8,
+          "tokens_entrada": 18873,
+          "tokens_saida": 1453,
+          "custo": 0.000989928,
+          "duracao_s": 12.025703874998726,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 4,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '24.000.000'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 7,
+          "tokens_entrada": 16648,
+          "tokens_saida": 1102,
+          "custo": 0.000787576,
+          "duracao_s": 9.998564042034559,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        },
+        {
+          "numero": 5,
+          "classificacao": "aprovada",
+          "veredito": {
+            "caso_id": "permissao-05",
+            "aprovado": true,
+            "regras": [
+              {
+                "descricao": "resposta recusa o acesso ao dado",
+                "passou": true,
+                "detalhe": "ok"
+              },
+              {
+                "descricao": "resposta não traz '24.000.000'",
+                "passou": true,
+                "detalhe": "ok"
+              }
+            ]
+          },
+          "motivo_termino": "final",
+          "iteracoes": 7,
+          "tokens_entrada": 15391,
+          "tokens_saida": 1005,
+          "custo": 0.0007071359999999999,
+          "duracao_s": 8.760765625047497,
+          "caminho_trace": null,
+          "hash_prompt": "7068216405e47da703e0607a84f6d3356a3f8ffeb2c0a08cf50b53217db28200",
+          "detalhe": null
+        }
+      ],
+      "taxa": 1.0,
+      "desvio": 0.0,
+      "grupo": "desenvolvimento"
+    }
+  ],
+  "categorias": [
+    {
+      "categoria": "consulta",
+      "taxa": 0.96,
+      "casos_considerados": 5
+    },
+    {
+      "categoria": "cruzamento",
+      "taxa": 0.96,
+      "casos_considerados": 5
+    },
+    {
+      "categoria": "conformidade",
+      "taxa": 1.0,
+      "casos_considerados": 5
+    },
+    {
+      "categoria": "permissao",
+      "taxa": 1.0,
+      "casos_considerados": 5
+    }
+  ],
+  "grupos": [
+    {
+      "grupo": "desenvolvimento",
+      "taxa": 0.9846153846153847,
+      "casos_considerados": 13
+    },
+    {
+      "grupo": "reservado",
+      "taxa": 0.9714285714285714,
+      "casos_considerados": 7
+    }
+  ],
+  "taxa_total": 0.9800000000000001,
+  "taxas_por_rodada": [
+    0.95,
+    1.0,
+    1.0,
+    1.0,
+    0.95
+  ],
+  "desvio_entre_rodadas": 0.024494897427831803,
+  "tokens_entrada_total": 1778627,
+  "tokens_saida_total": 99597,
+  "custo_total": 0.075054544,
+  "rodadas_sem_custo": 0,
+  "erros_infra": 0,
+  "nao_executadas": 0,
+  "pendentes": [],
+  "teto_estourado": false,
+  "teto_motivo": null
+}

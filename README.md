@@ -117,7 +117,7 @@ Roda o agente de verdade contra casos com resposta conhecida e mede a taxa de su
 uv run python -m harness.evals --rodadas 3 --semente 42 --categoria consulta --teto-usd 1
 ```
 
-O relatório JSON vai para `avaliacoes/` e traz taxa por caso, categoria e total, variação entre rodadas, custo e tokens. Códigos de saída: 0 sem problemas, 1 houve erro de infraestrutura, 2 uso ou configuração inválidos, 3 teto de gasto estourado. Por enquanto há 4 casos de exemplo (Consulta, Cruzamento, Conformidade e Permissão).
+O relatório JSON vai para `avaliacoes/` e traz taxa por caso, categoria e total, variação entre rodadas, custo e tokens. Códigos de saída: 0 sem problemas, 1 houve erro de infraestrutura, 2 uso ou configuração inválidos, 3 teto de gasto estourado. O conjunto atual tem 20 casos ativos (5 de Consulta, Cruzamento, Conformidade e Permissão), separados em desenvolvimento e reservados; `--grupo` e `--categoria` filtram. Resultados e conclusões: [relatório da avaliação](docs/relatorios/avaliacao-fase3-t17a.md).
 
 ### Desenvolvimento
 
@@ -142,4 +142,5 @@ uv run pytest -m real_api
 - [Diagramas de segurança e defesa](docs/diagramas-seguranca.md)
 - [Diagramas do fluxo do pedido, protocolo e módulos](docs/diagramas-fluxo-do-pedido.md)
 - [Diagramas das avaliações (evals)](docs/diagramas-evals.md)
+- [Relatório da avaliação do agente (Fase 3, T17a)](docs/relatorios/avaliacao-fase3-t17a.md)
 - [Decisões de arquitetura (ADRs)](docs/adr/README.md)

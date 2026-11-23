@@ -21,7 +21,8 @@ Estado de cada parte:
 | Gerador de dados sintéticos | T14 | Implementado |
 | Formato dos casos e correção por regras | T15 | Implementado |
 | Executor de avaliação e relatório | T16 | Implementado (ainda sem execução real contra o modelo) |
-| Os 35 casos em 7 categorias | T17 | Planejado |
+| Conjunto de 20 casos ativos (4 categorias) | T17a | Implementado |
+| 15 casos pendentes (Geração, Alteração, Injeção) e conjunto congelado com linha de base | T17b e T17c | Planejado |
 | Linha de base com tool calling em JSON | T18 | Planejado |
 | Ataques de injeção plantados e medição | T19 | Planejado |
 
@@ -35,7 +36,7 @@ flowchart LR
     GER --> ARQ["Arquivos sintéticos<br/>5 departamentos"]
     GER --> FAT["FatosVerdadeiros<br/>valores corretos"]
 
-    FAT --> CAS["T17 Casos<br/>pedido, perfil, gabarito"]
+    FAT --> CAS["T17a Casos<br/>pedido, perfil, grupo, gabarito"]
     CAS --> EXE["T16 Executor<br/>N rodadas por caso"]
     ARQ --> EXE
 
@@ -53,9 +54,9 @@ flowchart LR
         COR
         EXE
         REL
+        CAS
     end
     subgraph PLANEJADO["Planejado"]
-        CAS
         GATE
     end
 ```
@@ -69,7 +70,7 @@ flowchart TB
     subgraph EVALS["harness/evals"]
         MAIN["__main__.py<br/>linha de comando, códigos de saída"]
         EXE["executor.py<br/>rodadas, tetos, classificação"]
-        EXM["casos_exemplo.py<br/>4 casos a partir dos fatos"]
+        EXM["conjunto.py<br/>20 casos a partir dos fatos"]
         REL["relatorio.py<br/>agregação e JSON"]
         COR["correcao.py<br/>números pt-BR e regras"]
         CAS["casos.py<br/>Caso, Categoria, regras"]
@@ -134,9 +135,9 @@ Pontos que o mapa mostra:
 | Módulo | Responsabilidade |
 | --- | --- |
 | `dados.py` | Gerar os arquivos sintéticos com semente fixa e devolver os fatos verdadeiros |
-| `casos.py` | Formato do caso, categorias, situação e as 6 regras do gabarito |
+| `casos.py` | Formato do caso (com grupo e gêmeo), categorias, situação e as 8 regras do gabarito |
 | `correcao.py` | Ler números em português do Brasil e aplicar as regras, devolvendo o veredito |
-| `casos_exemplo.py` | Montar os 4 casos de exemplo com valores vindos dos fatos |
+| `conjunto.py` | Montar os 20 casos ativos com valores vindos dos fatos |
 | `relatorio.py` | Classificação das rodadas, agregação, desvio e relatório em JSON |
 | `executor.py` | Rodar as rodadas, controlar tetos de gasto e classificar cada resultado |
 | `__main__.py` | Comando `python -m harness.evals` e códigos de saída |
@@ -228,6 +229,8 @@ classDiagram
         perfil
         pedido
         situacao
+        grupo
+        gemeo
         gabarito
     }
     class Categoria {
@@ -254,6 +257,12 @@ classDiagram
     }
     class ContemTodos {
         textos
+    }
+    class ContemExato {
+        textos
+    }
+    class CitaAlgumaFonte {
+        fontes
     }
     class ContemAlgum {
         textos
@@ -282,6 +291,8 @@ classDiagram
     Regra <|-- ContemNumero
     Regra <|-- ContemTodos
     Regra <|-- ContemAlgum
+    Regra <|-- ContemExato
+    Regra <|-- CitaAlgumaFonte
     Regra <|-- NaoContem
     Regra <|-- CitaFontes
     Regra <|-- RecusaAcesso
@@ -557,8 +568,8 @@ flowchart LR
 flowchart LR
     T14["T14<br/>dados sintéticos<br/>feito"] --> T15["T15<br/>casos e correção<br/>feito"]
     T15 --> T16["T16<br/>executor e relatório<br/>feito"]
-    T16 --> EX["Rodada real com<br/>3 a 5 casos de exemplo"]
-    EX --> T17["T17<br/>os 35 casos"]
+    T16 --> EX["Rodadas reais<br/>com 4 e depois 20 casos"]
+    EX --> T17["T17a feito<br/>20 casos ativos<br/>T17b e T17c planejados"]
     T17 --> T18["T18<br/>linha de base JSON"]
     T18 --> T19["T19<br/>ataques de injeção"]
     T19 --> CI["Gate no CI<br/>D13"]
