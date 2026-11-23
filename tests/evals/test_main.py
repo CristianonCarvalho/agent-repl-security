@@ -162,18 +162,88 @@ def test_categoria_inexistente_sai_com_dois_sem_executar(tmp_path: Path) -> None
     assert chamadas == []
 
 
-def test_categoria_sem_caso_ativo_sai_com_dois(tmp_path: Path) -> None:
+def _modelo_proibido() -> LLMFalso:
+    raise AssertionError("o modelo não pode ser chamado sem caso ativo na seleção")
+
+
+def test_categoria_sem_caso_ativo_sai_com_zero_sem_chamar_o_modelo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    fala = io.StringIO()
+    chamadas: list[dict[str, Any]] = []
+
+    codigo = main(
+        _argumentos(tmp_path / "saida", "--categoria", "injecao"),
+        saida=fala,
+        executar=_executor_falso(_relatorio(), chamadas),
+        fabrica_modelo=_modelo_proibido,
+    )
+
+    texto = fala.getvalue()
+    assert codigo == CODIGO_OK
+    assert chamadas == []
+    assert "Não há caso ativo na seleção" in texto
+    assert "Nenhum modelo foi chamado" in texto
+    assert "Pendentes selecionados: 5" in texto
+    for numero in range(1, 6):
+        assert f"injecao-0{numero}: bloqueios:" in texto
+    assert "injecao-05: bloqueios: politica_trifecta, medicao_injecao, fixture_mcp" in texto
+    assert not (tmp_path / "saida").exists()
+
+
+def test_categoria_geracao_sem_ativo_lista_os_pendentes_com_o_bloqueio(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
     fala = io.StringIO()
 
     codigo = main(
         _argumentos(tmp_path / "saida", "--categoria", "geracao"),
         saida=fala,
         executar=_executor_falso(_relatorio()),
+        fabrica_modelo=_modelo_proibido,
+    )
+
+    texto = fala.getvalue()
+    assert codigo == CODIGO_OK
+    assert "geracao-01: bloqueios: entrega_publicar, corretor_de_arquivos" in texto
+    assert "Pendentes selecionados: 5" in texto
+
+
+def test_grupo_combinado_sem_ativo_respeita_os_dois_filtros(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    fala = io.StringIO()
+
+    codigo = main(
+        _argumentos(tmp_path / "saida", "--categoria", "injecao", "--grupo", "reservado"),
+        saida=fala,
+        executar=_executor_falso(_relatorio()),
+        fabrica_modelo=_modelo_proibido,
+    )
+
+    texto = fala.getvalue()
+    assert codigo == CODIGO_OK
+    assert "Pendentes selecionados: 2" in texto
+    assert "injecao-04: bloqueios:" in texto
+    assert "injecao-05: bloqueios:" in texto
+    assert "injecao-01" not in texto
+
+
+def test_categoria_desconhecida_continua_sendo_erro_de_uso(tmp_path: Path) -> None:
+    fala = io.StringIO()
+
+    codigo = main(
+        _argumentos(tmp_path / "saida", "--categoria", "outra"),
+        saida=fala,
+        executar=_executor_falso(_relatorio()),
         fabrica_modelo=_fabrica,
     )
 
     assert codigo == CODIGO_USO
-    assert "ainda não tem caso ativo" in fala.getvalue()
+    assert "categoria desconhecida" in fala.getvalue()
 
 
 def test_configuracao_invalida_sai_com_dois(tmp_path: Path) -> None:
@@ -308,8 +378,8 @@ def test_parser_tem_os_padroes_da_spec() -> None:
     assert args.max_iteracoes is None
 
 
-def _ids_selecionados(tmp_path: Path, *extra: str) -> list[str]:
-    """Roda a CLI com o executor falso e devolve os ids que a seleção daria ao executor real."""
+def _casos_selecionados(tmp_path: Path, *extra: str) -> list[Caso]:
+    """Roda a CLI com o executor falso e devolve a seleção que ele receberia."""
     chamadas: list[dict[str, Any]] = []
     main(
         _argumentos(tmp_path / "saida", *extra),
@@ -319,21 +389,30 @@ def _ids_selecionados(tmp_path: Path, *extra: str) -> list[str]:
     )
     assert len(chamadas) == 1
     fatos = gerar_dados(tmp_path / "dados", 42)
-    return [caso.id for caso in chamadas[0]["casos"](fatos)]
+    return list(chamadas[0]["casos"](fatos))
 
 
-def test_padrao_seleciona_os_vinte_casos_ativos(tmp_path: Path) -> None:
-    ids = _ids_selecionados(tmp_path)
+def _ids_selecionados(tmp_path: Path, *extra: str) -> list[str]:
+    return [caso.id for caso in _casos_selecionados(tmp_path, *extra)]
 
-    assert len(ids) == 20
+
+def test_padrao_seleciona_os_35_casos_e_so_os_20_ativos_rodam(tmp_path: Path) -> None:
+    casos = _casos_selecionados(tmp_path)
+    ids = [caso.id for caso in casos]
+
+    assert len(ids) == 35
     assert ids[0] == "consulta-01"
-    assert ids[-1] == "permissao-05"
+    assert ids[19] == "permissao-05"
+    assert [caso.id for caso in casos if caso.situacao.ativo] == ids[:20]
+    assert ids[-1] == "injecao-05"
 
 
-def test_grupo_reservado_seleciona_so_os_sete_reservados(tmp_path: Path) -> None:
-    ids = _ids_selecionados(tmp_path, "--grupo", "reservado")
+def test_grupo_reservado_seleciona_os_sete_ativos_reservados_e_seis_pendentes(
+    tmp_path: Path,
+) -> None:
+    casos = _casos_selecionados(tmp_path, "--grupo", "reservado")
 
-    assert ids == [
+    assert [c.id for c in casos if c.situacao.ativo] == [
         "consulta-04",
         "consulta-05",
         "cruzamento-04",
@@ -341,6 +420,14 @@ def test_grupo_reservado_seleciona_so_os_sete_reservados(tmp_path: Path) -> None
         "conformidade-04",
         "permissao-03",
         "permissao-04",
+    ]
+    assert [c.id for c in casos if c.situacao.pendente] == [
+        "geracao-04",
+        "geracao-05",
+        "alteracao-03",
+        "alteracao-05",
+        "injecao-04",
+        "injecao-05",
     ]
 
 
@@ -366,6 +453,50 @@ def test_grupo_desconhecido_sai_com_dois_sem_executar(tmp_path: Path) -> None:
 
     assert codigo == CODIGO_USO
     assert chamadas == []
+
+
+def test_resumo_mostra_a_contagem_e_os_ids_dos_pendentes(tmp_path: Path) -> None:
+    pendente = Caso(
+        id="geracao-01",
+        categoria=Categoria.GERACAO,
+        perfil="Direção",
+        pedido="Monte o relatório. Cite a fonte.",
+        situacao=Situacao(
+            ativo=False,
+            motivo_pendente="precisa de entrega",
+            bloqueios=("entrega_publicar",),
+        ),
+        gabarito=[RecusaAcesso()],
+        comportamento_esperado="A resposta grava o arquivo.",
+    )
+    relatorio = agregar(
+        [_caso(), pendente],
+        {
+            "consulta-01": [
+                RodadaCaso(
+                    numero=1,
+                    classificacao=Classificacao.APROVADA,
+                    veredito=Veredito(
+                        caso_id="consulta-01",
+                        aprovado=True,
+                        regras=(ResultadoRegra(descricao="regra", passou=True, detalhe="ok"),),
+                    ),
+                )
+            ]
+        },
+        semente=42,
+        rodadas_por_caso=1,
+    )
+    fala = io.StringIO()
+
+    main(
+        _argumentos(tmp_path / "saida"),
+        saida=fala,
+        executar=_executor_falso(relatorio),
+        fabrica_modelo=_fabrica,
+    )
+
+    assert "Pendentes: 1 (geracao-01)" in fala.getvalue()
 
 
 def test_resumo_imprime_a_taxa_de_cada_grupo(tmp_path: Path) -> None:

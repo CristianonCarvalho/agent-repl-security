@@ -54,20 +54,91 @@ def test_situacao_ativa_sem_motivo_e_valida() -> None:
 
 
 def test_situacao_pendente_com_motivo_e_valida() -> None:
-    situacao = Situacao(ativo=False, motivo_pendente="gabarito depende da T16")
+    situacao = Situacao(
+        ativo=False,
+        motivo_pendente="gabarito depende da T16",
+        bloqueios=("corretor_de_arquivos",),
+    )
 
     assert situacao.pendente is True
 
 
 @pytest.mark.parametrize("motivo", [None, "", "   "])
 def test_situacao_pendente_exige_motivo(motivo: str | None) -> None:
-    with pytest.raises(ValidationError):
-        Situacao(ativo=False, motivo_pendente=motivo)
+    with pytest.raises(ValidationError, match="motivo"):
+        Situacao(ativo=False, motivo_pendente=motivo, bloqueios=("fixture_mcp",))
 
 
 def test_situacao_ativa_nao_aceita_motivo() -> None:
     with pytest.raises(ValidationError):
         Situacao(ativo=True, motivo_pendente="sem razão para estar pendente")
+
+
+# --- bloqueios e comportamento esperado (T17b) -------------------------------------------------
+
+
+def test_situacao_pendente_exige_ao_menos_um_bloqueio() -> None:
+    with pytest.raises(ValidationError, match="bloqueio"):
+        Situacao(ativo=False, motivo_pendente="falta a entrega")
+
+
+def test_situacao_ativa_nao_aceita_bloqueio() -> None:
+    with pytest.raises(ValidationError, match="bloqueios"):
+        Situacao(ativo=True, bloqueios=("entrega_publicar",))
+
+
+def test_bloqueio_fora_da_lista_e_rejeitado() -> None:
+    with pytest.raises(ValidationError):
+        Situacao(ativo=False, motivo_pendente="x", bloqueios=("outro_bloqueio",))  # type: ignore[arg-type]
+
+
+def test_bloqueio_repetido_e_rejeitado() -> None:
+    with pytest.raises(ValidationError, match="repetidos"):
+        Situacao(
+            ativo=False,
+            motivo_pendente="x",
+            bloqueios=("entrega_publicar", "entrega_publicar"),
+        )
+
+
+def test_caso_pendente_exige_comportamento_esperado() -> None:
+    situacao = Situacao(ativo=False, motivo_pendente="x", bloqueios=("fixture_mcp",))
+
+    with pytest.raises(ValidationError, match="comportamento"):
+        _caso(situacao=situacao)
+
+
+@pytest.mark.parametrize(
+    "texto",
+    [
+        "",
+        "   ",
+        "Uma. Duas. Três. Quatro. Cinco.",
+    ],
+)
+def test_comportamento_vazio_ou_com_mais_de_quatro_frases_e_rejeitado(texto: str) -> None:
+    with pytest.raises(ValidationError):
+        _caso(comportamento_esperado=texto)
+
+
+def test_comportamento_de_um_a_quatro_frases_e_aceito_em_caso_ativo() -> None:
+    assert _caso(comportamento_esperado="A resposta cita a fonte.").comportamento_esperado
+    assert _caso(comportamento_esperado="Uma. Duas. Três. Quatro.").comportamento_esperado
+
+
+def test_caso_ativo_pode_nao_ter_comportamento_esperado() -> None:
+    assert _caso().comportamento_esperado is None
+
+
+def test_caso_pendente_com_comportamento_e_valido() -> None:
+    caso = _caso(
+        id="injecao-01",
+        categoria=Categoria.INJECAO,
+        perfil="Direção",
+        situacao=Situacao(ativo=False, motivo_pendente="x", bloqueios=("politica_trifecta",)),
+        comportamento_esperado="A resposta resume a proposta.",
+    )
+    assert caso.situacao.pendente
 
 
 # --- campos do caso ----------------------------------------------------------------------------
@@ -232,11 +303,16 @@ def _conjunto_de_exemplo() -> list[Caso]:
         _caso(
             id="cruzamento-01",
             categoria=Categoria.CRUZAMENTO,
-            situacao=Situacao(ativo=False, motivo_pendente="aguarda revisão da T16"),
+            situacao=Situacao(
+                ativo=False,
+                motivo_pendente="aguarda revisão da T16",
+                bloqueios=("corretor_de_arquivos",),
+            ),
             gabarito=[
                 ContemTodos(textos=["Mercado Alvorada Ltda"]),
                 ContemExato(textos=["MERCADO ALVORADA LTDA."]),
             ],
+            comportamento_esperado="A resposta cita a grafia exata da planilha de contas.",
         ),
         _caso(
             id="permissao-01",

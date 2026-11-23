@@ -7,8 +7,11 @@ por regras e sem modelo juiz, está em `harness.evals.correcao`.
 Decisões deste módulo (não estão na spec):
 - `id` tem o formato `categoria-NN`, e o prefixo precisa ser o valor da categoria.
 - `perfil` precisa ser exatamente o nome de um perfil embutido em `harness.host.perfil.PERFIS`.
-- Caso pendente exige motivo; caso ativo não tem motivo. A média da T16 deixa os pendentes de
-  fora; aqui só `Situacao.pendente` é exposto.
+- Caso pendente exige motivo, ao menos um bloqueio (o que o destrava) e comportamento esperado;
+  caso ativo não tem motivo nem bloqueio. A média da T16 deixa os pendentes de fora; aqui só
+  `Situacao.pendente` é exposto.
+- O comportamento esperado é prosa de 1 a 4 frases. Ele complementa o gabarito provisório, que
+  só usa regras de texto já existentes.
 - Cada regra é um modelo congelado com `tipo` como discriminador, para gravar e ler JSON.
 - `descrever()` gera uma linha curta para o relatório. Não participa da comparação.
 - `Decimal` vai para o JSON como texto, então valores monetários não perdem casas.
@@ -22,7 +25,7 @@ from collections import Counter
 from collections.abc import Sequence
 from decimal import Decimal
 from enum import Enum
-from typing import Annotated, Final, Literal
+from typing import Annotated, Final, Literal, get_args
 
 from pydantic import (
     BaseModel,
@@ -51,6 +54,19 @@ class Categoria(Enum):
 _NOMES_DE_PERFIL: Final = frozenset(perfil.nome for perfil in PERFIS)
 _TOLERANCIA_PADRAO: Final = Decimal("0.01")
 _LIMITE_JUNTAR: Final = 80
+_LIMITE_FRASES_DO_COMPORTAMENTO: Final = 4
+
+# O que destrava um caso pendente. Cada motivo é uma peça que ainda não existe (Fase 4 ou dados).
+Bloqueio = Literal[
+    "entrega_publicar",
+    "arquivos_propor_alteracao",
+    "aprovacao_humana",
+    "politica_trifecta",
+    "medicao_injecao",
+    "corretor_de_arquivos",
+    "fixture_mcp",
+]
+BLOQUEIOS_CONHECIDOS: Final[tuple[str, ...]] = get_args(Bloqueio)
 
 
 def formatar_numero_br(valor: Decimal) -> str:
@@ -88,20 +104,40 @@ def _numeros_finitos(numeros: list[Decimal]) -> list[Decimal]:
     return numeros
 
 
+def _contar_frases(texto: str) -> int:
+    """Frases de um texto, separadas por pontuação final seguida de espaço."""
+    return len([parte for parte in re.split(r"(?<=[.!?])\s+", texto.strip()) if parte])
+
+
 class Situacao(BaseModel):
-    """Caso ativo entra na média; caso pendente fica de fora, com o motivo registrado."""
+    """Caso ativo entra na média; caso pendente fica de fora, com o motivo e o que o destrava.
+
+    Pendente exige motivo e ao menos um bloqueio. Ativo não tem nenhum dos dois.
+    """
 
     model_config = ConfigDict(frozen=True)
 
     ativo: bool
     motivo_pendente: str | None = None
+    bloqueios: tuple[Bloqueio, ...] = ()
+
+    @field_validator("bloqueios")
+    @classmethod
+    def _sem_repetidos(cls, bloqueios: tuple[Bloqueio, ...]) -> tuple[Bloqueio, ...]:
+        if len(set(bloqueios)) != len(bloqueios):
+            raise ValueError("bloqueios repetidos")
+        return bloqueios
 
     @model_validator(mode="after")
     def _coerente(self) -> "Situacao":
         if self.ativo and self.motivo_pendente is not None:
             raise ValueError("caso ativo não pode ter motivo pendente")
+        if self.ativo and self.bloqueios:
+            raise ValueError("caso ativo não pode ter bloqueios")
         if not self.ativo and (self.motivo_pendente is None or not self.motivo_pendente.strip()):
             raise ValueError("caso pendente exige motivo")
+        if not self.ativo and not self.bloqueios:
+            raise ValueError("caso pendente exige ao menos um bloqueio")
         return self
 
     @property
@@ -300,6 +336,8 @@ class Caso(BaseModel):
     `grupo` separa os casos de desenvolvimento (usados para calibrar corretor e prompt) dos
     reservados (que ninguém usa para calibrar). `gemeo` é o id do caso que forma par com este:
     o controle positivo de um negativo, ou o contrário. O padrão mantém o JSON antigo válido.
+    `comportamento_esperado` é a descrição em prosa do que a resposta deve fazer, de 1 a 4 frases.
+    Caso pendente exige essa descrição, porque o gabarito provisório não cobre tudo.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -312,6 +350,22 @@ class Caso(BaseModel):
     gabarito: list[Regra] = Field(min_length=1)
     grupo: GrupoCaso = "desenvolvimento"
     gemeo: str | None = None
+    comportamento_esperado: str | None = None
+
+    @field_validator("comportamento_esperado")
+    @classmethod
+    def _comportamento_com_frases(cls, texto: str | None) -> str | None:
+        if texto is None:
+            return None
+        if not texto.strip():
+            raise ValueError("comportamento esperado não pode ser vazio")
+        frases = _contar_frases(texto)
+        if not 1 <= frases <= _LIMITE_FRASES_DO_COMPORTAMENTO:
+            raise ValueError(
+                f"comportamento esperado tem {frases} frases; use de 1 a "
+                f"{_LIMITE_FRASES_DO_COMPORTAMENTO}"
+            )
+        return texto
 
     @field_validator("gemeo")
     @classmethod
@@ -345,6 +399,12 @@ class Caso(BaseModel):
     def _gemeo_nao_e_o_proprio(self) -> "Caso":
         if self.gemeo == self.id:
             raise ValueError(f"caso {self.id!r} não pode ser gêmeo de si mesmo")
+        return self
+
+    @model_validator(mode="after")
+    def _pendente_tem_comportamento(self) -> "Caso":
+        if self.situacao.pendente and self.comportamento_esperado is None:
+            raise ValueError(f"caso pendente {self.id!r} exige comportamento esperado")
         return self
 
 

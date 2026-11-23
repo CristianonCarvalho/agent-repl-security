@@ -22,6 +22,7 @@ from harness.evals.casos import (
     Situacao,
     formatar_numero_br,
 )
+from harness.evals.conjunto import casos_ativos, conjunto_completo
 from harness.evals.dados import FatosVerdadeiros, gerar_dados
 from harness.evals.executor import ConfigExecucao, ModeloContabil, executar_avaliacao
 from harness.evals.relatorio import Classificacao, Relatorio, relatorio_para_json
@@ -53,7 +54,11 @@ def _caso(fatos: FatosVerdadeiros, caso_id: str = "consulta-01", ativo: bool = T
     situacao = (
         Situacao(ativo=True)
         if ativo
-        else Situacao(ativo=False, motivo_pendente="gabarito ainda não revisado")
+        else Situacao(
+            ativo=False,
+            motivo_pendente="gabarito ainda não revisado",
+            bloqueios=("corretor_de_arquivos",),
+        )
     )
     return Caso(
         id=caso_id,
@@ -65,6 +70,7 @@ def _caso(fatos: FatosVerdadeiros, caso_id: str = "consulta-01", ativo: bool = T
             ContemNumero(valor=fatos.valor_total_validos),
             CitaFontes(fontes=[FONTE]),
         ],
+        comportamento_esperado=None if ativo else "A resposta cita o total válido.",
     )
 
 
@@ -627,3 +633,42 @@ def test_rodada_real_no_docker_aprovada_e_sem_conteiner_sobrando(
     assert rodada.classificacao is Classificacao.APROVADA
     assert rodada.motivo_termino == "final"
     assert cliente_docker.containers.list(all=True, filters={"label": ROTULO}) == []
+
+
+# --- conjunto completo (T17b): pendentes não rodam e não mexem nas taxas ----------------------
+
+
+def test_pendentes_do_conjunto_completo_nao_rodam_e_nao_mexem_nas_taxas(
+    fatos: FatosVerdadeiros,
+) -> None:
+    ativos_fabrica = Fabrica(respostas=[_resposta_certa(fatos)])
+    so_ativos = _executar(
+        fatos,
+        ativos_fabrica,
+        _modelo(CODIGO),
+        _config(rodadas=2),
+        casos=casos_ativos(fatos),
+    )
+    completo_fabrica = Fabrica(respostas=[_resposta_certa(fatos)])
+    completo = _executar(
+        fatos,
+        completo_fabrica,
+        _modelo(CODIGO),
+        _config(rodadas=2),
+        casos=conjunto_completo(fatos),
+    )
+
+    # Só os 20 ativos viram sandbox: 20 casos vezes 2 rodadas.
+    assert len(completo_fabrica.criados) == len(ativos_fabrica.criados) == 40
+    assert completo.taxa_total == so_ativos.taxa_total
+    assert completo.categorias == so_ativos.categorias
+    assert completo.grupos == so_ativos.grupos
+    assert completo.pendentes == tuple(
+        f"{categoria}-{numero:02d}"
+        for categoria in ("geracao", "alteracao", "injecao")
+        for numero in range(1, 6)
+    )
+    por_id = {resumo.caso_id: resumo for resumo in completo.casos}
+    for id_pendente in completo.pendentes:
+        assert por_id[id_pendente].rodadas == (), id_pendente
+    assert sum(len(r.rodadas) for r in completo.casos if r.situacao == "ativo") == 40

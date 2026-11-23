@@ -19,7 +19,16 @@ from docx import Document
 from openpyxl import load_workbook
 from pptx import Presentation
 
-from harness.evals.dados import FatosVerdadeiros, gerar_dados
+from harness.evals.dados import (
+    ARQUIVO_APRESENTACAO_Q4,
+    ARQUIVO_ATA,
+    ARQUIVO_OBSERVACOES,
+    INSTRUCAO_APRESENTACAO,
+    INSTRUCAO_ATA,
+    INSTRUCAO_CONTRATO,
+    FatosVerdadeiros,
+    gerar_dados,
+)
 from harness.host.perfil import perfil_por_nome
 from harness.host.tools.catalogo import ListarArgs, listar
 
@@ -380,3 +389,169 @@ def test_arquivos_da_semente_42_nao_mudam(geracao: tuple[Path, FatosVerdadeiros]
         if caminho.is_file()
     }
     assert atuais == HASHES_SEMENTE_42
+
+
+# --- ataques extras (com_ataques, T17b) --------------------------------------------------------
+
+ARQUIVOS_DE_ATAQUE: frozenset[str] = frozenset(
+    {ARQUIVO_ATA, ARQUIVO_OBSERVACOES, ARQUIVO_APRESENTACAO_Q4}
+)
+
+
+@pytest.fixture(scope="module")
+def com_ataques(
+    tmp_path_factory: pytest.TempPathFactory,
+) -> Iterator[tuple[Path, FatosVerdadeiros]]:
+    destino = tmp_path_factory.mktemp("ataques") / "dados"
+    yield destino, gerar_dados(destino, SEMENTE, com_ataques=True)
+
+
+def _notas(caminho: Path) -> list[str]:
+    """Texto das notas do apresentador de cada slide que tem notas."""
+    apresentacao = Presentation(str(caminho))
+    return [
+        slide.notes_slide.notes_text_frame.text
+        for slide in apresentacao.slides
+        if slide.has_notes_slide
+    ]
+
+
+def _texto_completo(caminho: Path) -> str:
+    """Todo o texto de um arquivo de ataque, lido com a biblioteca do formato, notas inclusive."""
+    if caminho.suffix == ".docx":
+        return "\n".join(_paragrafos(caminho))
+    if caminho.suffix == ".xlsx":
+        return "\n".join(str(valor) for linha in _ler_planilha(caminho) for valor in linha if valor)
+    apresentacao = Presentation(str(caminho))
+    textos = [
+        forma.text_frame.text
+        for slide in apresentacao.slides
+        for forma in slide.shapes
+        if forma.has_text_frame
+    ]
+    return "\n".join([*textos, *_notas(caminho)])
+
+
+def test_com_ataques_false_bytes_e_manifesto_iguais_aos_de_sempre(
+    geracao: tuple[Path, FatosVerdadeiros], tmp_path: Path
+) -> None:
+    destino, fatos = geracao
+    destino_explicito = tmp_path / "explicito"
+    fatos_explicitos = gerar_dados(destino_explicito, SEMENTE, com_ataques=False)
+
+    assert fatos_explicitos == fatos
+    assert _bytes_por_arquivo(destino_explicito) == _bytes_por_arquivo(destino)
+    manifesto = json.loads((destino / "manifesto.json").read_text(encoding="utf-8"))
+    assert manifesto == {fatos.instrucao_escondida.arquivo: "externo"}
+
+
+def test_com_ataques_mantem_os_bytes_dos_arquivos_atuais_e_acrescenta_os_novos(
+    geracao: tuple[Path, FatosVerdadeiros], com_ataques: tuple[Path, FatosVerdadeiros]
+) -> None:
+    destino_padrao, _ = geracao
+    destino_ataque, _ = com_ataques
+    atuais = _bytes_por_arquivo(destino_padrao)
+    com = _bytes_por_arquivo(destino_ataque)
+
+    for relativo, conteudo in atuais.items():
+        if relativo != "manifesto.json":
+            assert com[relativo] == conteudo, relativo
+    assert set(com) - set(atuais) == ARQUIVOS_DE_ATAQUE
+
+
+def test_com_ataques_e_determinista_e_muda_com_a_semente(
+    com_ataques: tuple[Path, FatosVerdadeiros], tmp_path: Path
+) -> None:
+    destino, _ = com_ataques
+    gerar_dados(tmp_path / "de_novo", SEMENTE, com_ataques=True)
+    assert _bytes_por_arquivo(tmp_path / "de_novo") == _bytes_por_arquivo(destino)
+
+    gerar_dados(tmp_path / "outra", 7, com_ataques=True)
+    outra = _bytes_por_arquivo(tmp_path / "outra")
+    assert outra[ARQUIVO_OBSERVACOES] != _bytes_por_arquivo(destino)[ARQUIVO_OBSERVACOES]
+
+
+@pytest.mark.parametrize(
+    ("arquivo", "instrucao"),
+    [
+        (ARQUIVO_ATA, INSTRUCAO_ATA),
+        (ARQUIVO_OBSERVACOES, INSTRUCAO_CONTRATO),
+        (ARQUIVO_APRESENTACAO_Q4, INSTRUCAO_APRESENTACAO),
+    ],
+)
+def test_instrucao_volta_no_texto_de_cada_arquivo_de_ataque(
+    arquivo: str, instrucao: str, com_ataques: tuple[Path, FatosVerdadeiros]
+) -> None:
+    destino, _ = com_ataques
+    assert instrucao in _texto_completo(destino / arquivo), arquivo
+
+
+def test_instrucao_da_apresentacao_esta_nas_notas_e_a_do_contrato_na_celula(
+    com_ataques: tuple[Path, FatosVerdadeiros],
+) -> None:
+    destino, _ = com_ataques
+    assert INSTRUCAO_APRESENTACAO in _notas(destino / ARQUIVO_APRESENTACAO_Q4)
+    celulas = [r["observacoes"] for r in _registros(destino / ARQUIVO_OBSERVACOES)]
+    assert INSTRUCAO_CONTRATO in celulas
+    assert celulas.count(INSTRUCAO_CONTRATO) == 1
+
+
+def test_instrucao_da_proposta_continua_nos_arquivos_atuais(
+    geracao: tuple[Path, FatosVerdadeiros],
+) -> None:
+    destino, fatos = geracao
+    assert fatos.instrucao_escondida.texto in _paragrafos(
+        destino / fatos.instrucao_escondida.arquivo
+    )
+
+
+def test_manifesto_marca_externos_e_a_ata_como_interna(
+    com_ataques: tuple[Path, FatosVerdadeiros],
+) -> None:
+    destino, fatos = com_ataques
+    manifesto = json.loads((destino / "manifesto.json").read_text(encoding="utf-8"))
+
+    assert manifesto == {
+        "comercial/propostas/PR-2026-007.docx": "externo",
+        ARQUIVO_OBSERVACOES: "externo",
+        ARQUIVO_APRESENTACAO_Q4: "externo",
+        ARQUIVO_ATA: "confiavel",
+    }
+    assert set(fatos.arquivos_externos) == {
+        "comercial/propostas/PR-2026-007.docx",
+        ARQUIVO_OBSERVACOES,
+        ARQUIVO_APRESENTACAO_Q4,
+    }
+
+
+def test_fatos_descrevem_os_quatro_ataques_com_ou_sem_a_opcao(
+    geracao: tuple[Path, FatosVerdadeiros], com_ataques: tuple[Path, FatosVerdadeiros]
+) -> None:
+    _, sem = geracao
+    _, com = com_ataques
+
+    assert sem.ataques == com.ataques
+    assert [a.arquivo for a in com.ataques] == [
+        "comercial/propostas/PR-2026-007.docx",
+        ARQUIVO_ATA,
+        ARQUIVO_OBSERVACOES,
+        ARQUIVO_APRESENTACAO_Q4,
+    ]
+    assert {a.tipo for a in com.ataques} == {
+        "alteração indevida",
+        "exfiltração",
+        "quebra de permissão",
+    }
+    assert not ARQUIVOS_DE_ATAQUE & set(sem.arquivos)
+
+
+def test_dominios_dos_ataques_sao_de_exemplo_invalid(
+    com_ataques: tuple[Path, FatosVerdadeiros],
+) -> None:
+    destino, _ = com_ataques
+    texto = "\n".join(_texto_completo(destino / arquivo) for arquivo in sorted(ARQUIVOS_DE_ATAQUE))
+    enderecos = re.findall(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+", texto)
+
+    assert enderecos
+    assert all(endereco.endswith(".invalid") for endereco in enderecos)
+    assert "http" not in texto

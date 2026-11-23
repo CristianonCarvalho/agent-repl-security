@@ -11,7 +11,12 @@ Decisões deste módulo (não estão na spec):
   ou configuração inválidos; 3 teto de gasto estourado, com precedência sobre o 1.
 - A configuração do modelo é conferida antes de qualquer rodada: chave ou modelo ausentes saem
   com código 2 sem gastar nada. A mensagem cita só o nome da variável.
-- Filtro de categoria: nome desconhecido e categoria sem caso ativo saem com código 2.
+- Filtro de categoria: nome desconhecido sai com código 2. Categoria sem caso ativo (geração,
+  alteração, injeção) é válida: se a seleção não tem nenhum caso ativo, a CLI não lê o `.env`,
+  não confere a chave, não chama o modelo, lista os pendentes com o bloqueio de cada um e sai
+  com 0.
+- Os casos vêm de `conjunto_completo`: os 20 ativos e os 15 pendentes. Pendente não roda e não
+  entra na taxa; só aparece em `pendentes` do relatório e no resumo.
 - `--grupo` escolhe desenvolvimento, reservado ou todos (padrão). Como cada par de gêmeos está
   no mesmo grupo e na mesma categoria, nenhum filtro separa um negativo do seu controle.
 - Erros de configuração do Pydantic mostram só o campo e a mensagem, nunca o valor recebido.
@@ -24,6 +29,7 @@ Decisões deste módulo (não estão na spec):
 import argparse
 import os
 import sys
+import tempfile
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Final, TextIO
@@ -31,8 +37,8 @@ from typing import Any, Final, TextIO
 from pydantic import ValidationError
 
 from harness.evals.casos import GRUPOS_DE_CASOS, Caso, Categoria
-from harness.evals.conjunto import CATEGORIAS_ATIVAS, casos_ativos
-from harness.evals.dados import FatosVerdadeiros
+from harness.evals.conjunto import conjunto_completo
+from harness.evals.dados import FatosVerdadeiros, gerar_dados
 from harness.evals.executor import ConfigExecucao, executar_avaliacao
 from harness.evals.relatorio import (
     Classificacao,
@@ -91,7 +97,7 @@ def _parser() -> argparse.ArgumentParser:
         "--categoria",
         action="append",
         default=[],
-        help="roda só esta categoria (pode repetir); padrão: todas com caso ativo",
+        help="roda só esta categoria (pode repetir); padrão: todas",
     )
     parser.add_argument(
         "--grupo",
@@ -133,16 +139,14 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _categorias(valores: Sequence[str]) -> frozenset[Categoria]:
+    """Categorias pedidas. Categoria sem caso ativo é válida: a seleção sai só com pendentes."""
     escolhidas: set[Categoria] = set()
     for valor in valores:
         try:
-            categoria = Categoria(valor)
+            escolhidas.add(Categoria(valor))
         except ValueError:
             nomes = ", ".join(sorted(c.value for c in Categoria))
             raise ErroDeUso(f"categoria desconhecida: {valor!r}. Categorias: {nomes}.") from None
-        if categoria not in CATEGORIAS_ATIVAS:
-            raise ErroDeUso(f"a categoria {valor!r} ainda não tem caso ativo")
-        escolhidas.add(categoria)
     return frozenset(escolhidas)
 
 
@@ -208,10 +212,13 @@ def _fabrica_de_telemetria(
 def _selecionar(
     categorias: frozenset[Categoria], grupo: str
 ) -> Callable[[FatosVerdadeiros], list[Caso]]:
-    """Função de casos para o executor: os ativos, filtrados por categoria e por grupo."""
+    """Função de casos para o executor: o conjunto completo, filtrado por categoria e por grupo.
+
+    Pendentes entram na lista, mas o executor não os roda; ficam só em `pendentes` do relatório.
+    """
 
     def selecionar(fatos: FatosVerdadeiros) -> list[Caso]:
-        casos = casos_ativos(fatos)
+        casos = conjunto_completo(fatos)
         if categorias:
             casos = [caso for caso in casos if caso.categoria in categorias]
         if grupo != "todos":
@@ -219,6 +226,32 @@ def _selecionar(
         return casos
 
     return selecionar
+
+
+def _selecao_sem_modelo(categorias: frozenset[Categoria], grupo: str, semente: int) -> list[Caso]:
+    """A seleção inteira, para decidir antes de qualquer configuração se há caso ativo.
+
+    Gera os dados numa pasta temporária que some no fim. Não toca no modelo nem no `.env`.
+    """
+    with tempfile.TemporaryDirectory(prefix="selecao-") as temporaria:
+        fatos = gerar_dados(Path(temporaria) / "dados", semente)
+        return _selecionar(categorias, grupo)(fatos)
+
+
+def _sem_casos_ativos(
+    saida: TextIO, selecao: Sequence[Caso], categorias: frozenset[Categoria], grupo: str
+) -> None:
+    """Mensagem para uma seleção só com pendentes: lista cada um com o que o destrava."""
+    filtro = ", ".join(sorted(c.value for c in categorias)) or "todas"
+    linhas = [
+        f"Não há caso ativo na seleção (categorias: {filtro}; grupo: {grupo}). "
+        "Nenhum modelo foi chamado.",
+        f"Pendentes selecionados: {len(selecao)}",
+    ]
+    for caso in selecao:
+        bloqueios = ", ".join(caso.situacao.bloqueios)
+        linhas.append(f"  {caso.id}: bloqueios: {bloqueios}")
+    saida.write("\n".join(linhas) + "\n")
 
 
 def _percentual(taxa: float | None) -> str:
@@ -263,7 +296,9 @@ def _resumo(saida: TextIO, relatorio: Relatorio, caminho: Path | None) -> None:
     )
     linhas.append(f"Erros de infraestrutura: {relatorio.erros_infra}")
     linhas.append(f"Rodadas não executadas: {relatorio.nao_executadas}")
-    linhas.append(f"Pendentes: {', '.join(relatorio.pendentes) or 'nenhum'}")
+    if relatorio.pendentes:
+        ids = ", ".join(relatorio.pendentes)
+        linhas.append(f"Pendentes: {len(relatorio.pendentes)} ({ids})")
     if relatorio.teto_estourado:
         linhas.append(f"Teto de gasto: estourado ({relatorio.teto_motivo})")
     else:
@@ -300,6 +335,18 @@ def main(
     try:
         categorias = _categorias(args.categoria)
         config = _config(args)
+    except ErroDeUso as erro:
+        saida.write(f"{erro}\n")
+        return CODIGO_USO
+
+    # Sem caso ativo na seleção, nada roda: não lê o `.env`, não confere a chave e não chama o
+    # modelo. Só lista os pendentes, cada um com o que o destrava, e sai com zero.
+    selecao = _selecao_sem_modelo(categorias, args.grupo, args.semente)
+    if not any(caso.situacao.ativo for caso in selecao):
+        _sem_casos_ativos(saida, selecao, categorias, args.grupo)
+        return CODIGO_OK
+
+    try:
         ambiente = _ambiente_do_processo()
         if fabrica_modelo is None:
             fabrica_modelo = _fabrica_de_modelo(ambiente)

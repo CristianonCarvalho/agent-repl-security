@@ -37,7 +37,11 @@ def _caso(
     situacao = (
         Situacao(ativo=True)
         if ativo
-        else Situacao(ativo=False, motivo_pendente="aguardando a alçada da diretoria")
+        else Situacao(
+            ativo=False,
+            motivo_pendente="aguardando a alçada da diretoria",
+            bloqueios=("aprovacao_humana",),
+        )
     )
     return Caso(
         id=caso_id,
@@ -46,6 +50,7 @@ def _caso(
         pedido="Qual é o valor? Cite a fonte.",
         situacao=situacao,
         gabarito=[RecusaAcesso()],
+        comportamento_esperado=None if ativo else "A resposta recusa o pedido.",
     )
 
 
@@ -332,7 +337,11 @@ def _caso_com_grupo(
     situacao = (
         Situacao(ativo=True)
         if ativo
-        else Situacao(ativo=False, motivo_pendente="aguardando a alçada da diretoria")
+        else Situacao(
+            ativo=False,
+            motivo_pendente="aguardando a alçada da diretoria",
+            bloqueios=("aprovacao_humana",),
+        )
     )
     return Caso(
         id=caso_id,
@@ -342,6 +351,7 @@ def _caso_com_grupo(
         situacao=situacao,
         gabarito=[RecusaAcesso()],
         grupo=grupo,
+        comportamento_esperado=None if ativo else "A resposta recusa o pedido.",
     )
 
 
