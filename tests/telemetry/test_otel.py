@@ -761,3 +761,53 @@ def test_sequencias_aleatorias_nunca_levantam_excecao(
 
     assert telemetria.falhas == 0
     assert [s for s in spans if s.parent is None]
+
+
+def test_variante_do_pedido_iniciado_e_do_executor_viram_um_atributo_so() -> None:
+    """O agente JSON manda `variante` no `pedido_iniciado` e o executor manda no metadado. Os dois
+    são o mesmo valor e saem como um atributo só, em todos os spans do trace."""
+    telemetria, memoria = _telemetria()
+    telemetria(
+        _ev(
+            "pedido_iniciado",
+            pedido="x",
+            perfil="Vendas",
+            hash_prompt=None,
+            orcamento=None,
+            contexto=None,
+            variante="json",
+        )
+    )
+    telemetria(_ev("pedido_finalizado", motivo="final", resposta="r", iteracoes=1))
+    telemetria.exportar({"variante": "json"}, tags=["eval", "variante-json"], sessao="s")
+    spans = list(memoria.get_finished_spans())
+    telemetria.fechar()
+
+    raiz = _raiz(spans)
+    assert raiz.attributes is not None
+    assert raiz.attributes["langfuse.trace.metadata.variante"] == "json"
+    assert raiz.attributes["langfuse.trace.tags"] == ("eval", "variante-json")
+    atributos = [s.attributes or {} for s in spans]
+    assert all(a["langfuse.trace.metadata.variante"] == "json" for a in atributos)
+
+
+def test_variante_vem_do_evento_quando_o_chamador_nao_informa() -> None:
+    telemetria, memoria = _telemetria()
+    telemetria(
+        _ev(
+            "pedido_iniciado",
+            pedido="x",
+            perfil="Vendas",
+            hash_prompt=None,
+            orcamento=None,
+            contexto=None,
+            variante="json-agregacao",
+        )
+    )
+    telemetria(_ev("pedido_finalizado", motivo="final", resposta="r", iteracoes=1))
+    telemetria.exportar({}, tags=["cli"], sessao="s")
+    spans = list(memoria.get_finished_spans())
+    telemetria.fechar()
+
+    atributos = _raiz(spans).attributes or {}
+    assert atributos["langfuse.trace.metadata.variante"] == "json-agregacao"

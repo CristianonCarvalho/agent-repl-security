@@ -36,6 +36,10 @@ Subcomandos (T17c), reconhecidos só quando são o primeiro argumento exato: `co
 (0 ok, 1 regressão provável, 2 incomparável ou erro) e `congelar --versao vN` (cria o conjunto em
 evals/conjuntos/, recusa sobrescrever). Sem subcomando, roda a avaliação, como antes.
 `graficos DADOS.json [--saida PASTA]` (T17d) gera os SVG e a página HTML, sem modelo.
+`graficos --de-relatorios A.json B.json ... [--saida PASTA]` (Ajuste 2) faz o mesmo a partir de
+relatórios de execução, um por execução; o padrão de `--saida` é
+docs/relatorios/comparacao-variantes.
+DADOS.json e --de-relatorios são excludentes: sem um ou com os dois, sai com 2.
 `--salvar-linha-de-base NOME` confere tudo antes de rodar (conjunto completo, 3+ rodadas, nome
 válido, arquivo novo, árvore limpa) e só grava se a execução não teve teto, erro de infraestrutura
 nem rodada não executada. A procedência (commit, árvore suja, versão do conjunto, orçamento e
@@ -534,32 +538,62 @@ def _congelar_cli(argumentos: Sequence[str], saida: TextIO, raiz: Path) -> int:
 
 
 def _graficos_cli(argumentos: Sequence[str], saida: TextIO, raiz: Path) -> int:
-    """`graficos DADOS.json [--saida PASTA]`: gera os SVG e a página HTML. Não chama o modelo."""
+    """`graficos DADOS.json` ou `graficos --de-relatorios A.json B.json ...`, com `--saida PASTA`.
+
+    Gera os SVG e a página HTML. Não chama o modelo. Os dois modos são excludentes: sem um ou com
+    os dois, sai com 2. O de relatórios grava por padrão em docs/relatorios/comparacao-variantes,
+    para não sobrescrever os gráficos da evolução.
+    """
     from harness.evals.graficos import (
+        PASTA_COMPARACAO,
         PASTA_GRAFICOS,
         ErroDeGraficos,
         carregar_dados,
+        dados_de_relatorios,
         gerar_todos,
     )
 
     parser = argparse.ArgumentParser(
         prog="python -m harness.evals graficos",
-        description="Gera os gráficos SVG e a página HTML a partir do arquivo de métricas.",
+        description="Gera os gráficos SVG e a página HTML a partir do arquivo de métricas, ou de "
+        "relatórios de execução (--de-relatorios).",
     )
-    parser.add_argument("dados", type=Path, help="arquivo JSON de métricas das execuções")
+    parser.add_argument(
+        "dados", nargs="?", type=Path, default=None, help="arquivo JSON de métricas das execuções"
+    )
+    parser.add_argument(
+        "--de-relatorios",
+        nargs="+",
+        type=Path,
+        default=None,
+        metavar="RELATORIO",
+        help="relatórios de execução, um por execução, nesta ordem (em vez de DADOS.json)",
+    )
     parser.add_argument(
         "--saida",
         type=Path,
-        default=raiz / PASTA_GRAFICOS,
-        help=f"pasta dos gráficos (padrão: {PASTA_GRAFICOS.as_posix()})",
+        default=None,
+        help=f"pasta dos gráficos (padrão: {PASTA_GRAFICOS.as_posix()}, ou "
+        f"{PASTA_COMPARACAO.as_posix()} com --de-relatorios)",
     )
     try:
         args = parser.parse_args(argumentos)
     except SystemExit as erro:
         return erro.code if isinstance(erro.code, int) else CODIGO_USO
+    if args.dados is not None and args.de_relatorios is not None:
+        saida.write("use DADOS.json ou --de-relatorios, não os dois\n")
+        return CODIGO_USO
+    if args.dados is None and args.de_relatorios is None:
+        saida.write("informe DADOS.json ou --de-relatorios RELATORIO...\n")
+        return CODIGO_USO
     try:
-        dados = carregar_dados(args.dados)
-        caminhos = gerar_todos(dados, args.saida)
+        if args.de_relatorios is not None:
+            dados = dados_de_relatorios(args.de_relatorios)
+            pasta = args.saida if args.saida is not None else raiz / PASTA_COMPARACAO
+        else:
+            dados = carregar_dados(args.dados)
+            pasta = args.saida if args.saida is not None else raiz / PASTA_GRAFICOS
+        caminhos = gerar_todos(dados, pasta)
     except ErroDeGraficos as erro:
         saida.write(f"{erro}\n")
         return CODIGO_USO

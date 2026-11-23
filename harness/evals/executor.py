@@ -27,6 +27,11 @@ Decisões deste módulo (não estão na spec):
   fica None quando não há `fabrica_telemetria`. A leitura é feita depois de fechar a telemetria,
   para contar também o envio do fechamento. Falha ao criar a telemetria conta 1. Quem não tem o
   atributo `falhas` (fábricas de teste) conta 0, e falha ao ler o contador também conta 0.
+- Telemetria por variante (Ajuste 1): toda rodada de avaliação, REPL ou JSON, leva a tag
+  `variante-<variante>` e o metadado `variante` (vira `langfuse.trace.metadata.variante`). Quando
+  o `pedido_iniciado` do agente JSON também traz `variante`, o `TelemetriaOtel` guarda um só
+  atributo, e o do executor prevalece (é o mesmo valor). A CLI de pedido único não recebe a tag
+  de variante: ela não é rodada de avaliação, então segue com `["cli"]`.
 - Pausa (`pausa_s`): espera entre uma rodada executada e a próxima, com o `dormir` injetado de
   `executar_avaliacao`. Não há pausa antes da primeira rodada nem depois da última, e rodada não
   executada (teto, pendente) não conta. A espera fica fora da duração da rodada.
@@ -395,6 +400,7 @@ def _exportar_rodada(
         "grupo": caso.grupo,
         "rodada": rodada.numero,
         "semente": config.semente,
+        "variante": config.variante,
         "classificacao": rodada.classificacao.value,
         "motivo_termino": rodada.motivo_termino,
         "modelo": (", ".join(sorted(contabil.modelos)) or None) if contabil else None,
@@ -406,7 +412,13 @@ def _exportar_rodada(
         ),
         "detalhe": rodada.detalhe,
     }
-    tags = ["eval", caso.categoria.value, f"grupo-{caso.grupo}", f"rodada-{rodada.numero}"]
+    tags = [
+        "eval",
+        caso.categoria.value,
+        f"grupo-{caso.grupo}",
+        f"rodada-{rodada.numero}",
+        f"variante-{config.variante}",
+    ]
     sessao = Path(caminho_trace).stem if caminho_trace else None
     falhou = False
     try:

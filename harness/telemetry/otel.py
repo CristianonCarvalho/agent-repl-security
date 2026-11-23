@@ -27,6 +27,8 @@ Decisões deste módulo (não estão na spec):
   filhas da célula em que rodaram, porque acontecem antes do evento `execucao`.
 - Session: um id por pedido, salvo quando quem chama passa `sessao`. A CLI e o executor passam
   o id do trace JSONL, para cruzar as duas saídas.
+- Variante (avaliação): o executor põe a tag `variante-<v>` e o metadado `variante` em cada rodada,
+  REPL ou JSON. Este módulo só repassa. A CLI de pedido único segue com `["cli"]`, sem variante.
 - `conteudo = "numeros"`: nenhum texto de pedido, código, observação, resposta ou exceção vai a
   nenhum atributo. Ficam só nomes fixos, contagens, tokens, custos, tempos e motivos.
 """
@@ -369,11 +371,14 @@ class _Montador:
     def _pedido_iniciado(self, instante: int, dados: dict[str, Any]) -> None:
         self.raiz.inicio_ns = instante
         self._cursor = instante
+        # `variante` só vem do agente JSON. Como o metadado é um dicionário por chave, o do
+        # executor (mesmo valor) substitui este e o atributo sai uma vez só.
         self.meta.update(
             perfil=dados.get("perfil"),
             hash_prompt=dados.get("hash_prompt"),
             orcamento=dados.get("orcamento"),
             contexto=dados.get("contexto"),
+            variante=dados.get("variante"),
         )
         self._json_se_completo(self.raiz, "langfuse.observation.input", dados.get("pedido"))
 

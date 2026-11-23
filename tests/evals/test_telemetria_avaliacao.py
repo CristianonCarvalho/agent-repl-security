@@ -18,7 +18,7 @@ from harness.evals.__main__ import CODIGO_OK, CODIGO_USO, main
 from harness.evals.casos import Caso, Categoria, CitaFontes, Situacao
 from harness.evals.executor import ConfigExecucao, executar_avaliacao
 from harness.evals.relatorio import Relatorio, agregar
-from harness.llm.base import LLMFalso
+from harness.llm.base import ChamadaFerramenta, LLMFalso, RespostaLLM
 from harness.orchestrator.loop import Evento
 from harness.sandbox.docker_sandbox import ResultadoExecucao
 from harness.sandbox.protocol import ExecDone, RespostaFinal, ToolCall, ToolResult
@@ -156,18 +156,34 @@ def _executar(
     *,
     falhar_start: bool = False,
     rodadas: int = 2,
+    variante: str = "repl",
 ) -> Relatorio:
     def fabrica_sandbox(montagens: dict[str, Path]) -> _SandboxFalso:
         return _SandboxFalso(falhar_start=falhar_start)
 
+    def fabrica_modelo() -> LLMFalso:
+        # Um modelo novo por rodada. Variante JSON responde com `finalizar` (sem sandbox).
+        if variante == "repl":
+            return LLMFalso([RESPOSTA_BOA])
+        return LLMFalso([_resposta_json()])
+
     return executar_avaliacao(
         lambda _fatos: [_caso()],
-        lambda: LLMFalso([RESPOSTA_BOA]),
-        ConfigExecucao(rodadas=rodadas, pasta_trace=None),
+        fabrica_modelo,
+        ConfigExecucao(rodadas=rodadas, pasta_trace=None, variante=variante),  # type: ignore[arg-type]
         fabrica_sandbox=fabrica_sandbox,
         relogio=_Relogio(),
         fabrica_telemetria=fabrica_telemetria,
     )
+
+
+def _resposta_json() -> RespostaLLM:
+    chamada = ChamadaFerramenta(
+        id="f",
+        nome="finalizar",
+        argumentos_brutos=json.dumps({"resposta": "Resposta", "fontes": [FONTE]}),
+    )
+    return RespostaLLM(texto="", tokens_entrada=10, tokens_saida=5, chamadas_ferramenta=(chamada,))
 
 
 def _classificacoes(relatorio: Relatorio) -> list[str]:
@@ -193,16 +209,64 @@ def test_cada_rodada_exporta_um_trace_com_nome_tags_e_metadados() -> None:
             Categoria.CONSULTA.value,
             "grupo-desenvolvimento",
             f"rodada-{numero}",
+            "variante-repl",
         ]
         metadados = exportacao["metadados"]
         assert metadados["caso_id"] == "consulta-01"
         assert metadados["rodada"] == numero
         assert metadados["semente"] == 42
+        assert metadados["variante"] == "repl"
         assert metadados["classificacao"] == "aprovada"
         assert metadados["aprovado"] is True
         assert metadados["regras_reprovadas"] == []
         assert metadados["motivo_termino"] == "final"
         assert telemetria.fechamentos == 1
+
+
+@pytest.mark.parametrize("variante", ["repl", "json", "json-agregacao"])
+def test_cada_variante_leva_a_tag_e_o_metadado_da_variante(variante: str) -> None:
+    criadas: list[_TelemetriaGravada] = []
+
+    def fabrica() -> _TelemetriaGravada:
+        telemetria = _TelemetriaGravada()
+        criadas.append(telemetria)
+        return telemetria
+
+    _executar(fabrica, rodadas=1, variante=variante)
+
+    (telemetria,) = criadas
+    (exportacao,) = telemetria.exportacoes
+    assert exportacao["tags"][-1] == f"variante-{variante}"
+    assert exportacao["tags"].count(f"variante-{variante}") == 1
+    assert exportacao["metadados"]["variante"] == variante
+
+
+@pytest.mark.parametrize("variante", ["repl", "json", "json-agregacao"])
+def test_rodada_com_erro_de_infra_leva_a_variante_mesmo_assim(variante: str) -> None:
+    criadas: list[_TelemetriaGravada] = []
+
+    def fabrica() -> Any:
+        telemetria = _TelemetriaGravada()
+        criadas.append(telemetria)
+        return telemetria
+
+    def fabrica_sandbox(montagens: dict[str, Path]) -> _SandboxFalso:
+        return _SandboxFalso(falhar_start=True)
+
+    # Modelo sem roteiro: a chamada falha (ERRO_LLM) e a rodada vira erro de infraestrutura.
+    executar_avaliacao(
+        lambda _fatos: [_caso()],
+        lambda: LLMFalso([]),
+        ConfigExecucao(rodadas=1, pasta_trace=None, variante=variante),  # type: ignore[arg-type]
+        fabrica_sandbox=fabrica_sandbox,
+        relogio=_Relogio(),
+        fabrica_telemetria=fabrica,
+    )
+
+    (exportacao,) = criadas[0].exportacoes
+    assert exportacao["metadados"]["classificacao"] == "erro_infra"
+    assert exportacao["tags"][-1] == f"variante-{variante}"
+    assert exportacao["metadados"]["variante"] == variante
 
 
 def test_rodada_erro_infra_tambem_exporta_com_a_classificacao() -> None:

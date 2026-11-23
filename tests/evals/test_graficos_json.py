@@ -83,7 +83,8 @@ def test_tres_variantes_no_mesmo_eixo_com_rotulos_e_cores_proprios(tmp_path: Pat
     for rotulo in ROTULOS_VARIANTE.values():
         assert rotulo in taxa or rotulo in (tmp_path / "graficos.html").read_text(encoding="utf-8")
     assert COR_JSON_AGREGACAO in taxa
-    assert len(gerados) == len(NOMES_ARQUIVOS) + 1
+    # Seis SVG, a comparação (com três variantes) e a página.
+    assert len(gerados) == len(NOMES_ARQUIVOS) + 2
 
 
 def test_variante_com_curva_de_contexto_aparece_na_pagina(tmp_path: Path) -> None:

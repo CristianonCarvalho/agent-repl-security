@@ -26,10 +26,26 @@ Decisões deste módulo (não estão na spec):
   um sufixo (t1, d1...) para que os ids não se repitam na mesma página.
 - Na página, o script mostra o `<title>` do marcador num balão perto do cursor, toque ou foco de
   teclado, e zera o texto do `<title>` enquanto o balão está visível (sem tooltip nativo duplicado).
+
+Comparação de variantes (Ajuste 2): `dados_de_relatorios` monta o `DadosEvolucao` a partir de
+relatórios de execução (um por arquivo, na ordem dos arquivos). `grafico_comparacao_de_variantes`
+usa só a execução mais recente de cada variante (maior `numero`), em seis painéis com escala
+própria. Ele só entra em `gerar_todos` e na página quando há duas ou mais variantes, então o
+arquivo de dados de uma variante só gera exatamente a mesma saída de antes.
+- `dados_de_relatorios`: `taxa_pct` é sobre as rodadas válidas (aprovadas / válidas), como no
+  arquivo de dados. `erro_infra_pct` é sobre todas as rodadas. Médias de iterações, tokens e
+  custo são sobre as rodadas válidas (custo: só as que têm custo). `ponto_fraco` quando menos de
+  metade das rodadas é válida; nesse caso a `nota` diz o nome e a contagem (ex.: "x.json: 3 de 10
+  rodadas válidas"). Sem ponto fraco, a `nota` é o nome da linha de base ou do arquivo.
+- Curva de contexto: uma por relatório que a tem. O nome leva "execução N" só quando a variante
+  aparece mais de uma vez.
+- `--saida` padrão do modo de relatórios: `docs/relatorios/comparacao-variantes`, para não
+  sobrescrever os gráficos da evolução em `docs/relatorios/graficos`.
 """
 
 import json
 import math
+import statistics
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -37,6 +53,13 @@ from typing import Final, Literal, Self
 from xml.sax.saxutils import escape
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
+
+from harness.evals.relatorio import (
+    MINIMO_RODADAS_PARA_CURVA,
+    Classificacao,
+    Relatorio,
+    relatorio_de_json,
+)
 
 LARGURA: Final = 720
 ALTURA: Final = 400
@@ -63,7 +86,16 @@ ROTULOS_VARIANTE: Final = {
 COR_JSON_AGREGACAO: Final = "#2bb5c8"
 TETO_NOTA_CURTA: Final = 60
 PASTA_GRAFICOS: Final = Path("docs") / "relatorios" / "graficos"
+PASTA_COMPARACAO: Final = Path("docs") / "relatorios" / "comparacao-variantes"
 NOME_PAGINA: Final = "graficos.html"
+NOME_COMPARACAO: Final = "comparacao-de-variantes.svg"
+ALTURA_COMPARACAO: Final = 600
+# (título da seção, frase curta de leitura) da comparação, que vai antes das demais na página.
+SECAO_COMPARACAO: Final = (
+    "Comparação entre variantes",
+    "Cada barra é a execução mais recente de uma variante. Os seis painéis têm escala própria: "
+    "leia o valor escrito sobre cada barra.",
+)
 NOMES_ARQUIVOS: Final = (
     "taxa-total.svg",
     "taxa-por-categoria.svg",
@@ -231,6 +263,10 @@ class Execucao(BaseModel):
     prompt: str = ""
     ponto_fraco: bool = False
     nota: str = ""
+    # Campos da comparação de variantes (Ajuste 2). Opcionais: o arquivo antigo não os tem.
+    pico_contexto_medio: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    caracteres_observacao_medio: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    custo_por_acerto_usd: float | None = Field(default=None, ge=0, allow_inf_nan=False)
 
 
 class CurvaDeContexto(BaseModel):
@@ -296,6 +332,125 @@ def carregar_dados(caminho: Path) -> DadosEvolucao:
 
 
 # --- escalas e ticks --------------------------------------------------------------------------
+
+
+def _ler_relatorio_de_arquivo(caminho: Path) -> Relatorio:
+    """Relatório de um arquivo. Erro vira ErroDeGraficos com só o nome do arquivo na mensagem."""
+    nome = caminho.name
+    try:
+        texto = caminho.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise ErroDeGraficos(f"relatório não encontrado: {nome}") from None
+    except (OSError, UnicodeDecodeError):
+        raise ErroDeGraficos(f"não foi possível ler o relatório {nome}") from None
+    try:
+        return relatorio_de_json(texto)
+    except ValidationError:
+        raise ErroDeGraficos(f"{nome} não é um relatório de avaliação válido") from None
+
+
+def _media_de(valores: Sequence[float]) -> float | None:
+    return statistics.fmean(valores) if valores else None
+
+
+def _taxa_pct(aprovadas: int, validas: int) -> float | None:
+    return aprovadas / validas * 100 if validas else None
+
+
+def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Execucao:
+    """Uma execução a partir de um relatório. Médias são sobre as rodadas válidas."""
+    todas = [rodada for caso in relatorio.casos for rodada in caso.rodadas]
+    validas = [
+        r for r in todas if r.classificacao in (Classificacao.APROVADA, Classificacao.REPROVADA)
+    ]
+    aprovadas = sum(1 for r in validas if r.classificacao is Classificacao.APROVADA)
+    erros = sum(1 for r in todas if r.classificacao is Classificacao.ERRO_INFRA)
+    total = len(todas)
+    base_legivel = relatorio.linha_de_base or nome
+    # Por categoria: só casos com rodadas entram, e cada um conta as suas rodadas válidas.
+    categorias = sorted({caso.categoria.value for caso in relatorio.casos if caso.rodadas})
+    categorias_pct: dict[str, float | None] = {}
+    for categoria in categorias:
+        do_grupo = [
+            r
+            for caso in relatorio.casos
+            if caso.categoria.value == categoria
+            for r in caso.rodadas
+            if r.classificacao in (Classificacao.APROVADA, Classificacao.REPROVADA)
+        ]
+        ganhas = sum(1 for r in do_grupo if r.classificacao is Classificacao.APROVADA)
+        categorias_pct[categoria] = _taxa_pct(ganhas, len(do_grupo))
+    fraco = total > 0 and len(validas) * 2 < total
+    custos = [r.custo for r in validas if r.custo is not None]
+    return Execucao(
+        numero=numero,
+        variante=relatorio.variante,
+        relatorio=nome,
+        casos=sum(1 for caso in relatorio.casos if caso.rodadas),
+        rodadas=total,
+        rodadas_validas=len(validas),
+        aprovadas=aprovadas,
+        taxa_pct=_taxa_pct(aprovadas, len(validas)),
+        erro_infra_pct=erros / total * 100 if total else None,
+        iteracoes_media=_media_de([float(r.iteracoes) for r in validas]),
+        tokens_entrada_por_rodada=_inteiro_ou_none([r.tokens_entrada for r in validas]),
+        tokens_saida_por_rodada=_inteiro_ou_none([r.tokens_saida for r in validas]),
+        custo_por_rodada_usd=_media_de(custos),
+        categorias_pct=categorias_pct,
+        prompt=(
+            f"prompt {relatorio.hash_prompt[:8]}"
+            if relatorio.hash_prompt
+            else "sem prompt registrado"
+        ),
+        ponto_fraco=fraco,
+        nota=(
+            f"{base_legivel}: {len(validas)} de {total} rodadas válidas" if fraco else base_legivel
+        ),
+        pico_contexto_medio=relatorio.pico_contexto_medio,
+        caracteres_observacao_medio=relatorio.caracteres_observacao_medio,
+        custo_por_acerto_usd=relatorio.custo_por_acerto,
+    )
+
+
+def _inteiro_ou_none(valores: Sequence[int]) -> int | None:
+    media = _media_de([float(v) for v in valores])
+    return round(media) if media is not None else None
+
+
+def dados_de_relatorios(caminhos: Sequence[Path]) -> DadosEvolucao:
+    """Monta os dados dos gráficos a partir de relatórios de execução, um por arquivo.
+
+    A ordem dos arquivos define o `numero`, sequencial dentro de cada variante a partir de 1.
+    Relatório ilegível ou inválido levanta `ErroDeGraficos`, citando só o nome do arquivo.
+    """
+    if not caminhos:
+        raise ErroDeGraficos("nenhum relatório informado")
+    lidos = [(caminho.name, _ler_relatorio_de_arquivo(caminho)) for caminho in caminhos]
+    contagem: dict[str, int] = {}
+    numerados: list[tuple[str, Relatorio, int]] = []
+    for nome, relatorio in lidos:
+        contagem[relatorio.variante] = contagem.get(relatorio.variante, 0) + 1
+        numerados.append((nome, relatorio, contagem[relatorio.variante]))
+    execucoes = tuple(
+        _execucao_de_relatorio(numero, nome, relatorio) for nome, relatorio, numero in numerados
+    )
+    curvas = tuple(
+        CurvaDeContexto(
+            nome=_rotulo_variante(relatorio.variante)
+            + (f" execução {numero}" if contagem[relatorio.variante] > 1 else ""),
+            variante=relatorio.variante,
+            pontos=relatorio.curva_de_contexto,
+            rodadas_por_ponto_minimo=MINIMO_RODADAS_PARA_CURVA,
+        )
+        for _, relatorio, numero in numerados
+        if relatorio.curva_de_contexto
+    )
+    return DadosEvolucao(
+        versao=1,
+        descricao="Comparação a partir de relatórios de avaliação, uma execução por arquivo.",
+        execucoes=execucoes,
+        curvas_de_contexto=curvas,
+    )
 
 
 @dataclass(frozen=True)
@@ -436,14 +591,14 @@ def _pontos_svg(pontos: Sequence[tuple[float, float]]) -> str:
     return " ".join(f"{_c(a)},{_c(b)}" for a, b in pontos)
 
 
-def _cabecalho(titulo: str, descricao: str) -> list[str]:
+def _cabecalho(titulo: str, descricao: str, altura: int = ALTURA) -> list[str]:
     return [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{LARGURA}" height="{ALTURA}" '
-        f'viewBox="0 0 {LARGURA} {ALTURA}" role="img" aria-labelledby="t d" '
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{LARGURA}" height="{altura}" '
+        f'viewBox="0 0 {LARGURA} {altura}" role="img" aria-labelledby="t d" '
         f'font-family="{FONTE}">',
         f'<title id="t">{_esc(titulo)}</title>',
         f'<desc id="d">{_esc(descricao)}</desc>',
-        f'<rect x="0.5" y="0.5" width="{LARGURA - 1}" height="{ALTURA - 1}" rx="8" '
+        f'<rect x="0.5" y="0.5" width="{LARGURA - 1}" height="{altura - 1}" rx="8" '
         f'fill="{COR_FUNDO}" stroke="{COR_BORDA}" stroke-width="1"/>',
     ]
 
@@ -997,6 +1152,244 @@ def grafico_custo_por_rodada(dados: DadosEvolucao) -> str:
     )
 
 
+# --- comparação de variantes ------------------------------------------------------------------
+
+# Seis painéis em duas colunas e três linhas. Coordenadas relativas ao canto de cada painel.
+_COLUNAS_PAINEIS: Final = (24.0, 372.0)
+_PAINEIS_TOPO: Final = 100.0
+_PAINEL_PASSO: Final = 170.0
+_PLOT_TOPO: Final = 34.0
+_PLOT_BASE: Final = 120.0
+_PLOT_ESQUERDA: Final = 44.0
+_PLOT_DIREITA: Final = 312.0
+_BARRA_LARGURA: Final = 44.0
+_NOMES_CURTOS: Final = {"repl": "REPL", "json": "JSON", "json-agregacao": "JSON agreg."}
+
+
+@dataclass(frozen=True)
+class _Painel:
+    """Um painel da comparação. `eixo` leva o valor bruto para a unidade do eixo Y do painel."""
+
+    titulo: str
+    valor: Callable[[Execucao], float | None]
+    eixo: Callable[[float], float]
+    formatar: Callable[[float], str]
+    unidade: str
+    teto: float | None = None
+
+
+def _identidade(valor: float) -> float:
+    return valor
+
+
+def _milesimos(valor: float) -> str:
+    return _br(valor * 1000, 3)
+
+
+def _opcional(valor: float | int | None) -> float | None:
+    return None if valor is None else float(valor)
+
+
+def _paineis_comparacao() -> tuple[_Painel, ...]:
+    return (
+        _Painel(
+            "Taxa de acerto (%)",
+            lambda e: e.taxa_pct,
+            _identidade,
+            _fmt_taxa,
+            "de acerto",
+            teto=105.0,
+        ),
+        _Painel(
+            "Iterações por pedido",
+            lambda e: e.iteracoes_media,
+            _identidade,
+            _fmt_iteracoes,
+            "iterações por pedido",
+        ),
+        _Painel(
+            "Tokens de entrada por rodada (mil)",
+            lambda e: _opcional(e.tokens_entrada_por_rodada),
+            lambda v: v / 1000,
+            _fmt_tokens,
+            "tokens de entrada por rodada",
+        ),
+        _Painel(
+            "Pico de contexto médio (tokens)",
+            lambda e: e.pico_contexto_medio,
+            _identidade,
+            _fmt_tokens,
+            "tokens de pico de contexto",
+        ),
+        _Painel(
+            "Caracteres de observação por rodada (mil)",
+            lambda e: e.caracteres_observacao_medio,
+            lambda v: v / 1000,
+            _fmt_tokens,
+            "caracteres de observação por rodada",
+        ),
+        _Painel(
+            "Custo por acerto (milésimos de US$)",
+            lambda e: e.custo_por_acerto_usd,
+            lambda v: v * 1000,
+            _milesimos,
+            "milésimos de US$ por acerto",
+        ),
+    )
+
+
+def _ultimas_execucoes(execucoes: Iterable[Execucao]) -> dict[str, Execucao]:
+    """A execução de maior `numero` de cada variante."""
+    ultimas: dict[str, Execucao] = {}
+    for execucao in sorted(execucoes, key=lambda e: (e.variante, e.numero)):
+        ultimas[execucao.variante] = execucao
+    return ultimas
+
+
+def _barra(x: float, y: float, largura: float, altura: float, cor: str, dica: str) -> str:
+    """Barra com cantos de 4 px só no topo, tooltip e foco por teclado."""
+    raio = min(4.0, largura / 2, altura)
+    base = y + altura
+    d = (
+        f"M{_c(x)} {_c(base)} V{_c(y + raio)} Q{_c(x)} {_c(y)} {_c(x + raio)} {_c(y)} "
+        f"H{_c(x + largura - raio)} Q{_c(x + largura)} {_c(y)} {_c(x + largura)} {_c(y + raio)} "
+        f"V{_c(base)} Z"
+    )
+    return f'<path d="{d}" fill="{cor}" tabindex="0"><title>{_esc(dica)}</title></path>'
+
+
+def _painel_svg(
+    painel: _Painel,
+    variantes: Sequence[str],
+    ultimas: Mapping[str, Execucao],
+    cores: Mapping[str, str],
+    x0: float,
+    topo_painel: float,
+) -> list[str]:
+    esquerda = x0 + _PLOT_ESQUERDA
+    direita = x0 + _PLOT_DIREITA
+    topo = topo_painel + _PLOT_TOPO
+    base = topo_painel + _PLOT_BASE
+    medidas = {variante: painel.valor(ultimas[variante]) for variante in variantes}
+    eixos_valores = [painel.eixo(m) for m in medidas.values() if m is not None]
+    maximo = max(eixos_valores, default=0.0)
+    hi = painel.teto if painel.teto is not None else _teto(maximo)
+    eixo = _eixo(0.0, hi, separador=True)
+
+    elementos: list[str] = [
+        f'<text x="{_c(x0)}" y="{_c(topo_painel + 14)}" font-size="13" font-weight="500" '
+        f'fill="{COR_TEXTO}">{_esc(painel.titulo)}</text>'
+    ]
+    for valor, rotulo in zip(eixo.valores, eixo.rotulos, strict=True):
+        y = _px(valor, eixo, base, topo)
+        if valor != eixo.lo:
+            elementos.append(
+                f'<line x1="{_c(esquerda)}" y1="{_c(y)}" x2="{_c(direita)}" y2="{_c(y)}" '
+                f'stroke="{COR_GRADE}" stroke-width="1"/>'
+            )
+        elementos.append(
+            f'<text x="{_c(esquerda - 6)}" y="{_c(y + 4)}" text-anchor="end" font-size="10" '
+            f'fill="{COR_TICK}">{_esc(rotulo)}</text>'
+        )
+    elementos.append(
+        f'<line x1="{_c(esquerda)}" y1="{_c(base)}" x2="{_c(direita)}" y2="{_c(base)}" '
+        f'stroke="{COR_BASE}" stroke-width="1"/>'
+    )
+
+    slot = (direita - esquerda) / len(variantes)
+    largura = min(_BARRA_LARGURA, slot * 0.8)
+    for indice, variante in enumerate(variantes):
+        centro = esquerda + slot * (indice + 0.5)
+        medida = medidas[variante]
+        rotulo_variante = _rotulo_variante(variante)
+        if medida is None:
+            elementos.append(
+                f'<text x="{_c(centro)}" y="{_c(base - 8)}" text-anchor="middle" font-size="10" '
+                f'fill="{COR_TICK}"><title>{_esc(rotulo_variante)}: sem dado</title>sem dado</text>'
+            )
+            continue
+        y_barra = _px(painel.eixo(medida), eixo, base, topo)
+        dica = f"{rotulo_variante}: {painel.formatar(medida)} {painel.unidade}"
+        elementos.append(
+            _barra(centro - largura / 2, y_barra, largura, base - y_barra, cores[variante], dica)
+        )
+        elementos.append(
+            f'<text x="{_c(centro)}" y="{_c(y_barra - 6)}" text-anchor="middle" font-size="11" '
+            f'fill="{COR_TEXTO}">{_esc(painel.formatar(medida))}</text>'
+        )
+    for indice, variante in enumerate(variantes):
+        centro = esquerda + slot * (indice + 0.5)
+        nome_curto = _NOMES_CURTOS.get(variante, variante)
+        elementos.append(
+            f'<text x="{_c(centro)}" y="{_c(base + 16)}" text-anchor="middle" font-size="11" '
+            f'fill="{COR_EIXO_TEXTO}">{_esc(nome_curto)}</text>'
+        )
+    return elementos
+
+
+def _svg_comparacao_insuficiente() -> str:
+    titulo = SECAO_COMPARACAO[0]
+    elementos = _cabecalho(titulo, "comparação exige duas ou mais variantes")
+    elementos.append(
+        f'<text x="24" y="34" font-size="16" font-weight="500" fill="{COR_TEXTO}">'
+        f"{_esc(titulo)}</text>"
+    )
+    elementos.append(
+        f'<text x="{LARGURA // 2}" y="{ALTURA // 2}" text-anchor="middle" font-size="14" '
+        f'fill="{COR_EIXO_TEXTO}">comparação exige duas ou mais variantes</text>'
+    )
+    elementos.append("</svg>")
+    return "\n".join(elementos) + "\n"
+
+
+def grafico_comparacao_de_variantes(dados: DadosEvolucao) -> str:
+    """Seis painéis com uma barra por variante, na execução mais recente de cada uma.
+
+    Só faz sentido com duas ou mais variantes. Com menos, devolve um SVG com a mensagem de que a
+    comparação exige duas ou mais variantes, sem levantar exceção.
+    """
+    variantes = _variantes(dados.execucoes)
+    if len(variantes) < 2:
+        return _svg_comparacao_insuficiente()
+    ultimas = _ultimas_execucoes(dados.execucoes)
+    cores = _cores_variantes(variantes)
+    paineis = _paineis_comparacao()
+    trechos: list[str] = []
+    for painel in paineis:
+        partes: list[str] = []
+        for variante in variantes:
+            medida = painel.valor(ultimas[variante])
+            texto = "sem dado" if medida is None else painel.formatar(medida)
+            partes.append(f"{_rotulo_variante(variante)} {texto}")
+        trechos.append(f"{painel.titulo}: " + ", ".join(partes) + ".")
+    titulo = SECAO_COMPARACAO[0]
+    descricao = "Comparação entre variantes, na execução mais recente de cada uma. " + " ".join(
+        trechos
+    )
+    legenda_svg, _ = _legenda(
+        [_Item(texto=_rotulo_variante(v), cor=cores[v], linha=False) for v in variantes]
+    )
+    elementos = _cabecalho(titulo, descricao, ALTURA_COMPARACAO)
+    elementos.append(
+        f'<text x="24" y="34" font-size="16" font-weight="500" fill="{COR_TEXTO}">'
+        f"{_esc(titulo)}</text>"
+    )
+    elementos.extend(legenda_svg)
+    for indice, painel in enumerate(paineis):
+        x0 = _COLUNAS_PAINEIS[indice % 2]
+        topo_painel = _PAINEIS_TOPO + (indice // 2) * _PAINEL_PASSO
+        elementos.extend(_painel_svg(painel, variantes, ultimas, cores, x0, topo_painel))
+    elementos.append("</svg>")
+    return "\n".join(elementos) + "\n"
+
+
+def _comparacao_se_houver(dados: DadosEvolucao) -> str | None:
+    """A comparação, só quando há duas ou mais variantes. Com uma só, nada muda na saída."""
+    if len(_variantes(dados.execucoes)) < 2:
+        return None
+    return grafico_comparacao_de_variantes(dados)
+
+
 def _todos_os_svgs(dados: DadosEvolucao) -> list[str]:
     """Os seis SVG, na ordem de `NOMES_ARQUIVOS`."""
     return [
@@ -1022,6 +1415,14 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
     """Página HTML5 autônoma com os seis gráficos inline e tooltips. Sem recurso externo."""
     svgs = _todos_os_svgs(dados)
     secoes: list[str] = []
+    comparacao = _comparacao_se_houver(dados)
+    if comparacao is not None:
+        titulo_comparacao, leitura_comparacao = SECAO_COMPARACAO
+        secoes.append(
+            f"<section>\n<h2>{_esc(titulo_comparacao)}</h2>\n"
+            f'<p class="leitura">{_esc(leitura_comparacao)}</p>\n'
+            f"{_com_identificador(comparacao, 'c')}</section>"
+        )
     for indice, ((_, titulo, leitura), svg) in enumerate(zip(SECOES, svgs, strict=True), 1):
         secoes.append(
             f"<section>\n<h2>{_esc(titulo)}</h2>\n"
@@ -1056,15 +1457,20 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
 def gerar_todos(dados: DadosEvolucao, pasta: Path) -> list[Path]:
     """Grava os seis SVG e a página `graficos.html`, com nomes fixos. Sobrescreve.
 
-    A pasta é criada se preciso. Devolve os sete caminhos: os SVG na ordem de `NOMES_ARQUIVOS`,
-    e depois a página.
+    Com duas ou mais variantes, grava também `comparacao-de-variantes.svg`, depois dos seis. A
+    pasta é criada se preciso. Devolve os caminhos: os SVG na ordem de `NOMES_ARQUIVOS` (e a
+    comparação, se houver), e depois a página.
     """
     svgs = _todos_os_svgs(dados)
+    comparacao = _comparacao_se_houver(dados)
+    arquivos = list(zip(NOMES_ARQUIVOS, svgs, strict=True))
+    if comparacao is not None:
+        arquivos.append((NOME_COMPARACAO, comparacao))
     pagina = gerar_pagina_html(dados)
     caminhos: list[Path] = []
     try:
         pasta.mkdir(parents=True, exist_ok=True)
-        for nome, svg in zip(NOMES_ARQUIVOS, svgs, strict=True):
+        for nome, svg in arquivos:
             caminho = pasta / nome
             caminho.write_text(svg, encoding="utf-8")
             caminhos.append(caminho)
