@@ -27,6 +27,9 @@ Decisões deste módulo (não estão na spec):
   fica None quando não há `fabrica_telemetria`. A leitura é feita depois de fechar a telemetria,
   para contar também o envio do fechamento. Falha ao criar a telemetria conta 1. Quem não tem o
   atributo `falhas` (fábricas de teste) conta 0, e falha ao ler o contador também conta 0.
+- Pausa (`pausa_s`): espera entre uma rodada executada e a próxima, com o `dormir` injetado de
+  `executar_avaliacao`. Não há pausa antes da primeira rodada nem depois da última, e rodada não
+  executada (teto, pendente) não conta. A espera fica fora da duração da rodada.
 """
 
 import contextlib
@@ -113,6 +116,7 @@ class ConfigExecucao(BaseModel):
     imagem: str = IMAGEM_PADRAO
     pasta_trace: Path | None = None
     orcamento: Orcamento | None = None
+    pausa_s: float = Field(default=0.0, ge=0, allow_inf_nan=False)
 
     @field_validator("teto_usd")
     @classmethod
@@ -419,6 +423,7 @@ def _executar_casos(
     relogio: Callable[[], float],
     aoprogresso: Callable[[str, int, Classificacao], None] | None,
     fabrica_telemetria: Callable[[], TelemetriaDeRodada | None] | None = None,
+    dormir: Callable[[float], None] = time.sleep,
 ) -> Relatorio:
     rodadas: dict[str, list[RodadaCaso]] = {}
     vistos = _Vistos()
@@ -426,6 +431,7 @@ def _executar_casos(
     custo_acumulado: float | None = None
     tokens_acumulados = 0
     falhas_telemetria = 0
+    houve_rodada_executada = False
 
     for caso in casos:
         rodadas[caso.id] = []
@@ -439,6 +445,9 @@ def _executar_casos(
                     numero=numero, classificacao=Classificacao.NAO_EXECUTADA, detalhe=teto_motivo
                 )
             else:
+                if config.pausa_s > 0 and houve_rodada_executada:
+                    dormir(config.pausa_s)
+                houve_rodada_executada = True
                 rodada, falhas = _executar_rodada(
                     caso,
                     numero,
@@ -480,13 +489,15 @@ def executar_avaliacao(
     relogio: Callable[[], float] = time.monotonic,
     aoprogresso: Callable[[str, int, Classificacao], None] | None = None,
     fabrica_telemetria: Callable[[], TelemetriaDeRodada | None] | None = None,
+    dormir: Callable[[float], None] = time.sleep,
 ) -> Relatorio:
     """Gera os dados, roda os casos ativos N vezes e devolve o relatório.
 
     `fabrica_modelo` é chamada uma vez por rodada. `fabrica_sandbox` recebe as montagens do
     perfil; sem ela, cria um `DockerSandbox` com a imagem da configuração. `aoprogresso` recebe
     (id do caso, número da rodada, classificação) ao fim de cada rodada. `fabrica_telemetria`,
-    se dada, é chamada uma vez por rodada para criar a telemetria daquela rodada.
+    se dada, é chamada uma vez por rodada para criar a telemetria daquela rodada. `dormir` é a
+    espera da `pausa_s` entre rodadas (injetável nos testes).
     """
     with tempfile.TemporaryDirectory(prefix="avaliacao-") as temporaria:
         raiz = Path(temporaria) / "dados"
@@ -499,5 +510,13 @@ def executar_avaliacao(
 
         fabrica = fabrica_sandbox if fabrica_sandbox is not None else criar_docker
         return _executar_casos(
-            lista, raiz, config, fabrica_modelo, fabrica, relogio, aoprogresso, fabrica_telemetria
+            lista,
+            raiz,
+            config,
+            fabrica_modelo,
+            fabrica,
+            relogio,
+            aoprogresso,
+            fabrica_telemetria,
+            dormir,
         )

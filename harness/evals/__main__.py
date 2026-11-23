@@ -24,6 +24,13 @@ Decisões deste módulo (não estão na spec):
   de qualquer rodada. O relatório ganha `telemetria` ("langfuse-us") só quando está ligada.
 - Falhas de telemetria: o resumo mostra `Falhas de telemetria: N` quando a telemetria está ligada,
   com um aviso se N > 0. Falha de telemetria não muda o código de saída.
+- Provedor (decisões desta CLI): `--provedor NOME` sobrescreve `OPENROUTER_PROVEDOR` nas
+  avaliações e é validado antes de tudo (nome inválido sai com 2). O relatório grava o pedido em
+  `provedor_solicitado`. `--salvar-linha-de-base` exige provedor fixado (pela opção ou pela
+  variável), conferido antes de qualquer rodada, porque a linha de base precisa apontar sempre
+  para o mesmo provedor.
+- `--pausa-s SEGUNDOS` (padrão 0) espera entre uma rodada executada e a próxima. Não conta no
+  tempo da rodada, e não há pausa antes da primeira nem depois da última.
 
 Subcomandos (T17c), reconhecidos só quando são o primeiro argumento exato: `comparar BASE NOVO`
 (0 ok, 1 regressão provável, 2 incomparável ou erro) e `congelar --versao vN` (cria o conjunto em
@@ -75,7 +82,12 @@ from harness.evals.relatorio import (
     relatorio_de_json,
 )
 from harness.llm.base import ModeloLLM
-from harness.llm.config import carregar_env, config_de_ambiente
+from harness.llm.config import (
+    carregar_env,
+    config_de_ambiente,
+    provedor_de_ambiente,
+    validar_provedor,
+)
 from harness.llm.openrouter import ClienteOpenRouter
 from harness.orchestrator.loop import Orcamento
 from harness.sandbox.docker_sandbox import IMAGEM_PADRAO
@@ -176,6 +188,20 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="com --salvar-linha-de-base, grava mesmo com alterações no git (registra commit_sujo)",
     )
+    parser.add_argument(
+        "--provedor",
+        metavar="NOME",
+        default=None,
+        help="fixa o provedor do OpenRouter nas avaliações (sobrescreve OPENROUTER_PROVEDOR); "
+        "obrigatório com --salvar-linha-de-base se a variável não estiver definida",
+    )
+    parser.add_argument(
+        "--pausa-s",
+        type=_nao_negativo,
+        default=0.0,
+        metavar="SEGUNDOS",
+        help="espera entre uma rodada e a próxima, em segundos (padrão: 0)",
+    )
     return parser
 
 
@@ -191,6 +217,24 @@ def _categorias(valores: Sequence[str]) -> frozenset[Categoria]:
     return frozenset(escolhidas)
 
 
+def _provedor_argumento(texto: str | None) -> str | None:
+    """`--provedor` validado, ou None se não foi dado. Nome inválido vira ErroDeUso."""
+    if texto is None:
+        return None
+    try:
+        return validar_provedor(texto.strip(), nome="--provedor")
+    except ValueError as erro:
+        raise ErroDeUso(str(erro)) from None
+
+
+def _provedor_de(ambiente: Mapping[str, str]) -> str | None:
+    """`OPENROUTER_PROVEDOR` validado, ou None. Valor inválido vira ErroDeUso sem o valor."""
+    try:
+        return provedor_de_ambiente(ambiente)
+    except ValueError as erro:
+        raise ErroDeUso(str(erro)) from None
+
+
 def _config(args: argparse.Namespace) -> ConfigExecucao:
     try:
         orcamento = (
@@ -204,6 +248,7 @@ def _config(args: argparse.Namespace) -> ConfigExecucao:
             imagem=args.imagem,
             pasta_trace=args.trace,
             orcamento=orcamento,
+            pausa_s=args.pausa_s,
         )
     except ValidationError as erro:
         campos = "; ".join(
@@ -230,6 +275,14 @@ def _fabrica_de_modelo(ambiente: Mapping[str, str]) -> Callable[[], ModeloLLM]:
 def _ambiente_do_processo() -> dict[str, str]:
     """`.env` do diretório atual, com `os.environ` por cima, como na CLI do harness."""
     return {**carregar_env(ARQUIVO_ENV), **os.environ}
+
+
+def _ambiente_da_execucao(provedor: str | None) -> dict[str, str]:
+    """Ambiente do processo, com `--provedor` (se dado) sobrescrevendo `OPENROUTER_PROVEDOR`."""
+    ambiente = _ambiente_do_processo()
+    if provedor is not None:
+        ambiente = {**ambiente, "OPENROUTER_PROVEDOR": provedor}
+    return ambiente
 
 
 def _config_telemetria(ambiente: Mapping[str, str]) -> ConfigTelemetria | None:
@@ -344,6 +397,7 @@ def _resumo(saida: TextIO, relatorio: Relatorio, caminho: Path | None) -> None:
         linhas.append(f"Teto de gasto: estourado ({relatorio.teto_motivo})")
     else:
         linhas.append("Teto de gasto: dentro do limite")
+    linhas.append(f"Provedor solicitado: {relatorio.provedor_solicitado or 'não fixado'}")
     linhas.append(f"Provedor(es) efetivo(s): {', '.join(relatorio.provedores) or 'nenhum'}")
     if relatorio.falhas_telemetria is not None:
         linhas.append(f"Falhas de telemetria: {relatorio.falhas_telemetria}")
@@ -454,10 +508,13 @@ def _validar_linha_de_base(
     categorias: frozenset[Categoria],
     raiz: Path,
     obter: ObterProcedencia,
+    provedor: str | None,
 ) -> tuple[str | None, bool | None]:
     """Tudo que `--salvar-linha-de-base` exige, antes de qualquer execução. Devolve (commit, sujo).
 
-    Não lê o `.env`, não chama o modelo e não gera dados.
+    `provedor` é o de `--provedor`, se foi dado. Sem ele, a linha exige `OPENROUTER_PROVEDOR` no
+    `.env` ou no ambiente; essa checagem fica por último, depois das outras. Não chama o modelo
+    e não gera dados.
     """
     nome: str = args.salvar_linha_de_base
     try:
@@ -484,6 +541,14 @@ def _validar_linha_de_base(
         raise ErroDeUso(
             "a árvore do git tem alterações: faça commit antes de gravar a linha de base "
             "(ou use --permitir-arvore-suja, e o relatório registra commit_sujo)"
+        )
+    # Por último: só aqui se lê o `.env` (a variável pode estar lá).
+    if provedor is None:
+        provedor = _provedor_de(_ambiente_do_processo())
+    if provedor is None:
+        raise ErroDeUso(
+            "linha de base exige provedor fixado: a linha de base precisa apontar sempre para o "
+            "mesmo provedor. Use --provedor NOME ou defina OPENROUTER_PROVEDOR."
         )
     return (commit, sujo)
 
@@ -520,9 +585,10 @@ def main(
     try:
         categorias = _categorias(args.categoria)
         config = _config(args)
-        # Linha de base: tudo é conferido antes de gerar dados, ler o `.env` ou chamar o modelo.
+        provedor_arg = _provedor_argumento(args.provedor)
+        # Linha de base: tudo é conferido antes de gerar dados ou chamar o modelo.
         if args.salvar_linha_de_base is not None:
-            procedencia = _validar_linha_de_base(args, categorias, raiz_repo, obter)
+            procedencia = _validar_linha_de_base(args, categorias, raiz_repo, obter, provedor_arg)
     except ErroDeUso as erro:
         saida.write(f"{erro}\n")
         return CODIGO_USO
@@ -535,7 +601,8 @@ def main(
         return CODIGO_OK
 
     try:
-        ambiente = _ambiente_do_processo()
+        ambiente = _ambiente_da_execucao(provedor_arg)
+        provedor_solicitado = _provedor_de(ambiente)
         if fabrica_modelo is None:
             fabrica_modelo = _fabrica_de_modelo(ambiente)
         configuracao_telemetria = _config_telemetria(ambiente)
@@ -586,6 +653,7 @@ def main(
             "orcamento": relatorio.orcamento
             if relatorio.orcamento is not None
             else orcamento_usado(config),
+            "provedor_solicitado": provedor_solicitado,
         }
     )
 

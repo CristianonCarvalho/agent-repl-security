@@ -121,8 +121,12 @@ def _completion(
     return ChatCompletion.model_validate(dados)
 
 
-def _erro_http(classe: type[openai.APIStatusError], status: int) -> openai.APIStatusError:
-    resposta = httpx2.Response(status, request=REQ)
+def _erro_http(
+    classe: type[openai.APIStatusError],
+    status: int,
+    cabecalhos: dict[str, str] | None = None,
+) -> openai.APIStatusError:
+    resposta = httpx2.Response(status, headers=cabecalhos, request=REQ)
     return classe(CORPO_DO_ERRO, response=resposta, body={"error": CORPO_DO_ERRO})
 
 
@@ -261,7 +265,7 @@ def test_provedor_e_custo_ausentes_ficam_none_sem_inventar_valor() -> None:
 # --- Repetição e erros ---------------------------------------------------------------------
 
 
-def test_429_429_e_sucesso_repete_com_esperas_de_1_e_2_segundos() -> None:
+def test_429_429_e_sucesso_repete_com_esperas_de_2_e_5_segundos() -> None:
     cliente, falso, esperas = _cliente(
         [
             _erro_http(openai.RateLimitError, 429),
@@ -274,7 +278,7 @@ def test_429_429_e_sucesso_repete_com_esperas_de_1_e_2_segundos() -> None:
 
     assert resposta.texto == "oi, tudo bem"
     assert len(falso.chamadas) == 3
-    assert esperas == [1.0, 2.0]
+    assert esperas == [2.0, 5.0]
 
 
 def test_erro_500_esgota_as_tentativas_e_levanta_erro_llm_generico() -> None:
@@ -311,7 +315,7 @@ def test_erro_de_conexao_e_timeout_sao_transitorios() -> None:
 
 def test_max_tentativas_limita_as_repeticoes() -> None:
     cliente, falso, esperas = _cliente(
-        [_erro_http(openai.RateLimitError, 429) for _ in range(2)], max_tentativas=2
+        [_erro_http(openai.InternalServerError, 500) for _ in range(2)], max_tentativas=2
     )
 
     with pytest.raises(ErroLLM, match="2 tentativas"):
@@ -319,6 +323,18 @@ def test_max_tentativas_limita_as_repeticoes() -> None:
 
     assert len(falso.chamadas) == 2
     assert esperas == [1.0]
+
+
+def test_erros_5xx_e_conexao_seguem_esperas_de_1_2_e_4_segundos() -> None:
+    cliente, falso, esperas = _cliente(
+        [_erro_http(openai.InternalServerError, 503) for _ in range(4)], max_tentativas=4
+    )
+
+    with pytest.raises(ErroLLM, match="4 tentativas"):
+        cliente.responder(MENSAGENS)
+
+    assert len(falso.chamadas) == 4
+    assert esperas == [1.0, 2.0, 4.0]
 
 
 @pytest.mark.parametrize(
@@ -657,8 +673,7 @@ def test_timeout_enviado_ao_sdk_e_limitado_pelo_restante_do_prazo() -> None:
     relogio = RelogioFalso()
     cliente, falso, esperas = _cliente_no_relogio(
         [
-            _erro_http(openai.RateLimitError, 429),
-            _erro_http(openai.RateLimitError, 429),
+            _erro_http(openai.RateLimitError, 429, {"retry-after": "2"}),
             _completion(),
         ],
         relogio,
@@ -667,9 +682,9 @@ def test_timeout_enviado_ao_sdk_e_limitado_pelo_restante_do_prazo() -> None:
     )
 
     assert cliente.responder(MENSAGENS).texto == "oi, tudo bem"
-    # Primeira tentativa: prazo cheio. Terceira: só 0,5 s restam, então o timeout encolhe.
-    assert [chamada["timeout"] for chamada in falso.chamadas] == [2.0, 2.0, 0.5]
-    assert esperas == [1.0, 2.0]
+    # Primeira tentativa: prazo cheio. Depois da espera de 2 s, só 1,5 s restam: o timeout encolhe.
+    assert [chamada["timeout"] for chamada in falso.chamadas] == [2.0, 1.5]
+    assert esperas == [2.0]
 
 
 def test_espera_de_repeticao_que_nao_cabe_no_prazo_falha_logo() -> None:
@@ -688,9 +703,10 @@ def test_espera_de_repeticao_que_nao_cabe_no_prazo_falha_logo() -> None:
     with pytest.raises(ErroLLM, match="passou do prazo total de 2.5 s") as erro:
         cliente.responder(MENSAGENS)
 
-    # A espera de 2 s não cabe nos 1,5 s restantes: não dorme e não tenta de novo.
+    # A espera de 5 s (terceira tentativa com 429) não cabe nos 0,5 s restantes: não dorme e não
+    # tenta de novo. A primeira espera de 2 s coube.
     assert len(falso.chamadas) == 2
-    assert esperas == [1.0]
+    assert esperas == [2.0]
     assert CORPO_DO_ERRO not in str(erro.value)
 
 
@@ -726,3 +742,187 @@ def test_erro_inesperado_na_thread_chega_ao_chamador_como_erro_llm_sem_repetir()
 def test_prazo_total_menor_que_timeout_e_recusado() -> None:
     with pytest.raises(ValueError, match="prazo_total_s"):
         ConfigModelo(slug="x", timeout_s=60.0, prazo_total_s=30.0)
+
+
+# --- Limite de taxa (429) -----------------------------------------------------------------
+
+
+def test_429_sem_retry_after_segue_a_escada_e_cinco_tentativas_no_total() -> None:
+    cliente, falso, esperas = _cliente(
+        [_erro_http(openai.RateLimitError, 429) for _ in range(4)] + [_completion()]
+    )
+
+    assert cliente.responder(MENSAGENS).texto == "oi, tudo bem"
+    assert len(falso.chamadas) == 5
+    assert esperas == [2.0, 5.0, 10.0, 20.0]
+
+
+def test_429_esgotado_levanta_erro_generico_com_cinco_tentativas() -> None:
+    cliente, falso, esperas = _cliente([_erro_http(openai.RateLimitError, 429) for _ in range(5)])
+
+    with pytest.raises(ErroLLM) as erro:
+        cliente.responder(MENSAGENS)
+
+    assert len(falso.chamadas) == 5
+    assert esperas == [2.0, 5.0, 10.0, 20.0]
+    mensagem = str(erro.value)
+    assert "RateLimitError" in mensagem
+    assert "status 429" in mensagem
+    assert "5 tentativas" in mensagem
+    assert CORPO_DO_ERRO not in mensagem
+    assert CHAVE_FALSA not in mensagem
+    assert erro.value.__cause__ is None
+
+
+def test_429_nao_e_limitado_por_max_tentativas_mas_segue_o_teto_de_cinco() -> None:
+    cliente, falso, esperas = _cliente(
+        [_erro_http(openai.RateLimitError, 429), _completion()], max_tentativas=1
+    )
+
+    assert cliente.responder(MENSAGENS).texto == "oi, tudo bem"
+    assert len(falso.chamadas) == 2
+    assert esperas == [2.0]
+
+
+@pytest.mark.parametrize(
+    ("valor", "esperado"),
+    [("3", 3.0), ("1.5", 1.5), (" 4 ", 4.0), ("0", 0.0)],
+)
+def test_429_respeita_retry_after_em_segundos(valor: str, esperado: float) -> None:
+    cliente, falso, esperas = _cliente(
+        [_erro_http(openai.RateLimitError, 429, {"retry-after": valor}), _completion()]
+    )
+
+    assert cliente.responder(MENSAGENS).texto == "oi, tudo bem"
+    assert esperas == [esperado]
+
+
+def test_429_retry_after_acima_de_30_segundos_e_limitado_a_30() -> None:
+    relogio = RelogioFalso()
+    cliente, _, esperas = _cliente_no_relogio(
+        [_erro_http(openai.RateLimitError, 429, {"retry-after": "45"}), _completion()],
+        relogio,
+    )
+
+    assert cliente.responder(MENSAGENS).texto == "oi, tudo bem"
+    assert esperas == [30.0]
+
+
+@pytest.mark.parametrize(
+    "invalido",
+    ["-1", "abc", "", "nan", "inf", "1e3", "1,5", "Wed, 21 Oct 2026 07:28:00 GMT"],
+)
+def test_429_retry_after_invalido_e_ignorado_e_usa_a_escada(invalido: str) -> None:
+    cliente, _, esperas = _cliente(
+        [_erro_http(openai.RateLimitError, 429, {"retry-after": invalido}), _completion()]
+    )
+
+    assert cliente.responder(MENSAGENS).texto == "oi, tudo bem"
+    assert esperas == [2.0]
+
+
+def test_429_retry_after_que_nao_cabe_no_prazo_falha_logo_sem_dormir() -> None:
+    relogio = RelogioFalso()
+    cliente, falso, esperas = _cliente_no_relogio(
+        [_erro_http(openai.RateLimitError, 429, {"retry-after": "10"}), _completion()],
+        relogio,
+        timeout_s=0.5,
+        prazo_total_s=2.5,
+    )
+
+    with pytest.raises(ErroLLM, match="passou do prazo total de 2.5 s"):
+        cliente.responder(MENSAGENS)
+
+    assert len(falso.chamadas) == 1
+    assert esperas == []
+
+
+@pytest.mark.parametrize("resposta", [None, SimpleNamespace(headers=None), SimpleNamespace()])
+def test_429_sem_cabecalhos_utilizaveis_nao_levanta_e_usa_a_escada(resposta: object) -> None:
+    erro = _erro_http(openai.RateLimitError, 429)
+    alvo: Any = erro
+    alvo.response = resposta
+    cliente, _, esperas = _cliente([erro, _completion()])
+
+    assert cliente.responder(MENSAGENS).texto == "oi, tudo bem"
+    assert esperas == [2.0]
+
+
+# --- Provedor fixo -----------------------------------------------------------------------
+
+
+def test_com_provedor_o_corpo_fixa_a_ordem_sem_fallback() -> None:
+    cliente, falso, _ = _cliente([_completion()], provedor="Wafer")
+
+    cliente.responder(MENSAGENS)
+
+    assert falso.chamadas[0]["extra_body"] == {
+        "provider": {
+            "order": ["Wafer"],
+            "allow_fallbacks": False,
+            "require_parameters": True,
+        }
+    }
+
+
+def test_com_provedor_o_fallback_fica_desligado_mesmo_com_fallback_ligado() -> None:
+    cliente, falso, _ = _cliente([_completion()], provedor="Wafer", fallback_provedor=True)
+
+    cliente.responder(MENSAGENS)
+
+    assert falso.chamadas[0]["extra_body"]["provider"] == {
+        "order": ["Wafer"],
+        "allow_fallbacks": False,
+        "require_parameters": True,
+    }
+
+
+def test_sem_provedor_o_roteamento_continua_o_de_antes() -> None:
+    cliente, falso, _ = _cliente([_completion(), _completion()])
+    cliente.responder(MENSAGENS)
+
+    cliente_fallback, falso_fallback, _ = _cliente([_completion()], fallback_provedor=True)
+    cliente_fallback.responder(MENSAGENS)
+
+    assert falso.chamadas[0]["extra_body"] == {
+        "provider": {"require_parameters": True, "allow_fallbacks": False}
+    }
+    assert falso_fallback.chamadas[0]["extra_body"] == {"provider": {"require_parameters": True}}
+
+
+def test_provedor_efetivo_diferente_do_pedido_registra_aviso_sem_levantar(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    cliente, _, _ = _cliente([_completion(provider="Tenstorrent")], provedor="Wafer")
+
+    with caplog.at_level("WARNING", logger="harness.llm.openrouter"):
+        resposta = cliente.responder(MENSAGENS)
+
+    assert resposta.provedor == "Tenstorrent"
+    assert "Tenstorrent" in caplog.text
+    assert "Wafer" in caplog.text
+    assert CHAVE_FALSA not in caplog.text
+
+
+@pytest.mark.parametrize("efetivo", ["wafer", "WAFER"])
+def test_provedor_igual_sem_diferenca_de_caixa_nao_registra_aviso(
+    caplog: pytest.LogCaptureFixture, efetivo: str
+) -> None:
+    cliente, _, _ = _cliente([_completion(provider=efetivo)], provedor="Wafer")
+
+    with caplog.at_level("WARNING", logger="harness.llm.openrouter"):
+        cliente.responder(MENSAGENS)
+
+    assert caplog.text == ""
+
+
+def test_provedor_ausente_na_resposta_nao_registra_aviso(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    cliente, _, _ = _cliente([_completion(provider=None)], provedor="Wafer")
+
+    with caplog.at_level("WARNING", logger="harness.llm.openrouter"):
+        resposta = cliente.responder(MENSAGENS)
+
+    assert resposta.provedor is None
+    assert caplog.text == ""

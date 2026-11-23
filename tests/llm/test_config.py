@@ -5,7 +5,12 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from harness.llm.config import ConfigModelo, carregar_env, config_de_ambiente
+from harness.llm.config import (
+    ConfigModelo,
+    carregar_env,
+    config_de_ambiente,
+    provedor_de_ambiente,
+)
 
 # --- ConfigModelo ---------------------------------------------------------------------------
 
@@ -225,3 +230,58 @@ def test_prazo_total_nao_positivo_ou_nao_finito_no_ambiente_e_recusado(bruto: st
 def test_prazo_total_menor_que_o_timeout_padrao_e_recusado_no_ambiente() -> None:
     with pytest.raises(ValidationError, match="prazo_total_s"):
         config_de_ambiente({"OPENROUTER_MODELO": "x", "OPENROUTER_PRAZO_TOTAL": "30"})
+
+
+# --- Provedor fixo (OPENROUTER_PROVEDOR) ----------------------------------------------------
+
+
+def test_provedor_padrao_e_none() -> None:
+    assert ConfigModelo(slug="x").provedor is None
+
+
+def test_provedor_do_ambiente_e_lido() -> None:
+    config = config_de_ambiente({"OPENROUTER_MODELO": "x", "OPENROUTER_PROVEDOR": " Wafer "})
+    assert config.provedor == "Wafer"
+
+
+@pytest.mark.parametrize("bruto", ["", "   ", None])
+def test_provedor_vazio_ou_ausente_vira_none(bruto: str | None) -> None:
+    ambiente: dict[str, str] = {"OPENROUTER_MODELO": "x"}
+    if bruto is not None:
+        ambiente["OPENROUTER_PROVEDOR"] = bruto
+    assert config_de_ambiente(ambiente).provedor is None
+    assert provedor_de_ambiente(ambiente) is None
+
+
+@pytest.mark.parametrize(
+    "nome",
+    ["Wafer", "Novita AI", "DeepInfra", "Together-2.0", "a_b", "x" * 64],
+)
+def test_nomes_de_provedor_validos_sao_aceitos(nome: str) -> None:
+    assert ConfigModelo(slug="x", provedor=nome).provedor == nome
+
+
+@pytest.mark.parametrize(
+    "invalido",
+    ["a/b", 'a"b', "-inicio", "x" * 65, "a;b", "Wa\nfer", "a'b", "a\\b"],
+)
+def test_nome_de_provedor_invalido_e_recusado_sem_ecoar_o_valor(invalido: str) -> None:
+    with pytest.raises(ValueError, match="OPENROUTER_PROVEDOR inválido") as erro:
+        config_de_ambiente({"OPENROUTER_MODELO": "x", "OPENROUTER_PROVEDOR": invalido})
+    assert "OPENROUTER_PROVEDOR" in str(erro.value)
+    with pytest.raises(ValueError, match="OPENROUTER_PROVEDOR inválido"):
+        provedor_de_ambiente({"OPENROUTER_PROVEDOR": invalido})
+
+
+def test_provedor_invalido_no_modelo_e_recusado() -> None:
+    with pytest.raises(ValidationError):
+        ConfigModelo(slug="x", provedor="a/b")
+
+
+def test_repr_da_configuracao_nao_traz_chave() -> None:
+    chave = "chave-falsa-de-teste-789"
+    config = config_de_ambiente(
+        {"OPENROUTER_MODELO": "x", "OPENROUTER_PROVEDOR": "Wafer", "OPENROUTER_API_KEY": chave}
+    )
+    assert chave not in repr(config)
+    assert chave not in str(config)

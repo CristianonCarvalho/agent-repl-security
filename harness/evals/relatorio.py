@@ -28,6 +28,8 @@ Decisões deste módulo (não estão na spec):
   para saber se dois casos com o mesmo id são o mesmo caso. `orcamento` vem de quem executa (o
   executor); versão do conjunto, commit, árvore suja, início e nome da linha de base vêm da CLI.
   Todos esses campos são opcionais: relatórios antigos continuam carregando.
+- `provedor_solicitado` é o nome fixado em `OPENROUTER_PROVEDOR` ou em `--provedor` (None se
+  não houve). `provedores` continua sendo o que de fato respondeu. Relatório antigo carrega sem.
 """
 
 import hashlib
@@ -181,6 +183,8 @@ class Relatorio(BaseModel):
     iniciado_em: str | None = None
     # Nome da linha de base, preenchido só ao gravar uma em `evals/linhas-de-base/`.
     linha_de_base: str | None = None
+    # Provedor pedido ao OpenRouter (None se não fixado). Relatório antigo não o tem.
+    provedor_solicitado: str | None = None
 
     @model_validator(mode="after")
     def _coerente(self) -> Self:

@@ -28,6 +28,16 @@ Decisões deste módulo (não estão na spec):
   é que não espera por ela.
 - Erro transitório com prazo restante: a repetição segue as esperas de 1, 2, 4 s. Se a espera
   já não cabe no prazo restante, falha logo com o ErroLLM de prazo, sem dormir.
+- Limite de taxa (429) tem política própria. Com `Retry-After` (segundos inteiros ou decimais,
+  lidos de `erro.response.headers`), espera o valor, limitado a 30 s. Valor inválido, negativo
+  ou ausente cai nas esperas progressivas de 2, 5, 10 e 20 s. Até 5 tentativas no total, fixas:
+  `max_tentativas` não limita o 429, só os demais erros transitórios e as respostas vazias.
+  A mesma regra de prazo vale: espera que não cabe no restante falha logo, sem dormir.
+- Provedor fixo (`provedor`): o corpo leva `order` com o nome, `allow_fallbacks` falso e
+  `require_parameters` verdadeiro, e o fallback fica desligado mesmo com `OPENROUTER_FALLBACK`.
+  Sem provedor, o roteamento é o de antes. Se o provedor que respondeu (`provedor` da resposta)
+  for diferente do pedido, a diferença vai para o log (aviso); nunca levanta exceção, porque o
+  OpenRouter pode normalizar o nome.
 - Resposta vazia (conteúdo ausente, vazio, só espaços ou só caracteres invisíveis) é falha
   transitória: repete com as mesmas esperas e dentro do mesmo prazo. Ao esgotar as tentativas
   ou o prazo com a resposta ainda vazia, NÃO levanta erro: devolve a última resposta vazia, com
@@ -43,6 +53,8 @@ Decisões deste módulo (não estão na spec):
 - Campos lidos por `_campo` aceitam objeto do SDK e dict (o SDK pode devolver qualquer um).
 """
 
+import logging
+import re
 import threading
 import time
 import unicodedata
@@ -55,6 +67,11 @@ from harness.llm.base import ErroLLM, Mensagem, RespostaLLM
 from harness.llm.config import ConfigModelo
 
 _TAMANHO_MAXIMO_MOTIVO: Final = 64
+_ESPERAS_429: Final = (2.0, 5.0, 10.0, 20.0)
+_MAX_TENTATIVAS_429: Final = 5
+_TETO_RETRY_AFTER_S: Final = 30.0
+_SEGUNDOS_RETRY_AFTER: Final = re.compile(r"[0-9]+(?:\.[0-9]+)?")
+_LOG: Final = logging.getLogger(__name__)
 
 
 class _Tentativa:
@@ -110,13 +127,13 @@ class ClienteOpenRouter:
             if tentativa.erro is None:
                 resposta = _converter(tentativa.resposta)
                 if not _vazio(resposta.texto):
-                    return _somar(resposta, descartadas)
+                    return self._conferido(_somar(resposta, descartadas))
                 # Resposta vazia: repete como falha transitória, mas, se não couber, devolve a
                 # última vazia (o orquestrador a trata como turno inválido).
                 espera = float(2 ** (tentativa_numero - 1))
                 esgotou = tentativa_numero >= self._config.max_tentativas
                 if esgotou or espera >= self._restante(inicio):
-                    return _somar(resposta, descartadas)
+                    return self._conferido(_somar(resposta, descartadas))
                 descartadas.append(resposta)
                 self._dormir(espera)
                 continue
@@ -124,9 +141,10 @@ class ClienteOpenRouter:
             if not isinstance(erro, Exception):
                 # Interrupções (BaseException) não são classificadas: seguem como estavam.
                 raise erro
-            if not (_transitorio(erro) and tentativa_numero < self._config.max_tentativas):
+            limite = _limite_de_tentativas(erro, self._config.max_tentativas)
+            if not (_transitorio(erro) and tentativa_numero < limite):
                 raise ErroLLM(_mensagem_de_erro(erro, tentativa_numero)) from None
-            espera = float(2 ** (tentativa_numero - 1))
+            espera = _espera_de_repeticao(erro, tentativa_numero)
             if espera >= self._restante(inicio):
                 raise self._erro_de_prazo()
             self._dormir(espera)
@@ -160,6 +178,17 @@ class ClienteOpenRouter:
     def _restante(self, inicio: float) -> float:
         """Segundos que ainda restam do prazo total desta chamada."""
         return self._config.prazo_total_s - (self._relogio() - inicio)
+
+    def _conferido(self, resposta: RespostaLLM) -> RespostaLLM:
+        """Registra, sem levantar exceção, se o provedor que respondeu não é o pedido."""
+        solicitado = self._config.provedor
+        efetivo = resposta.provedor
+        if solicitado is not None and efetivo is not None:
+            if efetivo.casefold() != solicitado.casefold():
+                _LOG.warning(
+                    "provedor que respondeu (%s) difere do solicitado (%s)", efetivo, solicitado
+                )
+        return resposta
 
     def _erro_de_prazo(self) -> ErroLLM:
         # Genérico: sem corpo de resposta, headers ou chave.
@@ -195,6 +224,12 @@ def _criar_sdk(config: ConfigModelo, api_key: str) -> Any:
 
 def _roteamento(config: ConfigModelo) -> dict[str, object]:
     """Preferências de provedor. Com fallback desligado, o eval sabe qual provedor respondeu."""
+    if config.provedor is not None:
+        return {
+            "order": [config.provedor],
+            "allow_fallbacks": False,
+            "require_parameters": True,
+        }
     if config.fallback_provedor:
         return {"require_parameters": True}
     return {"require_parameters": True, "allow_fallbacks": False}
@@ -204,6 +239,42 @@ def _transitorio(erro: Exception) -> bool:
     if isinstance(erro, openai.RateLimitError | openai.APIConnectionError):
         return True
     return isinstance(erro, openai.APIStatusError) and erro.status_code >= 500
+
+
+def _limite_de_tentativas(erro: Exception, max_tentativas: int) -> int:
+    """Total de tentativas para este erro: 5 no limite de taxa, `max_tentativas` nos demais."""
+    if isinstance(erro, openai.RateLimitError):
+        return _MAX_TENTATIVAS_429
+    return max_tentativas
+
+
+def _espera_de_repeticao(erro: Exception, tentativa_numero: int) -> float:
+    """Segundos antes da próxima tentativa. Só o 429 tem regra própria (Retry-After ou escada)."""
+    if isinstance(erro, openai.RateLimitError):
+        informada = _retry_after(erro)
+        if informada is not None:
+            return min(informada, _TETO_RETRY_AFTER_S)
+        indice = min(tentativa_numero - 1, len(_ESPERAS_429) - 1)
+        return _ESPERAS_429[indice]
+    return float(2 ** (tentativa_numero - 1))
+
+
+def _retry_after(erro: Exception) -> float | None:
+    """Valor do `Retry-After` em segundos, ou None se ausente ou inválido. Nunca levanta."""
+    resposta = getattr(erro, "response", None)
+    cabecalhos = getattr(resposta, "headers", None)
+    if cabecalhos is None:
+        return None
+    try:
+        bruto: object = cabecalhos.get("retry-after")
+    except Exception:
+        return None
+    if not isinstance(bruto, str):
+        return None
+    texto = bruto.strip()
+    if _SEGUNDOS_RETRY_AFTER.fullmatch(texto) is None:
+        return None
+    return float(texto)
 
 
 def _mensagem_de_erro(erro: Exception, tentativas: int) -> str:

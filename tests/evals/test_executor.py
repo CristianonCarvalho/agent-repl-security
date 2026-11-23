@@ -672,3 +672,64 @@ def test_pendentes_do_conjunto_completo_nao_rodam_e_nao_mexem_nas_taxas(
     for id_pendente in completo.pendentes:
         assert por_id[id_pendente].rodadas == (), id_pendente
     assert sum(len(r.rodadas) for r in completo.casos if r.situacao == "ativo") == 40
+
+
+# --- Pausa entre rodadas ----------------------------------------------------------------------
+
+
+def _executar_com_pausa(
+    fatos: FatosVerdadeiros,
+    dormir: Callable[[float], None],
+    config: ConfigExecucao,
+    *,
+    casos: Sequence[Caso] | None = None,
+) -> Relatorio:
+    lista = list(casos) if casos is not None else [_caso(fatos)]
+    return executar_avaliacao(
+        lambda _fatos: lista,
+        _modelo(CODIGO),
+        config,
+        fabrica_sandbox=Fabrica(respostas=[_resposta_certa(fatos)] * 10),
+        relogio=RelogioQueAvanca(),
+        dormir=dormir,
+    )
+
+
+def test_pausa_entre_rodadas_e_nao_antes_da_primeira_nem_depois_da_ultima(
+    fatos: FatosVerdadeiros,
+) -> None:
+    esperas: list[float] = []
+
+    relatorio = _executar_com_pausa(fatos, esperas.append, _config(rodadas=3, pausa_s=0.5))
+
+    assert [rodada.classificacao for rodada in relatorio.casos[0].rodadas] == [
+        Classificacao.APROVADA
+    ] * 3
+    assert esperas == [0.5, 0.5]
+
+
+def test_sem_pausa_configurada_nao_dorme(fatos: FatosVerdadeiros) -> None:
+    esperas: list[float] = []
+
+    _executar_com_pausa(fatos, esperas.append, _config(rodadas=3))
+
+    assert esperas == []
+
+
+def test_pausa_nao_ocorre_em_rodadas_nao_executadas_pelo_teto(fatos: FatosVerdadeiros) -> None:
+    esperas: list[float] = []
+
+    relatorio = _executar_com_pausa(
+        fatos, esperas.append, _config(rodadas=3, pausa_s=0.5, teto_tokens=1)
+    )
+
+    # A primeira rodada roda e estoura o teto de tokens; as seguintes não rodam, então não há pausa.
+    classificacoes = [rodada.classificacao for rodada in relatorio.casos[0].rodadas]
+    assert classificacoes[0] is Classificacao.APROVADA
+    assert classificacoes[1:] == [Classificacao.NAO_EXECUTADA] * 2
+    assert esperas == []
+
+
+def test_pausa_negativa_e_recusada_pela_configuracao() -> None:
+    with pytest.raises(ValidationError):
+        ConfigExecucao(pausa_s=-1)

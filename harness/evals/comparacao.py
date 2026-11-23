@@ -29,6 +29,9 @@ Regra final (decisões deste módulo, não estão na spec):
   um total de iterações.
 - Contexto (modelo, provedores, hash do prompt, commit, árvore suja, orçamento, rodadas, versão
   do conjunto, telemetria) é informativo: diferenças são listadas, nunca bloqueiam.
+- Provedor: se o `provedor_solicitado` diferir entre as execuções (ou só um lado o declarar), ou
+  se um relatório tiver provedor efetivo diferente do solicitado, entra um aviso. Aviso não muda
+  o veredito.
 """
 
 import math
@@ -129,6 +132,38 @@ class Comparacao(BaseModel):
     hash_diferente: tuple[str, ...] = ()
     sem_taxa: tuple[str, ...] = ()
     valores: tuple[DiferencaValor, ...] = ()
+
+
+def _avisos_de_provedor(base: Relatorio, novo: Relatorio) -> list[str]:
+    """Avisos sobre o provedor pedido e o que respondeu. Não mudam o veredito."""
+    avisos: list[str] = []
+    sb, sn = base.provedor_solicitado, novo.provedor_solicitado
+    if (sb or "").casefold() != (sn or "").casefold():
+        if sb is None:
+            avisos.append(f"a linha de base não declara o provedor solicitado; o novo declara {sn}")
+        elif sn is None:
+            avisos.append(f"o novo não declara o provedor solicitado; a base declara {sb}")
+        else:
+            avisos.append(
+                f"os provedores solicitados são diferentes: base {sb}, novo {sn}. As taxas "
+                "podem refletir provedores distintos"
+            )
+    avisos += _avisos_de_provedor_efetivo("base", base)
+    avisos += _avisos_de_provedor_efetivo("novo", novo)
+    return avisos
+
+
+def _avisos_de_provedor_efetivo(rotulo: str, relatorio: Relatorio) -> list[str]:
+    solicitado = relatorio.provedor_solicitado
+    if solicitado is None:
+        return []
+    diferentes = [p for p in relatorio.provedores if p.casefold() != solicitado.casefold()]
+    if not diferentes:
+        return []
+    return [
+        f"{rotulo}: o provedor que respondeu ({', '.join(diferentes)}) é diferente do "
+        f"solicitado ({solicitado}); as taxas podem refletir outro provedor"
+    ]
 
 
 def _validas(resumo: ResumoCaso) -> int:
@@ -316,7 +351,7 @@ def comparar(
     if not 0 < limite_caso <= 1:
         raise ValueError("limite_caso precisa estar entre 0 (sem zero) e 1")
 
-    avisos: list[str] = []
+    avisos: list[str] = _avisos_de_provedor(base, novo)
     contexto = _contexto(base, novo)
     desvio_base_pp = (
         _pp(base.desvio_entre_rodadas) if base.desvio_entre_rodadas is not None else None

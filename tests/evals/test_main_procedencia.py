@@ -49,6 +49,8 @@ def _ambiente_limpo(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         if nome.startswith(("LANGFUSE", "OTEL", "OPENROUTER")):
             monkeypatch.delenv(nome, raising=False)
     monkeypatch.setenv("OPENROUTER_MODELO", "modelo-de-teste")
+    # A linha de base exige provedor fixado: os testes que não tratam disso usam um.
+    monkeypatch.setenv("OPENROUTER_PROVEDOR", "Wafer")
 
 
 def _resumo(caso_id: str, taxa: float, *, grupo: str = "desenvolvimento") -> ResumoCaso:

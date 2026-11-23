@@ -17,18 +17,24 @@ Decisões deste módulo (não estão na spec):
   `{**carregar_env(caminho), **os.environ}`. Não remove comentários no fim da linha, porque
   um valor pode conter `#`.
 - Mensagens de erro citam o nome da variável, nunca o seu valor.
+- `provedor` (`OPENROUTER_PROVEDOR`, nome do provedor no OpenRouter, por exemplo `Wafer`) é
+  opcional. O nome segue `[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}`: sem barra nem aspas. Vazio ou
+  ausente vira None. Quando está definido, o cliente fixa o roteamento nesse provedor.
 """
 
 import math
+import re
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Final
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 URL_PADRAO: Final = "https://openrouter.ai/api/v1"
+NOME_VARIAVEL_PROVEDOR: Final = "OPENROUTER_PROVEDOR"
 _VERDADEIROS: Final = frozenset({"1", "true", "sim", "yes", "on"})
 _FALSOS: Final = frozenset({"0", "false", "nao", "não", "no", "off"})
+_PROVEDOR_VALIDO: Final = re.compile(r"[A-Za-z0-9][A-Za-z0-9 ._-]{0,63}")
 
 
 class ConfigModelo(BaseModel):
@@ -41,12 +47,21 @@ class ConfigModelo(BaseModel):
     temperatura: float = Field(default=0.0, ge=0.0, le=2.0)
     seed: int | None = None
     fallback_provedor: bool = False
+    # Provedor fixo (nome do OpenRouter). Com ele, o fallback fica desligado.
+    provedor: str | None = None
     timeout_s: float = Field(default=60.0, gt=0)
     # Prazo de uma chamada inteira a `responder`, com todas as tentativas e esperas. O timeout
     # por tentativa (`timeout_s`) só limita cada operação de socket, então precisa deste teto.
     prazo_total_s: float = Field(default=120.0, gt=0, allow_inf_nan=False)
     max_tentativas: int = Field(default=3, ge=1)
     max_tokens_saida: int | None = Field(default=None, ge=1)
+
+    @field_validator("provedor")
+    @classmethod
+    def _provedor_valido(cls, valor: str | None) -> str | None:
+        if valor is None:
+            return None
+        return validar_provedor(valor)
 
     @model_validator(mode="after")
     def _prazo_cobre_a_tentativa(self) -> "ConfigModelo":
@@ -56,6 +71,27 @@ class ConfigModelo(BaseModel):
                 "tem de cobrir pelo menos uma tentativa"
             )
         return self
+
+
+def validar_provedor(texto: str, nome: str = NOME_VARIAVEL_PROVEDOR) -> str:
+    """Devolve o nome do provedor se ele casa o padrão. Senão levanta `ValueError`.
+
+    A mensagem cita `nome` (a variável ou a opção) e nunca o valor recebido.
+    """
+    if _PROVEDOR_VALIDO.fullmatch(texto) is None:
+        raise ValueError(
+            f"{nome} inválido: use de 1 a 64 caracteres, com letras, números, espaço, ponto, "
+            "sublinhado ou hífen, começando por letra ou número"
+        )
+    return texto
+
+
+def provedor_de_ambiente(env: Mapping[str, str]) -> str | None:
+    """`OPENROUTER_PROVEDOR` validado, ou None se vazio ou ausente. Levanta `ValueError`."""
+    bruto = _valor_opcional(env, NOME_VARIAVEL_PROVEDOR)
+    if bruto is None:
+        return None
+    return validar_provedor(bruto)
 
 
 def config_de_ambiente(env: Mapping[str, str]) -> ConfigModelo:
@@ -78,6 +114,9 @@ def config_de_ambiente(env: Mapping[str, str]) -> ConfigModelo:
     fallback = _bool_opcional(env, "OPENROUTER_FALLBACK")
     if fallback is not None:
         campos["fallback_provedor"] = fallback
+    provedor = provedor_de_ambiente(env)
+    if provedor is not None:
+        campos["provedor"] = provedor
     prazo = _float_opcional(env, "OPENROUTER_PRAZO_TOTAL")
     if prazo is not None:
         # Checado aqui e não só pelo Pydantic: a mensagem do Pydantic repete o valor recebido.
