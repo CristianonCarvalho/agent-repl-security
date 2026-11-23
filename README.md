@@ -1,14 +1,14 @@
 # agent-repl-security
 
-Harness de agente em que o modelo responde a pedidos escrevendo código Python, executado num REPL persistente e isolado (contêiner sem rede), que chama ferramentas do host por uma ponte controlada e devolve ao modelo só o resultado relevante.
+Harness de agente em que o modelo responde a pedidos escrevendo código Python, executado num REPL (Code Mode) persistente e isolado (contêiner sem rede), que chama ferramentas do host por uma ponte controlada e devolve ao modelo só o resultado relevante.
 
 Projeto de estudo, com dados sintéticos. Combina duas ideias: código como espaço de ações (CodeAct) e ferramentas como API de código carregada sob demanda (Code Mode). O foco é segurança: isolamento do sandbox, política contra a *lethal trifecta*, aprovação humana para escrita e defesa contra prompt injection.
 
-## O que é um REPL
+## O que é um REPL (Code Mode)
 
-REPL (*Read-Eval-Print Loop*) é um interpretador interativo: lê um trecho de código, executa, imprime o resultado e mantém o estado (variáveis, arquivos de trabalho) entre uma execução e a próxima. É o que acontece ao abrir `python` no terminal.
+REPL (Code Mode), sigla de *Read-Eval-Print Loop*, é um interpretador interativo: lê um trecho de código, executa, imprime o resultado e mantém o estado (variáveis, arquivos de trabalho) entre uma execução e a próxima. É o que acontece ao abrir `python` no terminal.
 
-Num harness REPL, a "ação" do modelo deixa de ser uma chamada JSON por ferramenta e passa a ser um bloco de código. Esse código pode chamar várias ferramentas, guardar resultados em variáveis e filtrar os dados antes de devolver ao modelo só o que importa. Dados intermediários e arquivos grandes ficam no REPL, fora do contexto do modelo.
+Num harness REPL (Code Mode), a "ação" do modelo deixa de ser uma chamada JSON por ferramenta e passa a ser um bloco de código. Esse código pode chamar várias ferramentas, guardar resultados em variáveis e filtrar os dados antes de devolver ao modelo só o que importa. Dados intermediários e arquivos grandes ficam no REPL (Code Mode), fora do contexto do modelo.
 
 Como o código vem do modelo, ele é tratado como hostil: roda num contêiner sem rede, e tudo que precisa do mundo externo atravessa uma ponte controlada pelo host.
 
@@ -28,7 +28,7 @@ flowchart LR
     end
 
     subgraph SBX["Sandbox (zona não confiável): contêiner sem rede"]
-        X[REPL persistente<br/>executa o código do modelo]
+        X["REPL (Code Mode) persistente<br/>executa o código do modelo"]
         D["/dados<br/>somente leitura,<br/>por perfil"]
         S["/saida<br/>efêmero"]
     end
@@ -54,7 +54,7 @@ O modelo emite um bloco de código por turno; o orquestrador o verifica e o envi
 **Fases 1 e 2 implementadas e Fase 3 (avaliações) em andamento**, com dados sintéticos e sem política de trifecta nem aprovação humana (Fase 4). Estado completo na [especificação](docs/especificacao-v0.md) e itens futuros no [backlog](docs/backlog.md):
 
 - Loop do orquestrador com orçamento (iterações, tokens, tempo), verificação estática e resumo final.
-- REPL persistente em contêiner Docker endurecido (sem rede, sistema de arquivos somente leitura, usuário sem privilégios), com ponte JSON-RPC para as ferramentas do host.
+- REPL (Code Mode) persistente em contêiner Docker endurecido (sem rede, sistema de arquivos somente leitura, usuário sem privilégios), com ponte JSON-RPC para as ferramentas do host.
 - Registro de ferramentas com perfis por departamento e a ferramenta `catalogo.listar`.
 - `FINAL(resposta, fontes)` com fontes obrigatórias, truncagem da saída e observações marcadas como não confiáveis.
 - Trace JSONL por pedido, com chamadas de ferramenta, tokens, provedor e custo.
@@ -72,7 +72,7 @@ uv run python -m harness "Qual o total gasto pelo cliente Acme nos pedidos de ve
 
 `OPENROUTER_PRAZO_TOTAL` (opcional, em segundos; padrão `120`) limita o tempo de uma chamada inteira ao modelo, incluindo repetições e esperas. Ao estourar, o pedido termina com `erro_llm`. Precisa ser maior ou igual ao timeout por tentativa (60 s).
 
-Entrada grande (documento, tabela, JSON) vai com `--contexto`. O arquivo `.json` vira objeto ou lista; qualquer outro é lido como texto UTF-8. O conteúdo fica na variável `context` do REPL, e o modelo só vê o tipo, o tamanho e uma prévia curta:
+Entrada grande (documento, tabela, JSON) vai com `--contexto`. O arquivo `.json` vira objeto ou lista; qualquer outro é lido como texto UTF-8. O conteúdo fica na variável `context` do REPL (Code Mode), e o modelo só vê o tipo, o tamanho e uma prévia curta:
 
 ```bash
 uv run python -m harness "Quantos pedidos há no arquivo e qual o maior valor?" --perfil Vendas --dados ./dados --contexto ./pedidos.csv
@@ -82,7 +82,7 @@ O limite do contexto é de 2 MiB (JSON canônico). Acima disso, o código de sa�
 
 ### Servidores MCP (`--mcp`)
 
-`--mcp ARQUIVO.json` liga servidores MCP por stdio. Cada ferramenta de um servidor vira `servidor.ferramenta` no REPL (`tools.eco.eco(texto="oi")`), e o nome do servidor é também o grupo que aparece no prompt. O arquivo tem um objeto `servidores`:
+`--mcp ARQUIVO.json` liga servidores MCP por stdio. Cada ferramenta de um servidor vira `servidor.ferramenta` no REPL (Code Mode), como `tools.eco.eco(texto="oi")`, e o nome do servidor é também o grupo que aparece no prompt. O arquivo tem um objeto `servidores`:
 
 ```json
 {
