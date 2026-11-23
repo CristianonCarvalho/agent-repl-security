@@ -119,7 +119,7 @@ Roda o agente de verdade contra casos com resposta conhecida e mede a taxa de su
 uv run python -m harness.evals --rodadas 3 --semente 42 --categoria consulta --teto-usd 1
 ```
 
-O relatório JSON vai para `avaliacoes/` e traz taxa por caso, categoria e total, variação entre rodadas, custo e tokens. Códigos de saída: 0 sem problemas, 1 houve erro de infraestrutura, 2 uso ou configuração inválidos, 3 teto de gasto estourado. O conjunto atual tem 20 casos ativos (5 de Consulta, Cruzamento, Conformidade e Permissão), separados em desenvolvimento e reservados; `--grupo` e `--categoria` filtram. Resultados e conclusões: [relatório da avaliação](docs/relatorios/avaliacao-fase3-t17a.md).
+O relatório JSON vai para `avaliacoes/` e traz taxa por caso, categoria e total, variação entre rodadas, custo e tokens. Códigos de saída: 0 sem problemas, 1 houve erro de infraestrutura, 2 uso ou configuração inválidos, 3 teto de gasto estourado. O conjunto atual tem 20 casos ativos (5 de Consulta, Cruzamento, Conformidade e Permissão), separados em desenvolvimento e reservados; `--grupo` e `--categoria` filtram. Para entender os conceitos (caso, gabarito, corretor, rodadas, linha de base, margem de ruído), comece pelo [guia dos evals](docs/guia-dos-evals.md). Resultados e conclusões: [relatório da avaliação](docs/relatorios/avaliacao-fase3-t17a.md).
 
 **Ponto de controle.** O conjunto completo (35 casos, 20 ativos e 15 pendentes) está congelado em `evals/conjuntos/v1-semente42.json`, e um teste falha se o código divergir dele. Cada relatório grava a procedência (commit, versão do conjunto, prompt, modelo, orçamento e hash por caso). Para guardar uma linha de base versionada e comparar execuções:
 
@@ -165,6 +165,7 @@ uv run pytest -m real_api
 
 ## Documentação
 
+- [Guia dos evals, para estudo](docs/guia-dos-evals.md)
 - [Especificação v0](docs/especificacao-v0.md)
 - [Diagramas de ferramentas, MCP e permissões](docs/diagramas-ferramentas-e-permissoes.md)
 - [Diagramas de segurança e defesa](docs/diagramas-seguranca.md)

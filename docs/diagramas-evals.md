@@ -1,5 +1,7 @@
 # Avaliações (evals)
 
+Para entender os conceitos por trás dos diagramas, comece pelo [guia dos evals](guia-dos-evals.md).
+
 Diagramas da Fase 3: como os dados sintéticos são gerados, como um caso é descrito e corrigido, e como o executor roda o agente de verdade e produz um relatório.
 
 ## Em resumo
