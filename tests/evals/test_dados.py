@@ -6,6 +6,7 @@ Não usam Docker nem rede.
 """
 
 import csv
+import hashlib
 import json
 import re
 from collections.abc import Iterator
@@ -38,6 +39,62 @@ ARQUIVOS_ESPERADOS = {
     "manifesto.json",
 }
 DEPARTAMENTOS = {"vendas", "comercial", "marketing", "financeiro", "direcao"}
+HASHES_SEMENTE_42 = {
+    "comercial/contratos_ativos.xlsx": (
+        "4a9c577c8099d1c96f134352d86893ad12e61ee1b6b16d0c293bb4ee13acf199"
+    ),
+    "comercial/propostas/PR-2026-001.docx": (
+        "287f66da5520b5156b29186d4745ee1a7347e388b6d4cd2c3521e75f0d93f2cd"
+    ),
+    "comercial/propostas/PR-2026-002.docx": (
+        "0914635ccf72498c50cdf851f9a41d2dbd78694b83c89e807722c557b2335577"
+    ),
+    "comercial/propostas/PR-2026-003.docx": (
+        "441263be19bc6a1ffa0c85aabb4f88b6ef350178d6973eae27fbd8a60f0b2b29"
+    ),
+    "comercial/propostas/PR-2026-004.docx": (
+        "fd3646d7bdb8fc73634a978b308cf283dcd58b22d2d9e3f10692e442c85c713f"
+    ),
+    "comercial/propostas/PR-2026-005.docx": (
+        "e5cef528d7d88f0968d5e06d0b591943ea26b71009439391d7fcbe994dd73b14"
+    ),
+    "comercial/propostas/PR-2026-006.docx": (
+        "0c95fbe478bf5214abb05d63d27cfdbc7ac81f1d9ba60e85aa8a7b8bfbb8e556"
+    ),
+    "comercial/propostas/PR-2026-007.docx": (
+        "c3a54db4b8292ddfe57ecbf01faea391e101e43d2fe36c4f9e48ebf0c940a54b"
+    ),
+    "comercial/propostas/PR-2026-008.docx": (
+        "81fbb40a7754277cf97a4586561647b992e2d78cb6d79d62712d5f7f6f634ea8"
+    ),
+    "direcao/atas/ata_2026-10-07.docx": (
+        "67f6c233a78d5b9af2c15d6659cc5ce3b2858e8e67d7c0b804ff2ebd7fb6c391"
+    ),
+    "direcao/atas/ata_2026-10-21.docx": (
+        "e5a233fac9906f61173ba675a9f5e60bf3f2824a4a3ed2001847fb4b96c42831"
+    ),
+    "direcao/metas_2026.docx": "ea579f53f1e950afd57ccb1ca41a309d21a0c2c965cfe758540800f1a5ea5266",
+    "financeiro/contas_a_receber.xlsx": (
+        "4d9ecaa4fa1320ba37cc6626a96938ad22c7f85d9810f8876f08d4016da8de24"
+    ),
+    "financeiro/dre_2026-10.xlsx": (
+        "1abfb0c0dd1c197b1927e211ccf7a1224aef57b01e6f248adc4eb182cbe1f9bd"
+    ),
+    "financeiro/orcamento_2026.xlsx": (
+        "562a9d1a7d072d023eb6f07be26a4a7cb82f03ebd3627e4b876367396dbe800f"
+    ),
+    "manifesto.json": "76ef6a7db6644a220cb68ee4376203a7ff83468755aa9b167233894805a390ef",
+    "marketing/apresentacao_mensal.pptx": (
+        "48265d3c8f75f946d41a94330c274ac5eef4ce61a36a76dcd3b2312334c207cc"
+    ),
+    "marketing/campanhas_2026-10.xlsx": (
+        "e6f14164acd197fc90ee5c3fc6d8e034541f6e238f619e2bdbb41f2457c849bf"
+    ),
+    "vendas/pedidos_2026-10.xlsx": (
+        "fa31867203b198d4903119b7b99f932f488e44e708e688ee1556905cd097fbc7"
+    ),
+    "vendas/pipeline.csv": "198cbf331de5133bffa647126af1b1d9304500ce87d5f77b251b82dc41669521",
+}
 
 
 def _ler_planilha(caminho: Path) -> list[tuple[Any, ...]]:
@@ -312,3 +369,14 @@ def test_destino_inexistente_e_escrita_restrita_ao_destino(tmp_path: Path) -> No
     antes = _bytes_por_arquivo(destino)
     assert gerar_dados(destino, SEMENTE) == fatos
     assert _bytes_por_arquivo(destino) == antes
+
+
+def test_arquivos_da_semente_42_nao_mudam(geracao: tuple[Path, FatosVerdadeiros]) -> None:
+    # Guarda: a expansão dos fatos não pode mudar nem um byte dos arquivos da semente 42.
+    destino, _ = geracao
+    atuais = {
+        caminho.relative_to(destino).as_posix(): hashlib.sha256(caminho.read_bytes()).hexdigest()
+        for caminho in destino.rglob("*")
+        if caminho.is_file()
+    }
+    assert atuais == HASHES_SEMENTE_42

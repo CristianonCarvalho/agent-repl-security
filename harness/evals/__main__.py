@@ -1,6 +1,6 @@
 """Linha de comando da avaliação: `uv run python -m harness.evals` (T16).
 
-Roda os casos de exemplo (ou só as categorias pedidas) com o modelo real do OpenRouter, grava o
+Roda os casos ativos (ou só as categorias e grupos pedidos) com o modelo real do OpenRouter, grava o
 relatório JSON e imprime um resumo em português. A configuração do modelo vem do `.env` do
 diretório atual, com `os.environ` por cima, como na CLI do harness. A chave nunca é impressa.
 
@@ -11,7 +11,9 @@ Decisões deste módulo (não estão na spec):
   ou configuração inválidos; 3 teto de gasto estourado, com precedência sobre o 1.
 - A configuração do modelo é conferida antes de qualquer rodada: chave ou modelo ausentes saem
   com código 2 sem gastar nada. A mensagem cita só o nome da variável.
-- Filtro de categoria: nome desconhecido e categoria sem caso de exemplo saem com código 2.
+- Filtro de categoria: nome desconhecido e categoria sem caso ativo saem com código 2.
+- `--grupo` escolhe desenvolvimento, reservado ou todos (padrão). Como cada par de gêmeos está
+  no mesmo grupo e na mesma categoria, nenhum filtro separa um negativo do seu controle.
 - Erros de configuração do Pydantic mostram só o campo e a mensagem, nunca o valor recebido.
 """
 
@@ -24,8 +26,8 @@ from typing import Final, TextIO
 
 from pydantic import ValidationError
 
-from harness.evals.casos import Caso, Categoria
-from harness.evals.casos_exemplo import CATEGORIAS_COM_EXEMPLO, casos_de_exemplo
+from harness.evals.casos import GRUPOS_DE_CASOS, Caso, Categoria
+from harness.evals.conjunto import CATEGORIAS_ATIVAS, casos_ativos
 from harness.evals.dados import FatosVerdadeiros
 from harness.evals.executor import ConfigExecucao, executar_avaliacao
 from harness.evals.relatorio import (
@@ -74,7 +76,13 @@ def _parser() -> argparse.ArgumentParser:
         "--categoria",
         action="append",
         default=[],
-        help="roda só esta categoria (pode repetir); padrão: todas com caso de exemplo",
+        help="roda só esta categoria (pode repetir); padrão: todas com caso ativo",
+    )
+    parser.add_argument(
+        "--grupo",
+        choices=(*GRUPOS_DE_CASOS, "todos"),
+        default="todos",
+        help="roda só o grupo de casos (padrão: todos)",
     )
     parser.add_argument(
         "--teto-usd", type=float, default=2.0, help="teto de custo em dólares (padrão: 2.0)"
@@ -117,8 +125,8 @@ def _categorias(valores: Sequence[str]) -> frozenset[Categoria]:
         except ValueError:
             nomes = ", ".join(sorted(c.value for c in Categoria))
             raise ErroDeUso(f"categoria desconhecida: {valor!r}. Categorias: {nomes}.") from None
-        if categoria not in CATEGORIAS_COM_EXEMPLO:
-            raise ErroDeUso(f"a categoria {valor!r} ainda não tem caso de exemplo")
+        if categoria not in CATEGORIAS_ATIVAS:
+            raise ErroDeUso(f"a categoria {valor!r} ainda não tem caso ativo")
         escolhidas.add(categoria)
     return frozenset(escolhidas)
 
@@ -159,14 +167,18 @@ def _fabrica_de_modelo(ambiente: Mapping[str, str]) -> Callable[[], ModeloLLM]:
     return lambda: ClienteOpenRouter(configuracao, chave)
 
 
-def _selecionar(categorias: frozenset[Categoria]) -> Callable[[FatosVerdadeiros], list[Caso]]:
-    """Função de casos para o executor: os exemplos, filtrados pelas categorias pedidas."""
+def _selecionar(
+    categorias: frozenset[Categoria], grupo: str
+) -> Callable[[FatosVerdadeiros], list[Caso]]:
+    """Função de casos para o executor: os ativos, filtrados por categoria e por grupo."""
 
     def selecionar(fatos: FatosVerdadeiros) -> list[Caso]:
-        casos = casos_de_exemplo(fatos)
-        if not categorias:
-            return casos
-        return [caso for caso in casos if caso.categoria in categorias]
+        casos = casos_ativos(fatos)
+        if categorias:
+            casos = [caso for caso in casos if caso.categoria in categorias]
+        if grupo != "todos":
+            casos = [caso for caso in casos if caso.grupo == grupo]
+        return casos
 
     return selecionar
 
@@ -201,6 +213,13 @@ def _resumo(saida: TextIO, relatorio: Relatorio, caminho: Path | None) -> None:
         linhas.append(f"Custo: US$ {_br(relatorio.custo_total)}")
     if relatorio.rodadas_sem_custo:
         linhas.append(f"  rodadas sem custo informado: {relatorio.rodadas_sem_custo}")
+    if relatorio.grupos:
+        linhas.append("Por grupo:")
+        for grupo in relatorio.grupos:
+            linhas.append(
+                f"  {grupo.grupo}: {_percentual(grupo.taxa)} "
+                f"({grupo.casos_considerados} caso(s) com taxa)"
+            )
     linhas.append(
         f"Tokens: entrada {relatorio.tokens_entrada_total}, saída {relatorio.tokens_saida_total}"
     )
@@ -248,7 +267,9 @@ def main(
 
     executor = executar if executar is not None else executar_avaliacao
     try:
-        relatorio = executor(_selecionar(categorias), fabrica_modelo, config, aoprogresso=progresso)
+        relatorio = executor(
+            _selecionar(categorias, args.grupo), fabrica_modelo, config, aoprogresso=progresso
+        )
     except Exception as erro:
         saida.write(f"a avaliação não pôde ser concluída ({type(erro).__name__})\n")
         return CODIGO_ERRO_INFRA

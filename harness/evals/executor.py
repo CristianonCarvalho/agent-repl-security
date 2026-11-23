@@ -5,9 +5,9 @@ com o corretor da T15. Tudo roda em sequência, um contêiner por vez. No fim, `
 o relatório.
 
 Decisões deste módulo (não estão na spec):
-- `casos` é uma função `FatosVerdadeiros -> casos`, não uma lista. Os casos de exemplo leem os
-  fatos da geração, que só existem depois de `gerar_dados`. Quem chama passa
-  `casos_de_exemplo` (ou um filtro dele); os testes passam uma função que monta casos pequenos.
+- `casos` é uma função `FatosVerdadeiros -> casos`, não uma lista. Os casos leem os fatos da
+  geração, que só existem depois de `gerar_dados`. Quem chama passa `casos_ativos` (ou um
+  filtro dele); os testes passam uma função que monta casos pequenos.
 - Os dados são gerados numa pasta temporária, que some no fim, com ou sem erro.
 - Tetos: antes de cada rodada, confere-se o acumulado das rodadas já feitas. Custo conta só
   os valores conhecidos. Ao estourar, esta rodada e todas as seguintes viram `nao_executada`.

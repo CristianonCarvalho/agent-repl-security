@@ -4,6 +4,7 @@ Cobre situação, ids, perfis, regras do gabarito, unicidade do conjunto e a ida
 Não usam Docker nem rede.
 """
 
+import json
 from decimal import Decimal
 
 import pytest
@@ -12,6 +13,7 @@ from pydantic import ValidationError
 from harness.evals.casos import (
     Caso,
     Categoria,
+    CitaAlgumaFonte,
     CitaFontes,
     ContemAlgum,
     ContemExato,
@@ -132,6 +134,10 @@ def test_regra_vazia_e_rejeitada() -> None:
         NaoContem()
     with pytest.raises(ValueError):
         CitaFontes(fontes=[])
+    with pytest.raises(ValueError):
+        CitaAlgumaFonte(fontes=[])
+    with pytest.raises(ValueError):
+        CitaAlgumaFonte(fontes=["   "])
 
 
 def test_numero_nao_finito_e_rejeitado() -> None:
@@ -194,6 +200,11 @@ def test_descrever_regras_sao_curtas_e_legiveis() -> None:
     )
     assert "'Mercado Alvorada'" in ContemTodos(textos=["Mercado Alvorada"]).descrever()
     assert RecusaAcesso().descrever() == "resposta recusa o acesso ao dado"
+    assert CitaAlgumaFonte(
+        fontes=["vendas/pedidos_2026-10.xlsx", "financeiro/dre_2026-10.xlsx"]
+    ).descrever() == (
+        "fontes incluem alguma de 'vendas/pedidos_2026-10.xlsx', 'financeiro/dre_2026-10.xlsx'"
+    )
     assert "na grafia exata 'MERCADO ALVORADA LTDA.'" in (
         ContemExato(textos=["MERCADO ALVORADA LTDA."]).descrever()
     )
@@ -262,9 +273,96 @@ def test_json_guarda_a_regra_exata_com_seu_tipo() -> None:
     assert "MERCADO ALVORADA LTDA." in texto
 
 
+def test_json_ida_e_volta_preserva_cita_alguma_fonte() -> None:
+    caso = _caso(
+        id="conformidade-05",
+        categoria=Categoria.CONFORMIDADE,
+        perfil="Direção",
+        gabarito=[
+            CitaFontes(fontes=["direcao/metas_2026.docx"]),
+            CitaAlgumaFonte(fontes=["vendas/pedidos_2026-10.xlsx", "financeiro/dre_2026-10.xlsx"]),
+        ],
+    )
+
+    texto = casos_para_json([caso])
+
+    assert '"tipo": "cita_alguma_fonte"' in texto
+    assert casos_de_json(texto) == [caso]
+
+
 def test_json_com_id_duplicado_e_rejeitado() -> None:
     casos = [_caso(id="consulta-01"), _caso(id="consulta-01")]
     texto = casos_para_json(casos)
 
     with pytest.raises(ValueError, match="duplicados"):
         casos_de_json(texto)
+
+
+# --- grupo e gêmeo ---------------------------------------------------------------------------
+
+
+def test_grupo_padrao_e_desenvolvimento_e_json_antigo_carrega() -> None:
+    caso = _caso()
+    assert caso.grupo == "desenvolvimento"
+    assert caso.gemeo is None
+
+    antigo = json.loads(casos_para_json([caso]))
+    del antigo[0]["grupo"]
+    del antigo[0]["gemeo"]
+    de_volta = casos_de_json(json.dumps(antigo))
+    assert de_volta[0].grupo == "desenvolvimento"
+    assert de_volta[0].gemeo is None
+
+
+def test_grupo_so_aceita_os_dois_valores() -> None:
+    assert _caso(grupo="reservado").grupo == "reservado"
+    with pytest.raises(ValidationError):
+        _caso(grupo="outro")
+
+
+@pytest.mark.parametrize("gemeo", ["permissao", "Permissao-01", "permissao-1", "permissao-01x"])
+def test_gemeo_com_formato_invalido_e_rejeitado(gemeo: str) -> None:
+    with pytest.raises(ValidationError):
+        _caso(id="permissao-01", categoria=Categoria.PERMISSAO, gemeo=gemeo)
+
+
+def test_gemeo_nao_pode_ser_o_proprio_caso() -> None:
+    with pytest.raises(ValidationError):
+        _caso(id="permissao-01", categoria=Categoria.PERMISSAO, gemeo="permissao-01")
+
+
+def test_validar_conjunto_aceita_par_reciproco() -> None:
+    a = _caso(id="permissao-01", categoria=Categoria.PERMISSAO, gemeo="permissao-02")
+    b = _caso(id="permissao-02", categoria=Categoria.PERMISSAO, gemeo="permissao-01")
+    validar_conjunto([a, b])
+
+
+def test_validar_conjunto_rejeita_gemeo_inexistente() -> None:
+    a = _caso(id="permissao-01", categoria=Categoria.PERMISSAO, gemeo="permissao-02")
+    with pytest.raises(ValueError, match="permissao-02"):
+        validar_conjunto([a])
+
+
+def test_validar_conjunto_rejeita_gemeo_que_nao_e_reciproco() -> None:
+    a = _caso(id="permissao-01", categoria=Categoria.PERMISSAO, gemeo="permissao-02")
+    b = _caso(id="permissao-02", categoria=Categoria.PERMISSAO)
+    with pytest.raises(ValueError, match="recíproco"):
+        validar_conjunto([a, b])
+
+
+def test_validar_conjunto_rejeita_gemeo_de_outra_categoria() -> None:
+    a = _caso(id="permissao-01", categoria=Categoria.PERMISSAO, gemeo="consulta-02")
+    b = _caso(id="consulta-02", gemeo="permissao-01")
+    with pytest.raises(ValueError, match="categorias diferentes"):
+        validar_conjunto([a, b])
+
+
+def test_json_ida_e_volta_preserva_grupo_e_gemeo() -> None:
+    a = _caso(
+        id="permissao-01", categoria=Categoria.PERMISSAO, grupo="reservado", gemeo="permissao-02"
+    )
+    b = _caso(id="permissao-02", categoria=Categoria.PERMISSAO, gemeo="permissao-01")
+    de_volta = casos_de_json(casos_para_json([a, b]))
+    assert de_volta == [a, b]
+    assert de_volta[0].grupo == "reservado"
+    assert de_volta[0].gemeo == "permissao-02"

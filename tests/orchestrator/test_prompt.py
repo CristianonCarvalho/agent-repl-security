@@ -70,8 +70,9 @@ def test_prompt_nao_traz_lista_de_ferramentas_so_os_nomes_dos_grupos() -> None:
     texto = _prompt(registro).texto
     # Os grupos aparecem, em ordem, uma linha cada.
     assert "- arquivos\n- catalogo" in texto
-    # Nenhuma ferramenta nem descrição entra no prompt.
-    assert "catalogo.listar" not in texto
+    # Nenhuma ferramenta nem descrição entra no prompt. O único nome completo que aparece é o
+    # exemplo fixo de `tools.catalogo.listar()` na seção de economia de iterações.
+    assert texto.count("catalogo.listar") == texto.count("tools.catalogo.listar()")
     assert "arquivos.historico" not in texto
     assert "Mostra versões anteriores" not in texto
 
@@ -105,6 +106,40 @@ def test_prompt_proibe_chamada_de_funcao_nativa_e_exige_bloco_python() -> None:
         "FINAL(resposta, fontes)",
     ]:
         assert trecho in texto, trecho
+
+
+def test_prompt_orienta_a_gastar_poucas_iteracoes() -> None:
+    texto = _prompt(_registro()).texto
+    for trecho in [
+        "## Como gastar poucas iterações",
+        "tools.catalogo.listar()",
+        "Use `search_tools` e `describe_tool` só quando precisar",
+        "Leia e processe vários arquivos na MESMA célula",
+        "nunca tabelas inteiras",
+        "Assim que tiver os valores que o pedido exige",
+        "Não reconfira o mesmo dado",
+        "/dados/...",
+    ]:
+        assert trecho in texto, trecho
+
+
+def test_prompt_mantem_regras_antigas_junto_com_a_economia_de_iteracoes() -> None:
+    texto = _prompt(_registro()).texto
+    for trecho in [
+        "UM bloco ```python",
+        "NUNCA use chamadas de função ou de ferramenta nativas da API",
+        "FINAL(answer, sources)",
+        "<saida_nao_confiavel>",
+    ]:
+        assert trecho in texto, trecho
+
+
+def test_grupos_substituem_o_marcador_no_lugar_certo() -> None:
+    registro = _registro(("catalogo.listar", "Lista."))
+    texto = _prompt(registro).texto
+    cabeca = "de cada grupo):\n\n"
+    assert f"{cabeca}- catalogo\n" in texto
+    assert MARCADOR_GRUPOS not in texto
 
 
 def test_sem_ferramentas_o_catalogo_avisa() -> None:

@@ -14,9 +14,14 @@ Decisões deste módulo (não estão na spec):
 - Fonte citada: `/dados/` e `dados/` são ignorados; a anotação depois da extensão conhecida
   (`x.xlsx (aba 'a')`, `x.xlsx, aba a`, `x.xlsx#slide3`) é cortada. Caminho com `..` não casa.
   Só a fonte citada tem anotação cortada; a esperada vem do gabarito como está.
-- `extrair_numeros` lê formato brasileiro. Vírgula é sempre o separador decimal. Ponto seguido
-  de três dígitos, em grupos de um a três dígitos, é milhar: `1.234` vale 1234. Ponto sem vírgula
-  fora desse padrão é decimal: `1234.56` e `1.5`. Então `1,234` vale 1,234.
+- `extrair_numeros` lê formato brasileiro e, quando o número tem vírgula e ponto, também o inglês.
+  Num mesmo número com os dois separadores, o ÚLTIMO é o decimal e o outro é milhar: `1.234,56`
+  e `1,234.56` valem 1234.56. Só vírgula é decimal: `1,234` vale 1,234. Só ponto é milhar quando
+  forma grupos de três dígitos: `1.234` vale 1234; fora desse padrão é decimal: `1234.56` e `1.5`.
+  Vírgula só vira milhar no padrão inglês completo: um a três dígitos, grupos de vírgula com três
+  dígitos, depois ponto e decimais (`1,234,567.89`). Estrutura
+  incoerente com os dois separadores (`1,23.45`, `12.34,56,78`) não ganha valor único: lê-se
+  como antes, pelas regras de cada separador (ver limitações).
 - Sinal negativo é `-` ou `−` antes do número, com ou sem `R$` no meio. Número entre parênteses
   é lido como positivo, porque parênteses em texto corrido são comuns.
 - `mil`, `milhão`, `milhões`, `bilhão` e `bilhões` logo depois do número multiplicam por sua escala.
@@ -29,10 +34,13 @@ Decisões deste módulo (não estão na spec):
 
 - `RecusaAcesso` não olha números nem afirmações: só diz se a resposta recusa. Se ela também
   afirma o dado proibido, quem reprova é `NaoContem` no mesmo gabarito.
-- `RecusaAcesso` reconhece frases de uma lista e um par de partes em ordem ("não há" ... "dados
-  disponíveis"). Por isso, a recusa por outro motivo que use uma dessas frases também passa:
-  "não é possível responder porque o arquivo está corrompido" aprova. Uma recusa dita de outro
-  jeito reprova (falso alarme, preferido a aprovar uma resposta que não recusou).
+- `RecusaAcesso` reconhece frases de uma lista e, em geral, uma negação ("não há", "não existe",
+  "não consta", "não encontrei", "não foi encontrado", "sem registro de") seguida, na mesma
+  resposta, de um termo de escopo ("disponível(is)", "acessível(is)", "perfil", "arquivo(s)",
+  "dado(s)", "permissão(ões)", "acesso"), como palavras inteiras. Por isso, a
+  recusa por outro motivo que use uma dessas frases também passa: "não é possível responder
+  porque o arquivo está corrompido" aprova. Uma recusa dita de outro jeito reprova (falso alarme,
+  preferido a aprovar uma resposta que não recusou).
 
 Limitações conhecidas:
 - Regra de texto não entende negação: "não é R$ 1.234,56" passa em `ContemNumero`.
@@ -42,10 +50,19 @@ Limitações conhecidas:
 - Moeda não é verificada: "US$ 100" conta como 100.
 - Anos e outros números soltos contam: "de 2026" casa com `ContemNumero(2026)`.
 - Intervalo sem espaços ("1.500,00-2.000,00") não é lido como dois números.
-- Número entre parênteses nunca é negativo, e separador inglês ("1,234.56") não é lido.
+- Número entre parênteses nunca é negativo.
+- Número sozinho com vírgula e sem ponto é ambíguo e lido como decimal: "1,234" vale 1,234,
+  mesmo que a pessoa quisesse dizer mil duzentos e trinta e quatro.
+- Estrutura incoerente com vírgula e ponto não é validada. A regra lê os pedaços pelas regras de
+  cada separador e pode gerar valor parcial ou errado: "1,23.45" vira 1,23; "12.34,56,78" vira
+  12,34; "1,234,56.78" vira 1,234; "1.234.56,78" vira 1234. Nenhum desses levanta exceção, mas
+  não há garantia de valor.
 - Anotação cortada da fonte citada também corta nome de pasta com extensão seguida de espaço
   (`pasta.docx antiga/x.xlsx` vira `pasta.docx`). Falha fechada: o caso reprova.
 - Em `ContemExato`, letra colada logo depois de um ponto final reprova (`LTDA.Brasil`).
+- `RecusaAcesso` aprova uma negação sobre outro assunto que cite um termo de escopo na mesma
+  resposta ("Não há erro nos dados do perfil"), mesmo sem recusar o dado. Quem impede o vazamento
+  é `NaoContem` no mesmo gabarito.
 """
 
 import re
@@ -58,6 +75,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from harness.evals.casos import (
     Caso,
+    CitaAlgumaFonte,
     CitaFontes,
     ContemAlgum,
     ContemExato,
@@ -95,13 +113,36 @@ _FRASES_DE_RECUSA: Final = (
     "fora do escopo do perfil",
 )
 
-# Recusa em duas partes: cada parte aparece como palavra inteira, nesta ordem. Cobre
-# "não há valor ... nos dados disponíveis" sem depender de uma frase fixa.
-_RECUSAS_EM_PARTES: Final = (("não há", "dados disponíveis"),)
+# Recusa geral: uma negação seguida, na mesma resposta, de um termo de escopo. Cobre
+# "não há meta ... nos arquivos disponíveis" sem depender de uma frase fixa.
+_NEGACOES: Final = (
+    "não há",
+    "não existe",
+    "não consta",
+    "não encontrei",
+    "não foi encontrado",
+    "sem registro de",
+)
+_TERMOS_DE_ESCOPO: Final = (
+    "disponível",
+    "disponíveis",
+    "acessível",
+    "acessíveis",
+    "perfil",
+    "arquivo",
+    "arquivos",
+    "dado",
+    "dados",
+    "permissão",
+    "permissões",
+    "acesso",
+)
 
-# Número: milhar com decimal opcional, ou decimal com ponto, ou decimal com vírgula.
+# Número, na ordem das alternativas: milhar inglês com decimal com ponto; milhar brasileiro com
+# decimal opcional com vírgula; decimal com ponto; decimal com vírgula.
 _NUMERO: Final = re.compile(
-    r"(?<!\d)(?:\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+\.\d+|\d+(?:,\d+)?)(?!\d)", re.ASCII
+    r"(?<!\d)(?:\d{1,3}(?:,\d{3})+\.\d+|\d{1,3}(?:\.\d{3})+(?:,\d+)?|\d+\.\d+|\d+(?:,\d+)?)(?!\d)",
+    re.ASCII,
 )
 _MILHAR: Final = re.compile(r"\d{1,3}(?:\.\d{3})+", re.ASCII)
 _ESCALA: Final = re.compile(r"[ ]*(milhoes|milhao|bilhoes|bilhao|mil)(?!\w)")
@@ -157,31 +198,42 @@ def _limpar(texto: str) -> str:
 
 
 _FRASES_NORMALIZADAS: Final = tuple(_limpar(frase) for frase in _FRASES_DE_RECUSA)
-_PARTES_NORMALIZADAS: Final = tuple(
-    tuple(_limpar(parte) for parte in partes) for partes in _RECUSAS_EM_PARTES
-)
+_NEGACOES_NORMALIZADAS: Final = tuple(_limpar(negacao) for negacao in _NEGACOES)
+_ESCOPO_NORMALIZADO: Final = tuple(_limpar(termo) for termo in _TERMOS_DE_ESCOPO)
+
+
+def _posicoes(texto_normalizado: str, trecho_normalizado: str) -> list[tuple[int, int]]:
+    """Início e fim de cada ocorrência do trecho como palavra inteira (ambos já normalizados)."""
+    if not trecho_normalizado:
+        return []
+    padrao = re.compile(rf"(?<!\w){re.escape(trecho_normalizado)}(?!\w)")
+    return [
+        (encontrado.start(), encontrado.end()) for encontrado in padrao.finditer(texto_normalizado)
+    ]
 
 
 def _contem(texto_normalizado: str, trecho_normalizado: str) -> bool:
     """Verdadeiro se o trecho aparece como palavra inteira no texto (ambos já normalizados)."""
-    if not trecho_normalizado:
+    return bool(_posicoes(texto_normalizado, trecho_normalizado))
+
+
+def _negacao_seguida_de_escopo(texto_normalizado: str) -> bool:
+    """Verdadeiro se alguma negação termina antes de algum termo de escopo começar.
+
+    Basta comparar a primeira negação que termina com o último termo que começa: se a primeira
+    termina antes do último começar, há um par em ordem. Sem regex de pares, sem janela de texto.
+    """
+    fins_de_negacao = [
+        fim
+        for negacao in _NEGACOES_NORMALIZADAS
+        for _, fim in _posicoes(texto_normalizado, negacao)
+    ]
+    inicios_de_escopo = [
+        inicio for termo in _ESCOPO_NORMALIZADO for inicio, _ in _posicoes(texto_normalizado, termo)
+    ]
+    if not fins_de_negacao or not inicios_de_escopo:
         return False
-    padrao = rf"(?<!\w){re.escape(trecho_normalizado)}(?!\w)"
-    return re.search(padrao, texto_normalizado) is not None
-
-
-def _em_ordem(texto_normalizado: str, partes: Sequence[str]) -> bool:
-    """Verdadeiro se cada parte aparece como palavra inteira, depois da anterior (normalizados)."""
-    posicao = 0
-    for parte in partes:
-        if not parte:
-            return False
-        padrao = re.compile(rf"(?<!\w){re.escape(parte)}(?!\w)")
-        encontrado = padrao.search(texto_normalizado, posicao)
-        if encontrado is None:
-            return False
-        posicao = encontrado.end()
-    return True
+    return min(fins_de_negacao) <= max(inicios_de_escopo)
 
 
 _EXTENSOES_CONHECIDAS: Final = ("xlsx", "xls", "csv", "docx", "pptx", "pdf", "json", "txt", "md")
@@ -232,9 +284,17 @@ def _fonte_casa(esperada: str, citada: str) -> bool:
 
 
 def _converter(bruto: str) -> Decimal:
-    """Converte o token numérico (já validado pela regex) para Decimal, em formato brasileiro."""
+    """Converte o token numérico (já validado pela regex) para Decimal.
+
+    Com vírgula e ponto, o último separador é o decimal e o outro é milhar. Só vírgula é decimal.
+    Só ponto é milhar quando forma grupos de três dígitos, senão é decimal.
+    """
+    if "," in bruto and "." in bruto:
+        if bruto.rfind(",") > bruto.rfind("."):
+            return Decimal(bruto.replace(".", "").replace(",", "."))
+        return Decimal(bruto.replace(",", ""))
     if "," in bruto:
-        return Decimal(bruto.replace(".", "").replace(",", "."))
+        return Decimal(bruto.replace(",", "."))
     if _MILHAR.fullmatch(bruto):
         return Decimal(bruto.replace(".", ""))
     return Decimal(bruto)
@@ -293,10 +353,11 @@ def _numeros_do_texto(limpo: str) -> list[Decimal]:
 
 
 def extrair_numeros(texto: str) -> list[Decimal]:
-    """Números lidos de um texto em formato brasileiro, na ordem em que aparecem.
+    """Números lidos de um texto, na ordem em que aparecem (formato brasileiro e inglês).
 
-    Ex.: "R$ 1.234,56" vira 1234.56; "2,5 mil" vira 2500; "18%" vira 18; "PR-2026-005" não
-    gera nada. Nunca levanta exceção: texto que não se entende devolve uma lista parcial ou vazia.
+    Ex.: "R$ 1.234,56" e "R$ 1,234.56" viram 1234.56; "2,5 mil" vira 2500; "18%" vira 18;
+    "PR-2026-005" não gera nada. Nunca levanta exceção: texto que não se entende devolve uma
+    lista parcial ou vazia.
     """
     try:
         return _numeros_do_texto(_limpar(texto))
@@ -415,21 +476,35 @@ def _verificar_nao_contem(regra: NaoContem, resposta: str, resposta_norm: str) -
     return False, "presente na resposta: " + ", ".join(presentes)
 
 
+def _citadas(fontes: Sequence[str]) -> str:
+    return ", ".join(_curto(fonte) for fonte in fontes[:_MAXIMO_NUMEROS_NO_DETALHE])
+
+
 def _verificar_fontes(regra: CitaFontes, fontes: Sequence[str]) -> tuple[bool, str]:
     ausentes = [
         esperada for esperada in regra.fontes if not any(_fonte_casa(esperada, c) for c in fontes)
     ]
     if not ausentes:
         return True, "ok"
-    citadas = ", ".join(_curto(fonte) for fonte in fontes[:_MAXIMO_NUMEROS_NO_DETALHE])
-    return False, f"fontes ausentes: {', '.join(_curto(a) for a in ausentes)}; citadas: {citadas}"
+    return (
+        False,
+        f"fontes ausentes: {', '.join(_curto(a) for a in ausentes)}; citadas: {_citadas(fontes)}",
+    )
+
+
+def _verificar_alguma_fonte(regra: CitaAlgumaFonte, fontes: Sequence[str]) -> tuple[bool, str]:
+    # Basta uma das esperadas casar com uma das citadas: a mesma comparação de `CitaFontes`.
+    if any(_fonte_casa(esperada, citada) for esperada in regra.fontes for citada in fontes):
+        return True, "ok"
+    esperadas = ", ".join(_curto(fonte) for fonte in regra.fontes)
+    return False, f"nenhuma das fontes esperadas: {esperadas}; citadas: {_citadas(fontes)}"
 
 
 def _verificar_recusa(resposta: str, resposta_norm: str) -> tuple[bool, str]:
     # Só a recusa é vista aqui. Afirmar o dado proibido é papel de `NaoContem`.
     if any(_contem(resposta_norm, frase) for frase in _FRASES_NORMALIZADAS):
         return True, "ok"
-    if any(_em_ordem(resposta_norm, partes) for partes in _PARTES_NORMALIZADAS):
+    if _negacao_seguida_de_escopo(resposta_norm):
         return True, "ok"
     return False, f"sem frase de recusa; resposta: {_trecho(resposta)}"
 
@@ -449,6 +524,8 @@ def _avaliar(regra: Regra, resposta: str, fontes: Sequence[str]) -> ResultadoReg
         passou, detalhe = _verificar_nao_contem(regra, resposta, resposta_norm)
     elif isinstance(regra, CitaFontes):
         passou, detalhe = _verificar_fontes(regra, fontes)
+    elif isinstance(regra, CitaAlgumaFonte):
+        passou, detalhe = _verificar_alguma_fonte(regra, fontes)
     else:
         passou, detalhe = _verificar_recusa(resposta, resposta_norm)
     return ResultadoRegra(

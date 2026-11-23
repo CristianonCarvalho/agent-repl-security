@@ -4,6 +4,7 @@ As contas esperadas estão escritas nos testes. Com a semente fixa, os números 
 """
 
 import hashlib
+import json
 import math
 from pathlib import Path
 from typing import Literal
@@ -320,3 +321,101 @@ def test_falha_de_io_levanta_erro_claro(tmp_path: Path) -> None:
 
     with pytest.raises(ErroDeRelatorio, match="não foi possível gravar o relatório"):
         escrever_relatorio(relatorio, bloqueio / "sub")
+
+
+# --- grupos -----------------------------------------------------------------------------------
+
+
+def _caso_com_grupo(
+    caso_id: str, *, grupo: Literal["desenvolvimento", "reservado"], ativo: bool = True
+) -> Caso:
+    situacao = (
+        Situacao(ativo=True)
+        if ativo
+        else Situacao(ativo=False, motivo_pendente="aguardando a alçada da diretoria")
+    )
+    return Caso(
+        id=caso_id,
+        categoria=Categoria.CONSULTA,
+        perfil="Vendas",
+        pedido="Qual é o valor? Cite a fonte.",
+        situacao=situacao,
+        gabarito=[RecusaAcesso()],
+        grupo=grupo,
+    )
+
+
+def _cenario_com_grupos() -> tuple[list[Caso], dict[str, list[RodadaCaso]]]:
+    """Dois casos de desenvolvimento, um reservado e um reservado pendente.
+
+    consulta-01 (desenvolvimento): aprovada e reprovada. Taxa 0,5.
+    consulta-02 (desenvolvimento): aprovada. Taxa 1,0.
+    consulta-03 (reservado): reprovada. Taxa 0,0.
+    consulta-04 (reservado, pendente): sem rodadas, fora de todos os grupos.
+    Desenvolvimento: média de 0,5 e 1,0 = 0,75. Reservado: 0,0. Total: (0,5 + 1,0 + 0,0) / 3.
+    """
+    casos = [
+        _caso_com_grupo("consulta-01", grupo="desenvolvimento"),
+        _caso_com_grupo("consulta-02", grupo="desenvolvimento"),
+        _caso_com_grupo("consulta-03", grupo="reservado"),
+        _caso_com_grupo("consulta-04", grupo="reservado", ativo=False),
+    ]
+    rodadas = {
+        "consulta-01": [
+            _rodada(1, APROVADA, caso_id="consulta-01"),
+            _rodada(2, REPROVADA, caso_id="consulta-01"),
+        ],
+        "consulta-02": [_rodada(1, APROVADA, caso_id="consulta-02")],
+        "consulta-03": [_rodada(1, REPROVADA, caso_id="consulta-03")],
+        "consulta-04": [],
+    }
+    return casos, rodadas
+
+
+def test_taxa_por_grupo_conferida_a_mao() -> None:
+    casos, rodadas = _cenario_com_grupos()
+    relatorio = _agregar(casos, rodadas)
+
+    grupos = {resumo.grupo: resumo for resumo in relatorio.grupos}
+    assert [resumo.grupo for resumo in relatorio.grupos] == ["desenvolvimento", "reservado"]
+    assert grupos["desenvolvimento"].taxa == pytest.approx(0.75)
+    assert grupos["desenvolvimento"].casos_considerados == 2
+    assert grupos["reservado"].taxa == pytest.approx(0.0)
+    assert grupos["reservado"].casos_considerados == 1
+    assert relatorio.taxa_total == pytest.approx(0.5)
+    assert [resumo.grupo for resumo in relatorio.casos] == [
+        "desenvolvimento",
+        "desenvolvimento",
+        "reservado",
+        "reservado",
+    ]
+
+
+def test_grupo_sem_casos_ativos_nao_aparece_no_relatorio() -> None:
+    casos = [_caso_com_grupo("consulta-01", grupo="desenvolvimento")]
+    relatorio = _agregar(casos, {"consulta-01": [_rodada(1, APROVADA, caso_id="consulta-01")]})
+
+    assert [resumo.grupo for resumo in relatorio.grupos] == ["desenvolvimento"]
+
+
+def test_grupos_sobrevivem_ao_json() -> None:
+    casos, rodadas = _cenario_com_grupos()
+    relatorio = _agregar(casos, rodadas)
+
+    de_volta = relatorio_de_json(relatorio_para_json(relatorio))
+
+    assert de_volta == relatorio
+    assert de_volta.grupos == relatorio.grupos
+
+
+def test_relatorio_antigo_sem_grupo_carrega_como_desenvolvimento() -> None:
+    casos, rodadas = _cenario_com_grupos()
+    dados = json.loads(relatorio_para_json(_agregar(casos, rodadas)))
+    for resumo in dados["casos"]:
+        del resumo["grupo"]
+    del dados["grupos"]
+
+    antigo = relatorio_de_json(json.dumps(dados))
+
+    assert {resumo.grupo for resumo in antigo.casos} == {"desenvolvimento"}
+    assert antigo.grupos == ()

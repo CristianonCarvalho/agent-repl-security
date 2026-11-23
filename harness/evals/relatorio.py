@@ -20,6 +20,9 @@ Decisões deste módulo (não estão na spec):
   veredito reprovado; `pendente` só em caso não ativo; `detalhe` só em `erro_infra` e
   `nao_executada`. Em `agregar`, rodada de caso pendente só pode ser `pendente`.
 - Escrita nunca sobrescreve: se o nome já existe, ganha um sufixo numérico.
+- `grupos` tem a taxa de cada grupo (desenvolvimento e reservado), com a mesma regra da taxa
+  total: média das taxas dos casos ativos do grupo que têm taxa. Relatório antigo sem `grupo`
+  em `ResumoCaso` carrega como desenvolvimento, e sem `grupos` carrega com a tupla vazia.
 """
 
 import hashlib
@@ -32,7 +35,7 @@ from typing import Final, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from harness.evals.casos import Caso, Categoria, casos_para_json
+from harness.evals.casos import GRUPOS_DE_CASOS, Caso, Categoria, GrupoCaso, casos_para_json
 from harness.evals.correcao import Veredito
 
 
@@ -103,6 +106,7 @@ class ResumoCaso(BaseModel):
     rodadas: tuple[RodadaCaso, ...] = ()
     taxa: float | None = None
     desvio: float | None = None
+    grupo: GrupoCaso = "desenvolvimento"
 
 
 class ResumoCategoria(BaseModel):
@@ -111,6 +115,16 @@ class ResumoCategoria(BaseModel):
     model_config = ConfigDict(frozen=True)
 
     categoria: Categoria
+    taxa: float | None = None
+    casos_considerados: int = Field(ge=0)
+
+
+class ResumoGrupo(BaseModel):
+    """Média das taxas dos casos de um grupo (desenvolvimento ou reservado) que têm taxa."""
+
+    model_config = ConfigDict(frozen=True)
+
+    grupo: GrupoCaso
     taxa: float | None = None
     casos_considerados: int = Field(ge=0)
 
@@ -129,6 +143,7 @@ class Relatorio(BaseModel):
     hash_prompt: str | None = None
     casos: tuple[ResumoCaso, ...] = ()
     categorias: tuple[ResumoCategoria, ...] = ()
+    grupos: tuple[ResumoGrupo, ...] = ()
     taxa_total: float | None = None
     taxas_por_rodada: tuple[float | None, ...] = ()
     desvio_entre_rodadas: float | None = None
@@ -187,6 +202,7 @@ def _resumir(caso: Caso, rodadas: tuple[RodadaCaso, ...]) -> ResumoCaso:
         rodadas=rodadas,
         taxa=taxa,
         desvio=desvio,
+        grupo=caso.grupo,
     )
 
 
@@ -204,6 +220,17 @@ def _categorias(ativos: Sequence[ResumoCaso]) -> tuple[ResumoCategoria, ...]:
         resumos.append(
             ResumoCategoria(categoria=categoria, taxa=_media(taxas), casos_considerados=len(taxas))
         )
+    return tuple(resumos)
+
+
+def _grupos(ativos: Sequence[ResumoCaso]) -> tuple[ResumoGrupo, ...]:
+    resumos: list[ResumoGrupo] = []
+    for grupo in GRUPOS_DE_CASOS:
+        do_grupo = [r for r in ativos if r.grupo == grupo]
+        if not do_grupo:
+            continue
+        taxas = [r.taxa for r in do_grupo if r.taxa is not None]
+        resumos.append(ResumoGrupo(grupo=grupo, taxa=_media(taxas), casos_considerados=len(taxas)))
     return tuple(resumos)
 
 
@@ -265,6 +292,7 @@ def agregar(
         hash_prompt=hash_prompt,
         casos=tuple(resumos),
         categorias=_categorias(ativos),
+        grupos=_grupos(ativos),
         taxa_total=_media(taxas_caso),
         taxas_por_rodada=taxas_rodada,
         desvio_entre_rodadas=(

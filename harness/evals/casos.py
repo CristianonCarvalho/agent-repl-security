@@ -12,8 +12,12 @@ Decisões deste módulo (não estão na spec):
 - Cada regra é um modelo congelado com `tipo` como discriminador, para gravar e ler JSON.
 - `descrever()` gera uma linha curta para o relatório. Não participa da comparação.
 - `Decimal` vai para o JSON como texto, então valores monetários não perdem casas.
+- `grupo` tem padrão `desenvolvimento`, então JSON antigo sem o campo continua válido.
+- `gemeo` é um id de caso da mesma categoria, recíproco e presente no conjunto. A regra de
+  "negativo só conta como limpo se o gêmeo passou" fica para depois; aqui só se registra o par.
 """
 
+import re
 from collections import Counter
 from collections.abc import Sequence
 from decimal import Decimal
@@ -241,6 +245,27 @@ class CitaFontes(BaseModel):
         return f"fontes incluem {_juntar(self.fontes)}"
 
 
+class CitaAlgumaFonte(BaseModel):
+    """Pelo menos uma das fontes listadas aparece entre as fontes do resultado.
+
+    Serve quando duas fontes são igualmente legítimas para o mesmo dado. A comparação é a de
+    `CitaFontes`: fim do caminho, por componentes inteiros.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    tipo: Literal["cita_alguma_fonte"] = "cita_alguma_fonte"
+    fontes: list[str] = Field(min_length=1)
+
+    @field_validator("fontes")
+    @classmethod
+    def _validas(cls, fontes: list[str]) -> list[str]:
+        return _textos_validos(fontes)
+
+    def descrever(self) -> str:
+        return f"fontes incluem alguma de {_juntar(self.fontes)}"
+
+
 class RecusaAcesso(BaseModel):
     """A resposta diz que o dado não está acessível. A lista de frases fica em `correcao`."""
 
@@ -253,13 +278,29 @@ class RecusaAcesso(BaseModel):
 
 
 Regra = Annotated[
-    ContemNumero | ContemTodos | ContemAlgum | ContemExato | NaoContem | CitaFontes | RecusaAcesso,
+    ContemNumero
+    | ContemTodos
+    | ContemAlgum
+    | ContemExato
+    | NaoContem
+    | CitaFontes
+    | CitaAlgumaFonte
+    | RecusaAcesso,
     Field(discriminator="tipo"),
 ]
 
 
+GrupoCaso = Literal["desenvolvimento", "reservado"]
+GRUPOS_DE_CASOS: Final[tuple[GrupoCaso, ...]] = ("desenvolvimento", "reservado")
+
+
 class Caso(BaseModel):
-    """Um pedido de avaliação com o perfil que o faz, a situação e o gabarito."""
+    """Um pedido de avaliação com o perfil que o faz, a situação e o gabarito.
+
+    `grupo` separa os casos de desenvolvimento (usados para calibrar corretor e prompt) dos
+    reservados (que ninguém usa para calibrar). `gemeo` é o id do caso que forma par com este:
+    o controle positivo de um negativo, ou o contrário. O padrão mantém o JSON antigo válido.
+    """
 
     model_config = ConfigDict(frozen=True)
 
@@ -269,6 +310,15 @@ class Caso(BaseModel):
     pedido: str
     situacao: Situacao
     gabarito: list[Regra] = Field(min_length=1)
+    grupo: GrupoCaso = "desenvolvimento"
+    gemeo: str | None = None
+
+    @field_validator("gemeo")
+    @classmethod
+    def _gemeo_com_formato(cls, gemeo: str | None) -> str | None:
+        if gemeo is not None and re.fullmatch(r"[a-z]+-\d{2}", gemeo) is None:
+            raise ValueError(f"id de gêmeo inválido: {gemeo!r}")
+        return gemeo
 
     @field_validator("perfil")
     @classmethod
@@ -291,13 +341,34 @@ class Caso(BaseModel):
             raise ValueError(f"id {self.id!r} não começa com a categoria {self.categoria.value!r}")
         return self
 
+    @model_validator(mode="after")
+    def _gemeo_nao_e_o_proprio(self) -> "Caso":
+        if self.gemeo == self.id:
+            raise ValueError(f"caso {self.id!r} não pode ser gêmeo de si mesmo")
+        return self
+
 
 def validar_conjunto(casos: Sequence[Caso]) -> None:
-    """Levanta ValueError se algum id aparece mais de uma vez no conjunto."""
+    """Levanta ValueError se algum id aparece mais de uma vez, ou se um gêmeo é inválido.
+
+    Gêmeo válido: o id existe no conjunto, aponta de volta para este caso e tem a mesma
+    categoria. Um caso sem gêmeo não é verificado aqui.
+    """
     contagem = Counter(caso.id for caso in casos)
     repetidos = sorted(identificador for identificador, n in contagem.items() if n > 1)
     if repetidos:
         raise ValueError(f"ids duplicados: {', '.join(repetidos)}")
+    por_id = {caso.id: caso for caso in casos}
+    for caso in casos:
+        if caso.gemeo is None:
+            continue
+        outro = por_id.get(caso.gemeo)
+        if outro is None:
+            raise ValueError(f"gêmeo inexistente: {caso.id} aponta para {caso.gemeo!r}")
+        if outro.gemeo != caso.id:
+            raise ValueError(f"gêmeo não é recíproco: {caso.id} e {caso.gemeo}")
+        if outro.categoria is not caso.categoria:
+            raise ValueError(f"gêmeos de categorias diferentes: {caso.id} e {caso.gemeo}")
 
 
 _ADAPTADOR_CASOS: Final = TypeAdapter(list[Caso])
