@@ -13,6 +13,7 @@ from typing import Any
 
 import pytest
 
+import harness.evals.__main__ as evals_main
 from harness.evals.__main__ import CODIGO_OK, CODIGO_USO, main
 from harness.evals.casos import Caso, Categoria, CitaFontes, Situacao
 from harness.evals.executor import ConfigExecucao, executar_avaliacao
@@ -108,6 +109,26 @@ class _TelemetriaQuebrada(_TelemetriaGravada):
 
     def fechar(self) -> None:
         raise RuntimeError("fechamento quebrado")
+
+
+class _TelemetriaComFalhas(_TelemetriaGravada):
+    """Exporta sem erro, mas o contador de falhas reporta um número fixo."""
+
+    def __init__(self, falhas: int) -> None:
+        super().__init__()
+        self._falhas = falhas
+
+    @property
+    def falhas(self) -> int:
+        return self._falhas
+
+
+class _ContadorQuebrado(_TelemetriaGravada):
+    """O contador de falhas levanta ao ser lido. A avaliação segue e conta zero."""
+
+    @property
+    def falhas(self) -> int:
+        raise RuntimeError("contador quebrado")
 
 
 def _caso() -> Caso:
@@ -227,6 +248,70 @@ def test_relatorio_antigo_carrega_sem_o_campo_telemetria() -> None:
     assert carregado.telemetria is None
 
 
+def test_falhas_de_telemetria_somam_por_rodada_e_vao_ao_relatorio() -> None:
+    relatorio = _executar(lambda: _TelemetriaComFalhas(2), rodadas=2)
+
+    assert relatorio.falhas_telemetria == 4
+
+
+def test_telemetria_que_reporta_zero_ou_sem_contador_grava_zero() -> None:
+    assert _executar(lambda: _TelemetriaComFalhas(0)).falhas_telemetria == 0
+    assert _executar(_TelemetriaGravada).falhas_telemetria == 0
+
+
+def test_telemetria_desligada_deixa_o_campo_none() -> None:
+    assert _executar(None).falhas_telemetria is None
+
+
+def test_falha_ao_criar_a_telemetria_conta_uma_falha_por_rodada() -> None:
+    def fabrica_quebrada() -> None:
+        raise RuntimeError("não consegui criar a telemetria")
+
+    relatorio = _executar(fabrica_quebrada, rodadas=2)
+
+    assert relatorio.falhas_telemetria == 2
+    assert _classificacoes(relatorio) == _classificacoes(_executar(None))
+
+
+def test_exportacao_que_levanta_conta_uma_falha_por_rodada() -> None:
+    relatorio = _executar(_TelemetriaQuebrada, rodadas=2)
+
+    assert relatorio.falhas_telemetria == 2
+    assert _classificacoes(relatorio) == _classificacoes(_executar(None))
+
+
+def test_contador_que_levanta_ao_ser_lido_nao_derruba_a_avaliacao() -> None:
+    relatorio = _executar(_ContadorQuebrado)
+
+    assert relatorio.falhas_telemetria == 0
+    assert _classificacoes(relatorio) == _classificacoes(_executar(None))
+
+
+def test_relatorio_com_falhas_vai_e_volta_em_json() -> None:
+    relatorio = agregar([], {}, semente=42, rodadas_por_caso=1, falhas_telemetria=3)
+
+    de_volta = Relatorio.model_validate_json(relatorio.model_dump_json())
+
+    assert de_volta == relatorio
+    assert de_volta.falhas_telemetria == 3
+
+
+def test_zero_falhas_no_json_nao_vira_telemetria_desligada() -> None:
+    ligada = agregar([], {}, semente=42, rodadas_por_caso=1, falhas_telemetria=0)
+    desligada = agregar([], {}, semente=42, rodadas_por_caso=1)
+
+    assert Relatorio.model_validate_json(ligada.model_dump_json()).falhas_telemetria == 0
+    assert Relatorio.model_validate_json(desligada.model_dump_json()).falhas_telemetria is None
+
+
+def test_relatorio_antigo_carrega_sem_falhas_telemetria() -> None:
+    relatorio = agregar([], {}, semente=42, rodadas_por_caso=1)
+    texto = json.loads(relatorio.model_dump_json())
+    del texto["falhas_telemetria"]
+
+    assert Relatorio.model_validate(texto).falhas_telemetria is None
+
+
 # --- linha de comando -----------------------------------------------------------------------
 
 
@@ -314,3 +399,67 @@ def test_cli_desligada_nao_mostra_linha_nem_marca_o_relatorio(
     assert "Telemetria" not in fala.getvalue()
     (relatorio,) = (tmp_path / "saida").glob("*.json")
     assert json.loads(relatorio.read_text(encoding="utf-8"))["telemetria"] is None
+
+
+def _resumo_com(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    ligada: bool,
+    falhas: int | None,
+) -> tuple[int, str]:
+    """Roda a CLI com um executor falso que devolve um relatório com `falhas` de telemetria.
+
+    Aponta o `.env` para um caminho inexistente, para o teste não ler o arquivo real.
+    """
+    monkeypatch.setattr(evals_main, "ARQUIVO_ENV", tmp_path / "sem-env")
+    if ligada:
+        monkeypatch.setenv("HARNESS_TELEMETRIA", "langfuse")
+        monkeypatch.setenv("LANGFUSE_PUBLIC_KEY", PK)
+        monkeypatch.setenv("LANGFUSE_SECRET_KEY", SK)
+    else:
+        monkeypatch.delenv("HARNESS_TELEMETRIA", raising=False)
+    relatorio = agregar([], {}, semente=42, rodadas_por_caso=1, falhas_telemetria=falhas)
+    fala = io.StringIO()
+    codigo = main(
+        _argumentos(tmp_path / "saida"),
+        saida=fala,
+        executar=lambda *_, **__: relatorio,
+        fabrica_modelo=lambda: LLMFalso([]),
+    )
+    return codigo, fala.getvalue()
+
+
+def test_resumo_com_telemetria_ligada_e_sem_falhas_mostra_zero_sem_aviso(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    codigo, texto = _resumo_com(tmp_path, monkeypatch, ligada=True, falhas=0)
+
+    assert codigo == CODIGO_OK
+    assert "\nFalhas de telemetria: 0\n" in texto
+    assert "aviso" not in texto
+
+
+def test_resumo_com_falhas_mostra_o_aviso_sem_expor_chave(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    codigo, texto = _resumo_com(tmp_path, monkeypatch, ligada=True, falhas=2)
+
+    assert codigo == CODIGO_OK
+    assert "Falhas de telemetria: 2" in texto
+    assert (
+        "aviso: houve falhas ao enviar a telemetria ao Langfuse. Confira as chaves, a região e "
+        "a rede. O trace JSONL local continua completo." in texto
+    )
+    assert PK not in texto
+    assert SK not in texto
+
+
+def test_resumo_com_telemetria_desligada_nao_mostra_a_linha(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    codigo, texto = _resumo_com(tmp_path, monkeypatch, ligada=False, falhas=None)
+
+    assert codigo == CODIGO_OK
+    assert "Falhas de telemetria" not in texto
+    assert "aviso" not in texto

@@ -5,13 +5,16 @@ Nada sai da máquina: o `OTLPSpanExporter` real é trocado por um substituto ant
 """
 
 import io
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
 import pytest
 from opentelemetry.sdk.trace import ReadableSpan
+from opentelemetry.sdk.trace.export import SpanExporter, SpanExportResult
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
+import harness.cli as cli
 import harness.telemetry.otel as otel
 from harness.cli import CODIGO_COMPLETO, CODIGO_USO, main
 from harness.llm.base import LLMFalso
@@ -64,6 +67,16 @@ class _ExportadorGravado(InMemorySpanExporter):
         super().__init__()
         self.kwargs = kwargs
         _ExportadorGravado.criados.append(self)
+
+
+class _ExportadorFalho(SpanExporter):
+    """Recusa todo envio, como um Langfuse fora do ar. Não usa rede."""
+
+    def export(self, spans: Sequence[ReadableSpan]) -> SpanExportResult:
+        return SpanExportResult.FAILURE
+
+    def shutdown(self) -> None:
+        return None
 
 
 @pytest.fixture
@@ -182,6 +195,38 @@ def test_desligada_nao_cria_exportador_nem_linha_informativa(
     assert codigo == CODIGO_COMPLETO
     assert "Telemetria" not in saida
     assert exportadores == []
+
+
+def test_exportacao_sem_falha_nao_imprime_aviso(
+    tmp_path: Path,
+    dados: Path,
+    exportadores: list[_ExportadorGravado],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ativar_telemetria(monkeypatch)
+
+    codigo, saida = _executar(dados, tmp_path / "trace")
+
+    assert codigo == CODIGO_COMPLETO
+    assert "aviso" not in saida
+
+
+def test_exportacao_com_falha_imprime_aviso_e_mantem_o_codigo(
+    tmp_path: Path,
+    dados: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _ativar_telemetria(monkeypatch)
+    monkeypatch.setattr(cli, "ARQUIVO_ENV", tmp_path / "sem-env")
+    monkeypatch.setattr(otel, "OTLPSpanExporter", lambda **_: _ExportadorFalho())
+
+    codigo, saida = _executar(dados, tmp_path / "trace")
+
+    assert codigo == CODIGO_COMPLETO
+    assert "aviso: 1 falha(s) ao enviar a telemetria ao Langfuse. " in saida
+    assert "O trace JSONL local continua completo." in saida
+    assert SK not in saida
+    assert PK not in saida
 
 
 def test_ligada_sem_chave_publica_sai_com_dois_sem_expor_a_secreta(

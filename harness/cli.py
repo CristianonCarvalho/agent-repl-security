@@ -29,6 +29,8 @@ Decisões deste módulo (não estão na spec):
 - Telemetria (T20a): só com `HARNESS_TELEMETRIA=langfuse`. Config inválida sai com código 2,
   antes do sandbox, citando só o nome da variável. O módulo do OpenTelemetry só é importado
   nesse caso. Trace JSONL e spans levam o mesmo id de sessão.
+- Falhas de telemetria: se o envio falhou, sai um aviso depois do pedido, sem mudar o código de
+  saída. Sem falha, nada novo é impresso.
 """
 
 import argparse
@@ -400,4 +402,10 @@ def main(
             gerente.fechar()
         if telemetria is not None:
             telemetria.fechar()
+            # Depois de fechar, para contar também o envio do fechamento. Não muda o código.
+            if telemetria.falhas > 0:
+                saida.write(
+                    f"aviso: {telemetria.falhas} falha(s) ao enviar a telemetria ao Langfuse. "
+                    "O trace JSONL local continua completo.\n"
+                )
     return CODIGO_COMPLETO if resultado.completo else CODIGO_NAO_COMPLETO

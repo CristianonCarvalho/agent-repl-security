@@ -158,6 +158,9 @@ class Relatorio(BaseModel):
     teto_motivo: str | None = None
     # Nome curto da telemetria ligada ("langfuse-us"), ou None. Nunca traz endpoint nem chaves.
     telemetria: str | None = None
+    # Falhas de telemetria somadas em todas as rodadas. None quando a telemetria está desligada;
+    # zero também é um número válido, quando ela está ligada e nada falhou.
+    falhas_telemetria: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def _coerente(self) -> Self:
@@ -259,6 +262,7 @@ def agregar(
     modelo: str | None = None,
     provedores: Iterable[str] = (),
     teto_motivo: str | None = None,
+    falhas_telemetria: int | None = None,
 ) -> Relatorio:
     """Monta o relatório a partir dos casos e das rodadas de cada um. Não faz I/O.
 
@@ -311,6 +315,7 @@ def agregar(
         pendentes=tuple(caso.id for caso in casos if not caso.situacao.ativo),
         teto_estourado=teto_motivo is not None,
         teto_motivo=teto_motivo,
+        falhas_telemetria=falhas_telemetria,
     )
 
 

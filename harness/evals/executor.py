@@ -23,6 +23,10 @@ Decisões deste módulo (não estão na spec):
 - O relógio injetado vale para a duração da rodada e para o orçamento de tempo do orquestrador.
 - Telemetria (T20a): uma por rodada, criada pela `fabrica_telemetria`. O trace é exportado
   depois da classificação, inclusive para `erro_infra`. Falha dela nunca muda a rodada.
+- Falhas de telemetria: somadas por rodada e gravadas no relatório (`falhas_telemetria`), que
+  fica None quando não há `fabrica_telemetria`. A leitura é feita depois de fechar a telemetria,
+  para contar também o envio do fechamento. Falha ao criar a telemetria conta 1. Quem não tem o
+  atributo `falhas` (fábricas de teste) conta 0, e falha ao ler o contador também conta 0.
 """
 
 import contextlib
@@ -74,6 +78,11 @@ class TelemetriaDeRodada(Protocol):
 
     def __call__(self, evento: Evento) -> None:
         """Recebe um evento do orquestrador."""
+        ...
+
+    @property
+    def falhas(self) -> int:
+        """Quantas falhas a telemetria registrou. O executor só lê este número, depois de fechar."""
         ...
 
     def exportar(
@@ -238,14 +247,26 @@ def _rodada_de_excecao(
 
 def _abrir_telemetria(
     fabrica: Callable[[], TelemetriaDeRodada | None] | None,
-) -> TelemetriaDeRodada | None:
-    """Telemetria da rodada. Falha ao criá-la só desliga a telemetria dessa rodada."""
+) -> tuple[TelemetriaDeRodada | None, int]:
+    """Telemetria da rodada e as falhas de criá-la. Falha ao criá-la só desliga a telemetria
+    dessa rodada, e conta como uma falha de telemetria."""
     if fabrica is None:
-        return None
+        return None, 0
     try:
-        return fabrica()
+        return fabrica(), 0
     except Exception:
-        return None
+        return None, 1
+
+
+def _falhas_de(telemetria: TelemetriaDeRodada) -> int:
+    """Lê o contador de falhas da telemetria. Sem o atributo, ou se a leitura falhar, conta 0."""
+    try:
+        falhas: object = getattr(telemetria, "falhas", 0)
+    except Exception:
+        return 0
+    if isinstance(falhas, int) and not isinstance(falhas, bool) and falhas > 0:
+        return falhas
+    return 0
 
 
 def _consumidor(
@@ -271,10 +292,13 @@ def _exportar_rodada(
     rodada: RodadaCaso,
     contabil: ModeloContabil | None,
     caminho_trace: str | None,
-) -> None:
-    """Exporta o trace da rodada, já classificada. Falha aqui nunca muda a rodada."""
+) -> int:
+    """Exporta o trace da rodada, já classificada, e devolve as falhas de telemetria dela.
+
+    Falha aqui nunca muda a rodada. Sem telemetria, devolve 0.
+    """
     if telemetria is None:
-        return
+        return 0
     veredito = rodada.veredito
     metadados: dict[str, Any] = {
         "caso_id": caso.id,
@@ -295,13 +319,16 @@ def _exportar_rodada(
     }
     tags = ["eval", caso.categoria.value, f"grupo-{caso.grupo}", f"rodada-{rodada.numero}"]
     sessao = Path(caminho_trace).stem if caminho_trace else None
+    falhou = False
     try:
         try:
             telemetria.exportar(metadados, nome=f"eval/{caso.id}", tags=tags, sessao=sessao)
         finally:
             telemetria.fechar()
     except Exception:
-        pass
+        falhou = True
+    # Lido depois de fechar: o envio final do fechamento também conta.
+    return _falhas_de(telemetria) + (1 if falhou else 0)
 
 
 def _executar_rodada(
@@ -314,16 +341,16 @@ def _executar_rodada(
     relogio: Callable[[], float],
     vistos: _Vistos,
     fabrica_telemetria: Callable[[], TelemetriaDeRodada | None] | None = None,
-) -> RodadaCaso:
+) -> tuple[RodadaCaso, int]:
     """Uma rodada completa. Nunca levanta exceção: falha vira `erro_infra`.
 
     A telemetria, se houver, recebe os eventos ao lado do trace e exporta o trace no fim, já
-    com a classificação decidida.
+    com a classificação decidida. Devolve a rodada e as falhas de telemetria dela.
     """
     inicio = relogio()
     contabil: ModeloContabil | None = None
     caminho_trace: str | None = None
-    telemetria = _abrir_telemetria(fabrica_telemetria)
+    telemetria, falhas_criacao = _abrir_telemetria(fabrica_telemetria)
     try:
         contabil = ModeloContabil(fabrica_modelo())
         perfil = perfil_por_nome(caso.perfil)
@@ -350,16 +377,16 @@ def _executar_rodada(
         resultado = orquestrador.executar_pedido(caso.pedido)
     except Exception as erro:
         rodada = _rodada_de_excecao(numero, erro, contabil, relogio() - inicio, caminho_trace)
-        _exportar_rodada(telemetria, caso, config, rodada, contabil, caminho_trace)
-        return rodada
+        falhas = _exportar_rodada(telemetria, caso, config, rodada, contabil, caminho_trace)
+        return rodada, falhas_criacao + falhas
 
     vistos.provedores.update(contabil.provedores)
     vistos.modelos.update(contabil.modelos)
     rodada = _rodada_de_resultado(
         numero, caso, resultado, contabil, relogio() - inicio, caminho_trace
     )
-    _exportar_rodada(telemetria, caso, config, rodada, contabil, caminho_trace)
-    return rodada
+    falhas = _exportar_rodada(telemetria, caso, config, rodada, contabil, caminho_trace)
+    return rodada, falhas_criacao + falhas
 
 
 def _motivo_de_teto(config: ConfigExecucao, custo: float | None, tokens: int) -> str | None:
@@ -386,6 +413,7 @@ def _executar_casos(
     teto_motivo: str | None = None
     custo_acumulado: float | None = None
     tokens_acumulados = 0
+    falhas_telemetria = 0
 
     for caso in casos:
         rodadas[caso.id] = []
@@ -399,7 +427,7 @@ def _executar_casos(
                     numero=numero, classificacao=Classificacao.NAO_EXECUTADA, detalhe=teto_motivo
                 )
             else:
-                rodada = _executar_rodada(
+                rodada, falhas = _executar_rodada(
                     caso,
                     numero,
                     config,
@@ -410,6 +438,7 @@ def _executar_casos(
                     vistos,
                     fabrica_telemetria,
                 )
+                falhas_telemetria += falhas
                 tokens_acumulados += rodada.tokens_entrada + rodada.tokens_saida
                 if rodada.custo is not None:
                     custo_acumulado = (custo_acumulado or 0.0) + rodada.custo
@@ -425,6 +454,7 @@ def _executar_casos(
         modelo=", ".join(sorted(vistos.modelos)) or None,
         provedores=vistos.provedores,
         teto_motivo=teto_motivo,
+        falhas_telemetria=falhas_telemetria if fabrica_telemetria is not None else None,
     )
 
 

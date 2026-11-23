@@ -17,6 +17,8 @@ Decisões deste módulo (não estão na spec):
 - Erros de configuração do Pydantic mostram só o campo e a mensagem, nunca o valor recebido.
 - Telemetria (T20a): ligada pelo mesmo ambiente da CLI. Config inválida sai com código 2 antes
   de qualquer rodada. O relatório ganha `telemetria` ("langfuse-us") só quando está ligada.
+- Falhas de telemetria: o resumo mostra `Falhas de telemetria: N` quando a telemetria está ligada,
+  com um aviso se N > 0. Falha de telemetria não muda o código de saída.
 """
 
 import argparse
@@ -267,6 +269,13 @@ def _resumo(saida: TextIO, relatorio: Relatorio, caminho: Path | None) -> None:
     else:
         linhas.append("Teto de gasto: dentro do limite")
     linhas.append(f"Provedor(es) efetivo(s): {', '.join(relatorio.provedores) or 'nenhum'}")
+    if relatorio.falhas_telemetria is not None:
+        linhas.append(f"Falhas de telemetria: {relatorio.falhas_telemetria}")
+        if relatorio.falhas_telemetria > 0:
+            linhas.append(
+                "aviso: houve falhas ao enviar a telemetria ao Langfuse. Confira as chaves, a "
+                "região e a rede. O trace JSONL local continua completo."
+            )
     linhas.append(f"Relatório: {caminho if caminho is not None else 'não gravado'}")
     saida.write("\n".join(linhas) + "\n")
 

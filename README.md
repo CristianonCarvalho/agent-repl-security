@@ -51,7 +51,7 @@ O modelo emite um bloco de código por turno; o orquestrador o verifica e o envi
 
 ## Estado
 
-**Fase 1 (fundamentos) implementada**, com dados sintéticos e sem política de trifecta nem aprovação humana (Fase 4):
+**Fases 1 e 2 implementadas e Fase 3 (avaliações) em andamento**, com dados sintéticos e sem política de trifecta nem aprovação humana (Fase 4). Estado completo na [especificação](docs/especificacao-v0.md) e itens futuros no [backlog](docs/backlog.md):
 
 - Loop do orquestrador com orçamento (iterações, tokens, tempo), verificação estática e resumo final.
 - REPL persistente em contêiner Docker endurecido (sem rede, sistema de arquivos somente leitura, usuário sem privilégios), com ponte JSON-RPC para as ferramentas do host.
@@ -59,6 +59,8 @@ O modelo emite um bloco de código por turno; o orquestrador o verifica e o envi
 - `FINAL(resposta, fontes)` com fontes obrigatórias, truncagem da saída e observações marcadas como não confiáveis.
 - Trace JSONL por pedido, com chamadas de ferramenta, tokens, provedor e custo.
 - Cliente OpenRouter (SDK `openai`), com repetição em falhas transitórias. Validado com DeepSeek V4.1 Flash num pedido real de ponta a ponta.
+- Descoberta de ferramentas sob demanda, contexto grande como variável, ponte para servidores MCP por stdio e concessões por ferramenta (Fase 2).
+- Avaliações com dados sintéticos, 20 casos ativos, corretor por regras e relatório por execução (Fase 3, ver [o relatório](docs/relatorios/avaliacao-fase3-t17a.md)), e telemetria opcional no Langfuse.
 
 Para responder a um pedido pela linha de comando (precisa da imagem do sandbox e de `OPENROUTER_API_KEY` e `OPENROUTER_MODELO` no ambiente ou no `.env`):
 
@@ -118,6 +120,20 @@ uv run python -m harness.evals --rodadas 3 --semente 42 --categoria consulta --t
 ```
 
 O relatório JSON vai para `avaliacoes/` e traz taxa por caso, categoria e total, variação entre rodadas, custo e tokens. Códigos de saída: 0 sem problemas, 1 houve erro de infraestrutura, 2 uso ou configuração inválidos, 3 teto de gasto estourado. O conjunto atual tem 20 casos ativos (5 de Consulta, Cruzamento, Conformidade e Permissão), separados em desenvolvimento e reservados; `--grupo` e `--categoria` filtram. Resultados e conclusões: [relatório da avaliação](docs/relatorios/avaliacao-fase3-t17a.md).
+
+### Telemetria no Langfuse
+
+Os traces de cada pedido (e de cada rodada de avaliação) podem ser enviados ao Langfuse por OpenTelemetry, em paralelo ao trace JSONL local, que continua sendo a fonte confiável. Fica desligado por padrão. Para ligar, ponha no `.env` (nunca no git):
+
+```text
+HARNESS_TELEMETRIA=langfuse
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+# opcional: HARNESS_TELEMETRIA_CONTEUDO=numeros   (só tokens, custos e tempos, sem texto)
+# opcional: LANGFUSE_OTLP_ENDPOINT=...            (padrão: Langfuse Cloud, região US)
+```
+
+Cada pedido vira uma árvore: o agente, uma *generation* por chamada ao modelo (modelo, tokens e custo), uma célula por código executado e uma ferramenta por chamada. Nas avaliações, cada rodada é um trace `eval/<caso>`, com tags de categoria, grupo e rodada e o resultado do corretor como metadado. Falha de exportação nunca derruba o pedido, e as chaves nunca aparecem em span, log ou relatório. Com conteúdo completo, o texto das perguntas, o código e as respostas vão para o serviço externo; use dados sintéticos ou o modo `numeros`.
 
 ### Desenvolvimento
 

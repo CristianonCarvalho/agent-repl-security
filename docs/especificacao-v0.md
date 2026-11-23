@@ -375,16 +375,17 @@ harness/
     tools/        catalogo.listar e descoberta (ferramentas locais)
     mcp/          cliente, adaptador e configuração dos servidores MCP (stdio)
   llm/            cliente OpenRouter e configuração de modelos
-  telemetry/      trace JSONL por pedido; spans OpenTelemetry ainda não
+  telemetry/      trace JSONL por pedido e exportação de spans OpenTelemetry para o Langfuse (otel.py)
+  evals/          dados sintéticos, casos, corretor por regras, executor e relatório (python -m harness.evals)
   cli.py          linha de comando: python -m harness "pedido" --perfil P --dados DIR
-data/generator/   dados sintéticos com semente fixa
-evals/
-  cases/          35 pedidos com resposta esperada (YAML)
-  graders/        verificações em código e juiz LLM calibrado
-  attacks/        documentos com prompt injection
+data/generator/   (previsto) hoje o gerador de dados está em harness/evals/dados.py
+evals/            (previsto) hoje os casos estão em harness/evals/conjunto.py, e o corretor em correcao.py
 tests/            unitários, propriedade, integração, escape do sandbox
 docs/adr/         uma decisão de arquitetura por arquivo (D10–D14 já escritas; D1–D9 na tabela de Decisões)
 docs/diagramas-ferramentas-e-permissoes.md   diagramas de ferramentas, MCP e permissões
+docs/diagramas-seguranca.md, diagramas-fluxo-do-pedido.md, diagramas-evals.md   demais diagramas
+docs/relatorios/  relatórios das avaliações reais
+docs/backlog.md   itens aprovados para o futuro
 AGENTS.md         convenções para Claude Code; steering equivalente no Kiro
 .github/workflows/
 ```
@@ -433,7 +434,7 @@ Os evals noturnos guardam o histórico de taxa de sucesso, custo e latência por
 &#91;embedded content: árvore de spans de um pedido · ilustrativa\]
 
 - Spans OpenTelemetry seguindo as convenções GenAI (`invoke_agent`, chamada de modelo, `execute_tool`). Elas ainda estão em status Development e [mudaram para um repositório próprio em junho de 2026](https://www.dash0.com/knowledge/opentelemetry-genai-semantic-conventions-explained), então a versão usada fica fixada.
-- Langfuse Cloud (plano gratuito) como backend, recebendo os spans por OTLP; exportação JSONL em paralelo para os evals rodarem sem depender do backend.
+- Langfuse Cloud (plano gratuito) como backend, recebendo os spans por OTLP; exportação JSONL em paralelo para os evals rodarem sem depender do backend. *Estado: implementado na T20a (região US, só OTLP). Liga com `HARNESS_TELEMETRIA=langfuse` e as chaves no `.env`; o conteúdo vai completo ou só números (`HARNESS_TELEMETRIA_CONTEUDO`). Os traces das avaliações aparecem como `eval/<caso>`, com tags e o resultado do corretor como metadado. A *generation* leva só a saída do modelo, porque o evento do trace não traz as mensagens enviadas.*
 - Cada trace grava modelo, snapshot, provedor efetivo, hash da versão do prompt, custo e decisões de política.
 
 ### Ambiente de execução
@@ -498,7 +499,7 @@ O harness cabe como evolução do P1 e ponte para o P2 e o P3, sem criar uma fas
 
 ## Estado da implementação
 
-Atualizado em 21/11/2026, depois da T13. Os diagramas de ferramentas, MCP e permissões estão em [diagramas-ferramentas-e-permissoes.md](diagramas-ferramentas-e-permissoes.md).
+Atualizado em 23/11/2026, depois da T20a e da primeira bateria de avaliações reais. Os diagramas de ferramentas, MCP e permissões estão em [diagramas-ferramentas-e-permissoes.md](diagramas-ferramentas-e-permissoes.md).
 
 | Fase | Parte | Estado |
 | --- | --- | --- |
@@ -513,9 +514,13 @@ Atualizado em 21/11/2026, depois da T13. Os diagramas de ferramentas, MCP e perm
 | 2. Contexto e harness | Contexto como variável (T11) | Implementado, sem `llm_query` (D11) |
 | 2. Contexto e harness | Ponte para MCP (T12) | Implementado, só stdio |
 | 2. Contexto e harness | Concessões por ferramenta (T13, D14) | Implementado na versão mínima |
-| 3. Evals | Dados sintéticos, 35 pedidos, comparação com tool calling JSON, ataques plantados | Não iniciado |
+| 3. Evals | Dados sintéticos com semente fixa (T14), formato dos casos e corretor por regras (T15), executor e relatório (T16) | Implementado |
+| 3. Evals | Conjunto de 20 casos ativos em 4 categorias, com grupos de desenvolvimento e reservado (T17a) | Implementado; resultados em [relatorios/avaliacao-fase3-t17a.md](relatorios/avaliacao-fase3-t17a.md) |
+| 3. Evals | 15 casos pendentes (geração, alteração, injeção), conjunto congelado e linha de base versionada, comparação com tool calling JSON, ataques plantados (T17b, T17c, T18, T19) | Não iniciado |
 | 4. Segurança | Aprovação humana, política da trifecta, rastreio de arquivos abertos, gVisor | Não iniciado |
-| Transversal | OpenTelemetry e Langfuse, CI com gates, SAST, `catalogo.dicionario`, `arquivos.*`, `entrega.publicar` | Não iniciado |
+| Transversal | OpenTelemetry e Langfuse (T20a e T20b) | Implementado |
+| Transversal | CI com gates, SAST, `arquivos.*`, `entrega.publicar` | Não iniciado |
+| Transversal | `catalogo.dicionario` | No [backlog](backlog.md) (B1) |
 
 **Desvios em relação ao texto original da v0**
 
@@ -524,6 +529,8 @@ Atualizado em 21/11/2026, depois da T13. Os diagramas de ferramentas, MCP e perm
 - **Concessões além da montagem.** O controle por perfil não é mais só estrutural: a D14 foi aceita na versão mínima.
 - **Contexto em lista.** `context` aceita também lista JSON, além de texto e objeto.
 - **Verificação estática.** Além da lista da spec, `builtins` e `sys` são imports proibidos. Ela é feedback rápido ao modelo, não fronteira de segurança: quem barra de verdade é o contêiner.
+- **Avaliações calibradas em rodadas reais.** O corretor, os gabaritos, o prompt e o cliente do modelo foram ajustados depois de sete execuções reais (ver o relatório). Entre os ajustes: o prompt proíbe chamadas de função nativas e pede poucas iterações, e o cliente repete respostas vazias.
+- **Conjunto de avaliação em duas partes.** Em vez de 35 casos de uma vez, foram feitos 20 casos ativos (T17a). Os 15 que dependem da Fase 4 ficam para a T17b.
 - **Espera por aprovação (D12).** O timeout do tempo bloqueado esperando aprovação humana só pode ser implementado com a aprovação, na Fase 4.
 
 ## Fontes
