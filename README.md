@@ -166,6 +166,7 @@ uv run pytest -m real_api
 ## Documentação
 
 - [Guia dos evals, para estudo](docs/guia-dos-evals.md)
+- [Gráficos das avaliações](docs/relatorios/graficos-evals.md) e a [versão interativa, com mouseover](https://cristianoncarvalho.github.io/agent-repl-security/relatorios/graficos/graficos.html)
 - [Especificação v0](docs/especificacao-v0.md)
 - [Diagramas de ferramentas, MCP e permissões](docs/diagramas-ferramentas-e-permissoes.md)
 - [Diagramas de segurança e defesa](docs/diagramas-seguranca.md)

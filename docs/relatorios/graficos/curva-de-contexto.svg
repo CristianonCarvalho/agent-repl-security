@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t d" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t">Tokens de entrada por turno do agente</title>
+<desc id="d">Tokens de entrada no turno, por turno do agente, uma linha por curva. REPL (Code Mode), linha de base: turno 1 1.414, turno 2 2.836, turno 3 3.137, turno 4 3.459, turno 5 3.882, turno 6 4.286.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Tokens de entrada por turno do agente</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode), linha de base</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="299.2" x2="696" y2="299.2" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="303.2" text-anchor="end" font-size="11" fill="#898781">1.000</text>
+<line x1="72" y1="248.4" x2="696" y2="248.4" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="252.4" text-anchor="end" font-size="11" fill="#898781">2.000</text>
+<line x1="72" y1="197.6" x2="696" y2="197.6" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="201.6" text-anchor="end" font-size="11" fill="#898781">3.000</text>
+<line x1="72" y1="146.8" x2="696" y2="146.8" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="150.8" text-anchor="end" font-size="11" fill="#898781">4.000</text>
+<line x1="72" y1="96" x2="696" y2="96" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="100" text-anchor="end" font-size="11" fill="#898781">5.000</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="72" y="366" text-anchor="middle" font-size="11" fill="#898781">0</text>
+<text x="228" y="366" text-anchor="middle" font-size="11" fill="#898781">2</text>
+<text x="384" y="366" text-anchor="middle" font-size="11" fill="#898781">4</text>
+<text x="540" y="366" text-anchor="middle" font-size="11" fill="#898781">6</text>
+<text x="696" y="366" text-anchor="middle" font-size="11" fill="#898781">8</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Tokens de entrada no turno</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Turno do agente</text>
+<path d="M150 278.17 L228 205.93 L306 190.64 L384 174.28 L462 152.79 L540 132.27" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="150" cy="278.17" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 1: 1.414 tokens de entrada</title></circle>
+<circle cx="228" cy="205.93" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 2: 2.836 tokens de entrada</title></circle>
+<circle cx="306" cy="190.64" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 3: 3.137 tokens de entrada</title></circle>
+<circle cx="384" cy="174.28" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 4: 3.459 tokens de entrada</title></circle>
+<circle cx="462" cy="152.79" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 5: 3.882 tokens de entrada</title></circle>
+<circle cx="540" cy="132.27" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 6: 4.286 tokens de entrada</title></circle>
+<text x="150" y="269.17" text-anchor="middle" font-size="11" fill="#0b0b0b">1.414</text>
+<text x="228" y="196.93" text-anchor="middle" font-size="11" fill="#0b0b0b">2.836</text>
+<text x="306" y="181.64" text-anchor="middle" font-size="11" fill="#0b0b0b">3.137</text>
+<text x="384" y="165.28" text-anchor="middle" font-size="11" fill="#0b0b0b">3.459</text>
+<text x="462" y="143.79" text-anchor="middle" font-size="11" fill="#0b0b0b">3.882</text>
+<text x="540" y="123.27" text-anchor="middle" font-size="11" fill="#0b0b0b">4.286</text>
+</svg>

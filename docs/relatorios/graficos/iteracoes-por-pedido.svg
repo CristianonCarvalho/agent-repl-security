@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t d" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t">Iterações por pedido, por execução</title>
+<desc id="d">Iterações médias por pedido, por execução. REPL (Code Mode): execução 1 9,92, execução 2 9,42, execução 3 9,78, execução 4 8,80, execução 5 9,22, execução 6 9,32, execução 7 5,57, execução 8 5,69, execução 9 4,50, execução 10 5,29.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Iterações por pedido, por execução</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<circle cx="176" cy="54" r="4.5" fill="#ffffff" stroke="#52514e" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">marcador vazado: execução 9 com poucas rodadas válidas</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="307.67" x2="696" y2="307.67" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="311.67" text-anchor="end" font-size="11" fill="#898781">2</text>
+<line x1="72" y1="265.33" x2="696" y2="265.33" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="269.33" text-anchor="end" font-size="11" fill="#898781">4</text>
+<line x1="72" y1="223" x2="696" y2="223" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="227" text-anchor="end" font-size="11" fill="#898781">6</text>
+<line x1="72" y1="180.67" x2="696" y2="180.67" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="184.67" text-anchor="end" font-size="11" fill="#898781">8</text>
+<line x1="72" y1="138.33" x2="696" y2="138.33" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="142.33" text-anchor="end" font-size="11" fill="#898781">10</text>
+<line x1="72" y1="96" x2="696" y2="96" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="100" text-anchor="end" font-size="11" fill="#898781">12</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="103.2" y="366" text-anchor="middle" font-size="11" fill="#898781">1</text>
+<text x="165.6" y="366" text-anchor="middle" font-size="11" fill="#898781">2</text>
+<text x="228" y="366" text-anchor="middle" font-size="11" fill="#898781">3</text>
+<text x="290.4" y="366" text-anchor="middle" font-size="11" fill="#898781">4</text>
+<text x="352.8" y="366" text-anchor="middle" font-size="11" fill="#898781">5</text>
+<text x="415.2" y="366" text-anchor="middle" font-size="11" fill="#898781">6</text>
+<text x="477.6" y="366" text-anchor="middle" font-size="11" fill="#898781">7</text>
+<text x="540" y="366" text-anchor="middle" font-size="11" fill="#898781">8</text>
+<text x="602.4" y="366" text-anchor="middle" font-size="11" fill="#898781">9</text>
+<text x="664.8" y="366" text-anchor="middle" font-size="11" fill="#898781">10</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Iterações por pedido</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Execução</text>
+<path d="M103.2 140.03 L165.6 150.61 L228 142.99 L290.4 163.73 L352.8 154.84 L415.2 152.73 L477.6 232.1 L540 229.56 L602.4 254.75 L664.8 238.03" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="103.2" cy="140.03" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1: 9,9 iterações por pedido</title></circle>
+<circle cx="165.6" cy="150.61" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2: 9,4 iterações por pedido</title></circle>
+<circle cx="228" cy="142.99" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3: 9,8 iterações por pedido</title></circle>
+<circle cx="290.4" cy="163.73" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4: 8,8 iterações por pedido</title></circle>
+<circle cx="352.8" cy="154.84" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5: 9,2 iterações por pedido</title></circle>
+<circle cx="415.2" cy="152.73" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6: 9,3 iterações por pedido</title></circle>
+<circle cx="477.6" cy="232.1" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7: 5,6 iterações por pedido</title></circle>
+<circle cx="540" cy="229.56" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8: 5,7 iterações por pedido</title></circle>
+<circle cx="602.4" cy="254.75" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2" tabindex="0"><title>Execução 9: 4,5 iterações por pedido. Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></circle>
+<circle cx="664.8" cy="238.03" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10: 5,3 iterações por pedido</title></circle>
+<text x="103.2" y="131.03" text-anchor="middle" font-size="11" fill="#0b0b0b">9,92</text>
+<text x="165.6" y="141.61" text-anchor="middle" font-size="11" fill="#0b0b0b">9,42</text>
+<text x="228" y="133.99" text-anchor="middle" font-size="11" fill="#0b0b0b">9,78</text>
+<text x="290.4" y="154.73" text-anchor="middle" font-size="11" fill="#0b0b0b">8,80</text>
+<text x="352.8" y="145.84" text-anchor="middle" font-size="11" fill="#0b0b0b">9,22</text>
+<text x="415.2" y="143.73" text-anchor="middle" font-size="11" fill="#0b0b0b">9,32</text>
+<text x="477.6" y="223.1" text-anchor="middle" font-size="11" fill="#0b0b0b">5,57</text>
+<text x="540" y="220.56" text-anchor="middle" font-size="11" fill="#0b0b0b">5,69</text>
+<text x="602.4" y="245.75" text-anchor="middle" font-size="11" fill="#0b0b0b">4,50</text>
+<text x="664.8" y="229.03" text-anchor="middle" font-size="11" fill="#0b0b0b">5,29</text>
+</svg>

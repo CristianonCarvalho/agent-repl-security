@@ -610,6 +610,7 @@ Termos que você vai encontrar em outras fontes e **não usamos** aqui: *LLM-as-
 
 - [diagramas-evals.md](diagramas-evals.md): a referência técnica, com 20 diagramas.
 - [relatorios/avaliacao-fase3-t17a.md](relatorios/avaliacao-fase3-t17a.md): o relatório de uma etapa, com a história das primeiras execuções.
+- [relatorios/graficos-evals.md](relatorios/graficos-evals.md): os gráficos das dez execuções, com a versão interativa.
 - [diagramas-fluxo-do-pedido.md](diagramas-fluxo-do-pedido.md): como o agente funciona por dentro.
 - [diagramas-seguranca.md](diagramas-seguranca.md): as defesas do sistema.
 - [adr/D13-gate-de-eval-com-repeticoes.md](adr/D13-gate-de-eval-com-repeticoes.md): a decisão de rodar várias vezes e comparar com margem.

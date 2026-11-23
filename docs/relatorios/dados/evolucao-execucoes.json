@@ -1,0 +1,279 @@
+{
+  "versao": 1,
+  "descricao": "Métricas por execução real dos evals, derivadas dos relatórios locais em 23/11/2026. A taxa é sobre as rodadas válidas (sem erro de infraestrutura).",
+  "execucoes": [
+    {
+      "numero": 1,
+      "variante": "repl",
+      "relatorio": "avaliacao-20261121-191634-semente42.json",
+      "casos": 4,
+      "rodadas": 12,
+      "rodadas_validas": 12,
+      "aprovadas": 2,
+      "taxa_pct": 16.7,
+      "erro_infra_pct": 0.0,
+      "iteracoes_media": 9.92,
+      "tokens_entrada_por_rodada": 25392,
+      "tokens_saida_por_rodada": 1228,
+      "custo_por_rodada_usd": 0.000974,
+      "categorias_pct": {
+        "conformidade": 66.7,
+        "consulta": 0.0,
+        "cruzamento": 0.0,
+        "permissao": 0.0
+      },
+      "prompt": "Prompt antigo (1 a 6)",
+      "ponto_fraco": false,
+      "nota": "Primeira execução real, 4 casos"
+    },
+    {
+      "numero": 2,
+      "variante": "repl",
+      "relatorio": "avaliacao-20261121-192729-semente42.json",
+      "casos": 4,
+      "rodadas": 12,
+      "rodadas_validas": 12,
+      "aprovadas": 7,
+      "taxa_pct": 58.3,
+      "erro_infra_pct": 0.0,
+      "iteracoes_media": 9.42,
+      "tokens_entrada_por_rodada": 23396,
+      "tokens_saida_por_rodada": 1159,
+      "custo_por_rodada_usd": 0.000894,
+      "categorias_pct": {
+        "conformidade": 0.0,
+        "consulta": 100.0,
+        "cruzamento": 100.0,
+        "permissao": 33.3
+      },
+      "prompt": "Prompt antigo (1 a 6)",
+      "ponto_fraco": false,
+      "nota": "Corretor aceita fonte com prefixo e anotação, regra de texto exato e caso de Permissão com dado inacessível"
+    },
+    {
+      "numero": 3,
+      "variante": "repl",
+      "relatorio": "avaliacao-20261122-101602-semente42.json",
+      "casos": 4,
+      "rodadas": 12,
+      "rodadas_validas": 9,
+      "aprovadas": 6,
+      "taxa_pct": 66.7,
+      "erro_infra_pct": 25.0,
+      "iteracoes_media": 9.78,
+      "tokens_entrada_por_rodada": 32542,
+      "tokens_saida_por_rodada": 1792,
+      "custo_por_rodada_usd": 0.001327,
+      "categorias_pct": {
+        "conformidade": 66.7,
+        "consulta": 100.0,
+        "cruzamento": 100.0,
+        "permissao": 33.3
+      },
+      "prompt": "Prompt antigo (1 a 6)",
+      "ponto_fraco": false,
+      "nota": "Cliente do modelo repete respostas vazias"
+    },
+    {
+      "numero": 4,
+      "variante": "repl",
+      "relatorio": "avaliacao-20261122-103110-semente42.json",
+      "casos": 4,
+      "rodadas": 20,
+      "rodadas_validas": 20,
+      "aprovadas": 20,
+      "taxa_pct": 100.0,
+      "erro_infra_pct": 0.0,
+      "iteracoes_media": 8.8,
+      "tokens_entrada_por_rodada": 25006,
+      "tokens_saida_por_rodada": 1437,
+      "custo_por_rodada_usd": 0.001068,
+      "categorias_pct": {
+        "conformidade": 100.0,
+        "consulta": 100.0,
+        "cruzamento": 100.0,
+        "permissao": 100.0
+      },
+      "prompt": "Prompt antigo (1 a 6)",
+      "ponto_fraco": false,
+      "nota": "Prompt proíbe chamadas nativas, recusa mais ampla e motivo do erro no trace"
+    },
+    {
+      "numero": 5,
+      "variante": "repl",
+      "relatorio": "avaliacao-20261122-211105-semente42.json",
+      "casos": 20,
+      "rodadas": 60,
+      "rodadas_validas": 60,
+      "aprovadas": 55,
+      "taxa_pct": 91.7,
+      "erro_infra_pct": 0.0,
+      "iteracoes_media": 9.22,
+      "tokens_entrada_por_rodada": 29986,
+      "tokens_saida_por_rodada": 1638,
+      "custo_por_rodada_usd": 0.001229,
+      "categorias_pct": {
+        "conformidade": 73.3,
+        "consulta": 100.0,
+        "cruzamento": 100.0,
+        "permissao": 93.3
+      },
+      "prompt": "Prompt antigo (1 a 6)",
+      "ponto_fraco": false,
+      "nota": "Conjunto de 20 casos (T17a)"
+    },
+    {
+      "numero": 6,
+      "variante": "repl",
+      "relatorio": "avaliacao-20261123-084647-semente42.json",
+      "casos": 20,
+      "rodadas": 60,
+      "rodadas_validas": 59,
+      "aprovadas": 55,
+      "taxa_pct": 93.2,
+      "erro_infra_pct": 1.7,
+      "iteracoes_media": 9.32,
+      "tokens_entrada_por_rodada": 30524,
+      "tokens_saida_por_rodada": 1565,
+      "custo_por_rodada_usd": 0.001196,
+      "categorias_pct": {
+        "conformidade": 85.7,
+        "consulta": 100.0,
+        "cruzamento": 86.7,
+        "permissao": 100.0
+      },
+      "prompt": "Prompt antigo (1 a 6)",
+      "ponto_fraco": false,
+      "nota": "Gabaritos corrigidos e recusa ampliada"
+    },
+    {
+      "numero": 7,
+      "variante": "repl",
+      "relatorio": "avaliacao-20261123-091302-semente42.json",
+      "casos": 20,
+      "rodadas": 100,
+      "rodadas_validas": 100,
+      "aprovadas": 98,
+      "taxa_pct": 98.0,
+      "erro_infra_pct": 0.0,
+      "iteracoes_media": 5.57,
+      "tokens_entrada_por_rodada": 17786,
+      "tokens_saida_por_rodada": 996,
+      "custo_por_rodada_usd": 0.000751,
+      "categorias_pct": {
+        "conformidade": 100.0,
+        "consulta": 96.0,
+        "cruzamento": 96.0,
+        "permissao": 100.0
+      },
+      "prompt": "Prompt que economiza iterações (7 a 10)",
+      "ponto_fraco": false,
+      "nota": "Prompt que economiza iterações"
+    },
+    {
+      "numero": 8,
+      "variante": "repl",
+      "relatorio": "avaliacao-20261123-121409-semente42.json",
+      "casos": 13,
+      "rodadas": 13,
+      "rodadas_validas": 13,
+      "aprovadas": 13,
+      "taxa_pct": 100.0,
+      "erro_infra_pct": 0.0,
+      "iteracoes_media": 5.69,
+      "tokens_entrada_por_rodada": 17885,
+      "tokens_saida_por_rodada": 1052,
+      "custo_por_rodada_usd": 0.000788,
+      "categorias_pct": {
+        "conformidade": 100.0,
+        "consulta": 100.0,
+        "cruzamento": 100.0,
+        "permissao": 100.0
+      },
+      "prompt": "Prompt que economiza iterações (7 a 10)",
+      "ponto_fraco": false,
+      "nota": "Primeira execução com telemetria no Langfuse (13 casos de desenvolvimento, 1 rodada)"
+    },
+    {
+      "numero": 9,
+      "variante": "repl",
+      "relatorio": "avaliacao-20261123-170247-semente42.json",
+      "casos": 20,
+      "rodadas": 100,
+      "rodadas_validas": 14,
+      "aprovadas": 14,
+      "taxa_pct": 100.0,
+      "erro_infra_pct": 86.0,
+      "iteracoes_media": 4.5,
+      "tokens_entrada_por_rodada": 14205,
+      "tokens_saida_por_rodada": 655,
+      "custo_por_rodada_usd": 0.000321,
+      "categorias_pct": {
+        "conformidade": 100.0,
+        "consulta": 100.0,
+        "cruzamento": 100.0,
+        "permissao": 100.0
+      },
+      "prompt": "Prompt que economiza iterações (7 a 10)",
+      "ponto_fraco": true,
+      "nota": "Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429"
+    },
+    {
+      "numero": 10,
+      "variante": "repl",
+      "relatorio": "avaliacao-20261123-182307-semente42.json",
+      "casos": 20,
+      "rodadas": 100,
+      "rodadas_validas": 100,
+      "aprovadas": 100,
+      "taxa_pct": 100.0,
+      "erro_infra_pct": 0.0,
+      "iteracoes_media": 5.29,
+      "tokens_entrada_por_rodada": 16297,
+      "tokens_saida_por_rodada": 911,
+      "custo_por_rodada_usd": 0.000691,
+      "categorias_pct": {
+        "conformidade": 100.0,
+        "consulta": 100.0,
+        "cruzamento": 100.0,
+        "permissao": 100.0
+      },
+      "prompt": "Prompt que economiza iterações (7 a 10)",
+      "ponto_fraco": false,
+      "nota": "Provedor fixo (Wafer): primeira linha de base"
+    }
+  ],
+  "curvas_de_contexto": [
+    {
+      "nome": "REPL (Code Mode), linha de base",
+      "variante": "repl",
+      "pontos": [
+        [
+          1,
+          1414
+        ],
+        [
+          2,
+          2836
+        ],
+        [
+          3,
+          3137
+        ],
+        [
+          4,
+          3459
+        ],
+        [
+          5,
+          3882
+        ],
+        [
+          6,
+          4286
+        ]
+      ],
+      "rodadas_por_ponto_minimo": 20
+    }
+  ]
+}

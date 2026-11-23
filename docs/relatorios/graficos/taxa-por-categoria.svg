@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t d" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t">Taxa de acerto por categoria: REPL (Code Mode)</title>
+<desc id="d">Taxa de acerto por categoria, em porcentagem (REPL (Code Mode)). Conformidade: execução 1 66,7%, execução 2 0,0%, execução 3 66,7%, execução 4 100,0%, execução 5 73,3%, execução 6 85,7%, execução 7 100,0%, execução 8 100,0%, execução 9 100,0%, execução 10 100,0%; Consulta: execução 1 0,0%, execução 2 100,0%, execução 3 100,0%, execução 4 100,0%, execução 5 100,0%, execução 6 100,0%, execução 7 96,0%, execução 8 100,0%, execução 9 100,0%, execução 10 100,0%; Cruzamento: execução 1 0,0%, execução 2 100,0%, execução 3 100,0%, execução 4 100,0%, execução 5 100,0%, execução 6 86,7%, execução 7 96,0%, execução 8 100,0%, execução 9 100,0%, execução 10 100,0%; Permissao: execução 1 0,0%, execução 2 33,3%, execução 3 33,3%, execução 4 100,0%, execução 5 93,3%, execução 6 100,0%, execução 7 100,0%, execução 8 100,0%, execução 9 100,0%, execução 10 100,0%.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Taxa de acerto por categoria: REPL (Code Mode)</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">Conformidade</text>
+<line x1="142" y1="54" x2="158" y2="54" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<polygon points="150,49 154.5,57.5 145.5,57.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="164" y="58" font-size="12" fill="#52514e">Consulta</text>
+<line x1="234" y1="54" x2="250" y2="54" stroke="#6250d6" stroke-width="2" stroke-linecap="round"/>
+<rect x="238" y="50" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2"/>
+<text x="256" y="58" font-size="12" fill="#52514e">Cruzamento</text>
+<line x1="339" y1="54" x2="355" y2="54" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<polygon points="347,49 352,54 347,59 342,54" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+<text x="361" y="58" font-size="12" fill="#52514e">Permissao</text>
+<circle cx="32" cy="72" r="4.5" fill="#ffffff" stroke="#52514e" stroke-width="2"/>
+<text x="46" y="76" font-size="12" fill="#52514e">marcador vazado: execução 9 com poucas rodadas válidas</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="302.76" x2="696" y2="302.76" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="306.76" text-anchor="end" font-size="11" fill="#898781">20</text>
+<line x1="72" y1="255.52" x2="696" y2="255.52" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="259.52" text-anchor="end" font-size="11" fill="#898781">40</text>
+<line x1="72" y1="208.29" x2="696" y2="208.29" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="212.29" text-anchor="end" font-size="11" fill="#898781">60</text>
+<line x1="72" y1="161.05" x2="696" y2="161.05" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="165.05" text-anchor="end" font-size="11" fill="#898781">80</text>
+<line x1="72" y1="113.81" x2="696" y2="113.81" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="117.81" text-anchor="end" font-size="11" fill="#898781">100</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="103.2" y="366" text-anchor="middle" font-size="11" fill="#898781">1</text>
+<text x="165.6" y="366" text-anchor="middle" font-size="11" fill="#898781">2</text>
+<text x="228" y="366" text-anchor="middle" font-size="11" fill="#898781">3</text>
+<text x="290.4" y="366" text-anchor="middle" font-size="11" fill="#898781">4</text>
+<text x="352.8" y="366" text-anchor="middle" font-size="11" fill="#898781">5</text>
+<text x="415.2" y="366" text-anchor="middle" font-size="11" fill="#898781">6</text>
+<text x="477.6" y="366" text-anchor="middle" font-size="11" fill="#898781">7</text>
+<text x="540" y="366" text-anchor="middle" font-size="11" fill="#898781">8</text>
+<text x="602.4" y="366" text-anchor="middle" font-size="11" fill="#898781">9</text>
+<text x="664.8" y="366" text-anchor="middle" font-size="11" fill="#898781">10</text>
+<text x="22" y="226" transform="rotate(-90 22 226)" text-anchor="middle" font-size="11" fill="#52514e">Rodadas aprovadas (%)</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Execução</text>
+<path d="M103.2 192.46 L165.6 350 L228 192.46 L290.4 113.81 L352.8 176.87 L415.2 147.58 L477.6 113.81 L540 113.81 L602.4 113.81 L664.8 113.81" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M103.2 350 L165.6 113.81 L228 113.81 L290.4 113.81 L352.8 113.81 L415.2 113.81 L477.6 123.26 L540 113.81 L602.4 113.81 L664.8 113.81" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M103.2 350 L165.6 113.81 L228 113.81 L290.4 113.81 L352.8 113.81 L415.2 145.22 L477.6 123.26 L540 113.81 L602.4 113.81 L664.8 113.81" fill="none" stroke="#6250d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M103.2 350 L165.6 271.35 L228 271.35 L290.4 113.81 L352.8 129.63 L415.2 113.81 L477.6 113.81 L540 113.81 L602.4 113.81 L664.8 113.81" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="103.2" cy="192.46" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1, Conformidade: 66,7% de acerto</title></circle>
+<circle cx="165.6" cy="350" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2, Conformidade: 0,0% de acerto</title></circle>
+<circle cx="228" cy="192.46" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3, Conformidade: 66,7% de acerto</title></circle>
+<circle cx="290.4" cy="113.81" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4, Conformidade: 100,0% de acerto</title></circle>
+<circle cx="352.8" cy="176.87" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5, Conformidade: 73,3% de acerto</title></circle>
+<circle cx="415.2" cy="147.58" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6, Conformidade: 85,7% de acerto</title></circle>
+<circle cx="477.6" cy="113.81" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7, Conformidade: 100,0% de acerto</title></circle>
+<circle cx="540" cy="113.81" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8, Conformidade: 100,0% de acerto</title></circle>
+<circle cx="602.4" cy="113.81" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2" tabindex="0"><title>Execução 9, Conformidade: 100,0% de acerto. Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></circle>
+<circle cx="664.8" cy="113.81" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10, Conformidade: 100,0% de acerto</title></circle>
+<polygon points="103.2,345 107.7,353.5 98.7,353.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1, Consulta: 0,0% de acerto</title></polygon>
+<polygon points="165.6,108.81 170.1,117.31 161.1,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2, Consulta: 100,0% de acerto</title></polygon>
+<polygon points="228,108.81 232.5,117.31 223.5,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3, Consulta: 100,0% de acerto</title></polygon>
+<polygon points="290.4,108.81 294.9,117.31 285.9,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4, Consulta: 100,0% de acerto</title></polygon>
+<polygon points="352.8,108.81 357.3,117.31 348.3,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5, Consulta: 100,0% de acerto</title></polygon>
+<polygon points="415.2,108.81 419.7,117.31 410.7,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6, Consulta: 100,0% de acerto</title></polygon>
+<polygon points="477.6,118.26 482.1,126.76 473.1,126.76" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7, Consulta: 96,0% de acerto</title></polygon>
+<polygon points="540,108.81 544.5,117.31 535.5,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8, Consulta: 100,0% de acerto</title></polygon>
+<polygon points="602.4,108.81 606.9,117.31 597.9,117.31" fill="#ffffff" stroke="#eb6834" stroke-width="2" tabindex="0"><title>Execução 9, Consulta: 100,0% de acerto. Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></polygon>
+<polygon points="664.8,108.81 669.3,117.31 660.3,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10, Consulta: 100,0% de acerto</title></polygon>
+<rect x="99.2" y="346" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1, Cruzamento: 0,0% de acerto</title></rect>
+<rect x="161.6" y="109.81" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2, Cruzamento: 100,0% de acerto</title></rect>
+<rect x="224" y="109.81" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3, Cruzamento: 100,0% de acerto</title></rect>
+<rect x="286.4" y="109.81" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4, Cruzamento: 100,0% de acerto</title></rect>
+<rect x="348.8" y="109.81" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5, Cruzamento: 100,0% de acerto</title></rect>
+<rect x="411.2" y="141.22" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6, Cruzamento: 86,7% de acerto</title></rect>
+<rect x="473.6" y="119.26" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7, Cruzamento: 96,0% de acerto</title></rect>
+<rect x="536" y="109.81" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8, Cruzamento: 100,0% de acerto</title></rect>
+<rect x="598.4" y="109.81" width="8" height="8" fill="#ffffff" stroke="#6250d6" stroke-width="2" tabindex="0"><title>Execução 9, Cruzamento: 100,0% de acerto. Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></rect>
+<rect x="660.8" y="109.81" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10, Cruzamento: 100,0% de acerto</title></rect>
+<polygon points="103.2,345 108.2,350 103.2,355 98.2,350" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1, Permissao: 0,0% de acerto</title></polygon>
+<polygon points="165.6,266.35 170.6,271.35 165.6,276.35 160.6,271.35" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2, Permissao: 33,3% de acerto</title></polygon>
+<polygon points="228,266.35 233,271.35 228,276.35 223,271.35" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3, Permissao: 33,3% de acerto</title></polygon>
+<polygon points="290.4,108.81 295.4,113.81 290.4,118.81 285.4,113.81" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4, Permissao: 100,0% de acerto</title></polygon>
+<polygon points="352.8,124.63 357.8,129.63 352.8,134.63 347.8,129.63" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5, Permissao: 93,3% de acerto</title></polygon>
+<polygon points="415.2,108.81 420.2,113.81 415.2,118.81 410.2,113.81" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6, Permissao: 100,0% de acerto</title></polygon>
+<polygon points="477.6,108.81 482.6,113.81 477.6,118.81 472.6,113.81" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7, Permissao: 100,0% de acerto</title></polygon>
+<polygon points="540,108.81 545,113.81 540,118.81 535,113.81" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8, Permissao: 100,0% de acerto</title></polygon>
+<polygon points="602.4,108.81 607.4,113.81 602.4,118.81 597.4,113.81" fill="#ffffff" stroke="#1baf7a" stroke-width="2" tabindex="0"><title>Execução 9, Permissao: 100,0% de acerto. Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></polygon>
+<polygon points="664.8,108.81 669.8,113.81 664.8,118.81 659.8,113.81" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10, Permissao: 100,0% de acerto</title></polygon>
+</svg>

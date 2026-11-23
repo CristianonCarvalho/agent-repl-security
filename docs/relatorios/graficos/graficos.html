@@ -1,0 +1,480 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Avaliações do agente: gráficos</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0; background: #f4f4f1; color: #0b0b0b;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
+h2 { font-size: 17px; font-weight: 600; margin: 32px 0 4px; }
+.intro, .leitura { color: #52514e; font-size: 14px; line-height: 1.5; margin: 4px 0 12px; }
+section svg { display: block; width: 100%; max-width: 100%; height: auto; }
+.dica { position: absolute; z-index: 10; max-width: 280px; padding: 6px 8px; border-radius: 6px;
+  background: #0b0b0b; color: #ffffff; font-size: 12px; line-height: 1.4; pointer-events: none; }
+.dica[hidden] { display: none; }
+</style>
+</head>
+<body>
+<main>
+<h1>Avaliações do agente: gráficos das execuções</h1>
+<p class="intro">Métricas por execução real dos evals, derivadas dos relatórios locais em 23/11/2026. A taxa é sobre as rodadas válidas (sem erro de infraestrutura). Passe o mouse, toque ou use o Tab sobre um ponto para ver o valor.</p>
+<section>
+<h2>Taxa de acerto por execução</h2>
+<p class="leitura">Cada ponto é uma execução real. Quanto mais alto, mais rodadas aprovadas. Cada variante tem a sua linha.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t1 d1" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t1">Taxa de acerto por execução</title>
+<desc id="d1">Taxa de acerto por execução, em porcentagem. REPL (Code Mode): execução 1 16,7%, execução 2 58,3%, execução 3 66,7%, execução 4 100,0%, execução 5 91,7%, execução 6 93,2%, execução 7 98,0%, execução 8 100,0%, execução 9 100,0%, execução 10 100,0%.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Taxa de acerto por execução</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<circle cx="176" cy="54" r="4.5" fill="#ffffff" stroke="#52514e" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">marcador vazado: execução 9 com poucas rodadas válidas</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="301.62" x2="696" y2="301.62" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="305.62" text-anchor="end" font-size="11" fill="#898781">20</text>
+<line x1="72" y1="253.24" x2="696" y2="253.24" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="257.24" text-anchor="end" font-size="11" fill="#898781">40</text>
+<line x1="72" y1="204.86" x2="696" y2="204.86" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="208.86" text-anchor="end" font-size="11" fill="#898781">60</text>
+<line x1="72" y1="156.48" x2="696" y2="156.48" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="160.48" text-anchor="end" font-size="11" fill="#898781">80</text>
+<line x1="72" y1="108.1" x2="696" y2="108.1" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="112.1" text-anchor="end" font-size="11" fill="#898781">100</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="103.2" y="366" text-anchor="middle" font-size="11" fill="#898781">1</text>
+<text x="165.6" y="366" text-anchor="middle" font-size="11" fill="#898781">2</text>
+<text x="228" y="366" text-anchor="middle" font-size="11" fill="#898781">3</text>
+<text x="290.4" y="366" text-anchor="middle" font-size="11" fill="#898781">4</text>
+<text x="352.8" y="366" text-anchor="middle" font-size="11" fill="#898781">5</text>
+<text x="415.2" y="366" text-anchor="middle" font-size="11" fill="#898781">6</text>
+<text x="477.6" y="366" text-anchor="middle" font-size="11" fill="#898781">7</text>
+<text x="540" y="366" text-anchor="middle" font-size="11" fill="#898781">8</text>
+<text x="602.4" y="366" text-anchor="middle" font-size="11" fill="#898781">9</text>
+<text x="664.8" y="366" text-anchor="middle" font-size="11" fill="#898781">10</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Rodadas aprovadas (%)</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Execução</text>
+<path d="M103.2 309.6 L165.6 208.97 L228 188.65 L290.4 108.1 L352.8 128.17 L415.2 124.54 L477.6 112.93 L540 108.1 L602.4 108.1 L664.8 108.1" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="103.2" cy="309.6" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1: 16,7% de acerto (2 de 12 rodadas)</title></circle>
+<circle cx="165.6" cy="208.97" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2: 58,3% de acerto (7 de 12 rodadas)</title></circle>
+<circle cx="228" cy="188.65" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3: 66,7% de acerto (6 de 9 rodadas)</title></circle>
+<circle cx="290.4" cy="108.1" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4: 100,0% de acerto (20 de 20 rodadas)</title></circle>
+<circle cx="352.8" cy="128.17" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5: 91,7% de acerto (55 de 60 rodadas)</title></circle>
+<circle cx="415.2" cy="124.54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6: 93,2% de acerto (55 de 59 rodadas)</title></circle>
+<circle cx="477.6" cy="112.93" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7: 98,0% de acerto (98 de 100 rodadas)</title></circle>
+<circle cx="540" cy="108.1" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8: 100,0% de acerto (13 de 13 rodadas)</title></circle>
+<circle cx="602.4" cy="108.1" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2" tabindex="0"><title>Execução 9: 100,0% de acerto (14 de 14 rodadas). Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></circle>
+<circle cx="664.8" cy="108.1" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10: 100,0% de acerto (100 de 100 rodadas)</title></circle>
+<text x="103.2" y="300.6" text-anchor="middle" font-size="11" fill="#0b0b0b">16,7%</text>
+<text x="165.6" y="199.97" text-anchor="middle" font-size="11" fill="#0b0b0b">58,3%</text>
+<text x="228" y="179.65" text-anchor="middle" font-size="11" fill="#0b0b0b">66,7%</text>
+<text x="290.4" y="99.1" text-anchor="middle" font-size="11" fill="#0b0b0b">100,0%</text>
+<text x="352.8" y="119.17" text-anchor="middle" font-size="11" fill="#0b0b0b">91,7%</text>
+<text x="415.2" y="115.54" text-anchor="middle" font-size="11" fill="#0b0b0b">93,2%</text>
+<text x="477.6" y="103.93" text-anchor="middle" font-size="11" fill="#0b0b0b">98,0%</text>
+<text x="540" y="99.1" text-anchor="middle" font-size="11" fill="#0b0b0b">100,0%</text>
+<text x="602.4" y="99.1" text-anchor="middle" font-size="11" fill="#0b0b0b">100,0%</text>
+<text x="664.8" y="99.1" text-anchor="middle" font-size="11" fill="#0b0b0b">100,0%</text>
+</svg>
+</section>
+<section>
+<h2>Taxa de acerto por categoria</h2>
+<p class="leitura">Uma linha por categoria, nas mesmas execuções da variante REPL.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t2 d2" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t2">Taxa de acerto por categoria: REPL (Code Mode)</title>
+<desc id="d2">Taxa de acerto por categoria, em porcentagem (REPL (Code Mode)). Conformidade: execução 1 66,7%, execução 2 0,0%, execução 3 66,7%, execução 4 100,0%, execução 5 73,3%, execução 6 85,7%, execução 7 100,0%, execução 8 100,0%, execução 9 100,0%, execução 10 100,0%; Consulta: execução 1 0,0%, execução 2 100,0%, execução 3 100,0%, execução 4 100,0%, execução 5 100,0%, execução 6 100,0%, execução 7 96,0%, execução 8 100,0%, execução 9 100,0%, execução 10 100,0%; Cruzamento: execução 1 0,0%, execução 2 100,0%, execução 3 100,0%, execução 4 100,0%, execução 5 100,0%, execução 6 86,7%, execução 7 96,0%, execução 8 100,0%, execução 9 100,0%, execução 10 100,0%; Permissao: execução 1 0,0%, execução 2 33,3%, execução 3 33,3%, execução 4 100,0%, execução 5 93,3%, execução 6 100,0%, execução 7 100,0%, execução 8 100,0%, execução 9 100,0%, execução 10 100,0%.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Taxa de acerto por categoria: REPL (Code Mode)</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">Conformidade</text>
+<line x1="142" y1="54" x2="158" y2="54" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<polygon points="150,49 154.5,57.5 145.5,57.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="164" y="58" font-size="12" fill="#52514e">Consulta</text>
+<line x1="234" y1="54" x2="250" y2="54" stroke="#6250d6" stroke-width="2" stroke-linecap="round"/>
+<rect x="238" y="50" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2"/>
+<text x="256" y="58" font-size="12" fill="#52514e">Cruzamento</text>
+<line x1="339" y1="54" x2="355" y2="54" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<polygon points="347,49 352,54 347,59 342,54" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+<text x="361" y="58" font-size="12" fill="#52514e">Permissao</text>
+<circle cx="32" cy="72" r="4.5" fill="#ffffff" stroke="#52514e" stroke-width="2"/>
+<text x="46" y="76" font-size="12" fill="#52514e">marcador vazado: execução 9 com poucas rodadas válidas</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="302.76" x2="696" y2="302.76" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="306.76" text-anchor="end" font-size="11" fill="#898781">20</text>
+<line x1="72" y1="255.52" x2="696" y2="255.52" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="259.52" text-anchor="end" font-size="11" fill="#898781">40</text>
+<line x1="72" y1="208.29" x2="696" y2="208.29" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="212.29" text-anchor="end" font-size="11" fill="#898781">60</text>
+<line x1="72" y1="161.05" x2="696" y2="161.05" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="165.05" text-anchor="end" font-size="11" fill="#898781">80</text>
+<line x1="72" y1="113.81" x2="696" y2="113.81" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="117.81" text-anchor="end" font-size="11" fill="#898781">100</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="103.2" y="366" text-anchor="middle" font-size="11" fill="#898781">1</text>
+<text x="165.6" y="366" text-anchor="middle" font-size="11" fill="#898781">2</text>
+<text x="228" y="366" text-anchor="middle" font-size="11" fill="#898781">3</text>
+<text x="290.4" y="366" text-anchor="middle" font-size="11" fill="#898781">4</text>
+<text x="352.8" y="366" text-anchor="middle" font-size="11" fill="#898781">5</text>
+<text x="415.2" y="366" text-anchor="middle" font-size="11" fill="#898781">6</text>
+<text x="477.6" y="366" text-anchor="middle" font-size="11" fill="#898781">7</text>
+<text x="540" y="366" text-anchor="middle" font-size="11" fill="#898781">8</text>
+<text x="602.4" y="366" text-anchor="middle" font-size="11" fill="#898781">9</text>
+<text x="664.8" y="366" text-anchor="middle" font-size="11" fill="#898781">10</text>
+<text x="22" y="226" transform="rotate(-90 22 226)" text-anchor="middle" font-size="11" fill="#52514e">Rodadas aprovadas (%)</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Execução</text>
+<path d="M103.2 192.46 L165.6 350 L228 192.46 L290.4 113.81 L352.8 176.87 L415.2 147.58 L477.6 113.81 L540 113.81 L602.4 113.81 L664.8 113.81" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M103.2 350 L165.6 113.81 L228 113.81 L290.4 113.81 L352.8 113.81 L415.2 113.81 L477.6 123.26 L540 113.81 L602.4 113.81 L664.8 113.81" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M103.2 350 L165.6 113.81 L228 113.81 L290.4 113.81 L352.8 113.81 L415.2 145.22 L477.6 123.26 L540 113.81 L602.4 113.81 L664.8 113.81" fill="none" stroke="#6250d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M103.2 350 L165.6 271.35 L228 271.35 L290.4 113.81 L352.8 129.63 L415.2 113.81 L477.6 113.81 L540 113.81 L602.4 113.81 L664.8 113.81" fill="none" stroke="#1baf7a" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="103.2" cy="192.46" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1, Conformidade: 66,7% de acerto</title></circle>
+<circle cx="165.6" cy="350" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2, Conformidade: 0,0% de acerto</title></circle>
+<circle cx="228" cy="192.46" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3, Conformidade: 66,7% de acerto</title></circle>
+<circle cx="290.4" cy="113.81" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4, Conformidade: 100,0% de acerto</title></circle>
+<circle cx="352.8" cy="176.87" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5, Conformidade: 73,3% de acerto</title></circle>
+<circle cx="415.2" cy="147.58" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6, Conformidade: 85,7% de acerto</title></circle>
+<circle cx="477.6" cy="113.81" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7, Conformidade: 100,0% de acerto</title></circle>
+<circle cx="540" cy="113.81" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8, Conformidade: 100,0% de acerto</title></circle>
+<circle cx="602.4" cy="113.81" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2" tabindex="0"><title>Execução 9, Conformidade: 100,0% de acerto. Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></circle>
+<circle cx="664.8" cy="113.81" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10, Conformidade: 100,0% de acerto</title></circle>
+<polygon points="103.2,345 107.7,353.5 98.7,353.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1, Consulta: 0,0% de acerto</title></polygon>
+<polygon points="165.6,108.81 170.1,117.31 161.1,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2, Consulta: 100,0% de acerto</title></polygon>
+<polygon points="228,108.81 232.5,117.31 223.5,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3, Consulta: 100,0% de acerto</title></polygon>
+<polygon points="290.4,108.81 294.9,117.31 285.9,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4, Consulta: 100,0% de acerto</title></polygon>
+<polygon points="352.8,108.81 357.3,117.31 348.3,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5, Consulta: 100,0% de acerto</title></polygon>
+<polygon points="415.2,108.81 419.7,117.31 410.7,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6, Consulta: 100,0% de acerto</title></polygon>
+<polygon points="477.6,118.26 482.1,126.76 473.1,126.76" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7, Consulta: 96,0% de acerto</title></polygon>
+<polygon points="540,108.81 544.5,117.31 535.5,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8, Consulta: 100,0% de acerto</title></polygon>
+<polygon points="602.4,108.81 606.9,117.31 597.9,117.31" fill="#ffffff" stroke="#eb6834" stroke-width="2" tabindex="0"><title>Execução 9, Consulta: 100,0% de acerto. Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></polygon>
+<polygon points="664.8,108.81 669.3,117.31 660.3,117.31" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10, Consulta: 100,0% de acerto</title></polygon>
+<rect x="99.2" y="346" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1, Cruzamento: 0,0% de acerto</title></rect>
+<rect x="161.6" y="109.81" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2, Cruzamento: 100,0% de acerto</title></rect>
+<rect x="224" y="109.81" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3, Cruzamento: 100,0% de acerto</title></rect>
+<rect x="286.4" y="109.81" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4, Cruzamento: 100,0% de acerto</title></rect>
+<rect x="348.8" y="109.81" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5, Cruzamento: 100,0% de acerto</title></rect>
+<rect x="411.2" y="141.22" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6, Cruzamento: 86,7% de acerto</title></rect>
+<rect x="473.6" y="119.26" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7, Cruzamento: 96,0% de acerto</title></rect>
+<rect x="536" y="109.81" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8, Cruzamento: 100,0% de acerto</title></rect>
+<rect x="598.4" y="109.81" width="8" height="8" fill="#ffffff" stroke="#6250d6" stroke-width="2" tabindex="0"><title>Execução 9, Cruzamento: 100,0% de acerto. Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></rect>
+<rect x="660.8" y="109.81" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10, Cruzamento: 100,0% de acerto</title></rect>
+<polygon points="103.2,345 108.2,350 103.2,355 98.2,350" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1, Permissao: 0,0% de acerto</title></polygon>
+<polygon points="165.6,266.35 170.6,271.35 165.6,276.35 160.6,271.35" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2, Permissao: 33,3% de acerto</title></polygon>
+<polygon points="228,266.35 233,271.35 228,276.35 223,271.35" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3, Permissao: 33,3% de acerto</title></polygon>
+<polygon points="290.4,108.81 295.4,113.81 290.4,118.81 285.4,113.81" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4, Permissao: 100,0% de acerto</title></polygon>
+<polygon points="352.8,124.63 357.8,129.63 352.8,134.63 347.8,129.63" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5, Permissao: 93,3% de acerto</title></polygon>
+<polygon points="415.2,108.81 420.2,113.81 415.2,118.81 410.2,113.81" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6, Permissao: 100,0% de acerto</title></polygon>
+<polygon points="477.6,108.81 482.6,113.81 477.6,118.81 472.6,113.81" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7, Permissao: 100,0% de acerto</title></polygon>
+<polygon points="540,108.81 545,113.81 540,118.81 535,113.81" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8, Permissao: 100,0% de acerto</title></polygon>
+<polygon points="602.4,108.81 607.4,113.81 602.4,118.81 597.4,113.81" fill="#ffffff" stroke="#1baf7a" stroke-width="2" tabindex="0"><title>Execução 9, Permissao: 100,0% de acerto. Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></polygon>
+<polygon points="664.8,108.81 669.8,113.81 664.8,118.81 659.8,113.81" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10, Permissao: 100,0% de acerto</title></polygon>
+</svg>
+</section>
+<section>
+<h2>Iterações por pedido</h2>
+<p class="leitura">Quantas chamadas ao modelo cada pedido levou, em média. Menos iterações custam menos.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t3 d3" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t3">Iterações por pedido, por execução</title>
+<desc id="d3">Iterações médias por pedido, por execução. REPL (Code Mode): execução 1 9,92, execução 2 9,42, execução 3 9,78, execução 4 8,80, execução 5 9,22, execução 6 9,32, execução 7 5,57, execução 8 5,69, execução 9 4,50, execução 10 5,29.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Iterações por pedido, por execução</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<circle cx="176" cy="54" r="4.5" fill="#ffffff" stroke="#52514e" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">marcador vazado: execução 9 com poucas rodadas válidas</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="307.67" x2="696" y2="307.67" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="311.67" text-anchor="end" font-size="11" fill="#898781">2</text>
+<line x1="72" y1="265.33" x2="696" y2="265.33" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="269.33" text-anchor="end" font-size="11" fill="#898781">4</text>
+<line x1="72" y1="223" x2="696" y2="223" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="227" text-anchor="end" font-size="11" fill="#898781">6</text>
+<line x1="72" y1="180.67" x2="696" y2="180.67" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="184.67" text-anchor="end" font-size="11" fill="#898781">8</text>
+<line x1="72" y1="138.33" x2="696" y2="138.33" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="142.33" text-anchor="end" font-size="11" fill="#898781">10</text>
+<line x1="72" y1="96" x2="696" y2="96" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="100" text-anchor="end" font-size="11" fill="#898781">12</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="103.2" y="366" text-anchor="middle" font-size="11" fill="#898781">1</text>
+<text x="165.6" y="366" text-anchor="middle" font-size="11" fill="#898781">2</text>
+<text x="228" y="366" text-anchor="middle" font-size="11" fill="#898781">3</text>
+<text x="290.4" y="366" text-anchor="middle" font-size="11" fill="#898781">4</text>
+<text x="352.8" y="366" text-anchor="middle" font-size="11" fill="#898781">5</text>
+<text x="415.2" y="366" text-anchor="middle" font-size="11" fill="#898781">6</text>
+<text x="477.6" y="366" text-anchor="middle" font-size="11" fill="#898781">7</text>
+<text x="540" y="366" text-anchor="middle" font-size="11" fill="#898781">8</text>
+<text x="602.4" y="366" text-anchor="middle" font-size="11" fill="#898781">9</text>
+<text x="664.8" y="366" text-anchor="middle" font-size="11" fill="#898781">10</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Iterações por pedido</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Execução</text>
+<path d="M103.2 140.03 L165.6 150.61 L228 142.99 L290.4 163.73 L352.8 154.84 L415.2 152.73 L477.6 232.1 L540 229.56 L602.4 254.75 L664.8 238.03" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="103.2" cy="140.03" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1: 9,9 iterações por pedido</title></circle>
+<circle cx="165.6" cy="150.61" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2: 9,4 iterações por pedido</title></circle>
+<circle cx="228" cy="142.99" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3: 9,8 iterações por pedido</title></circle>
+<circle cx="290.4" cy="163.73" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4: 8,8 iterações por pedido</title></circle>
+<circle cx="352.8" cy="154.84" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5: 9,2 iterações por pedido</title></circle>
+<circle cx="415.2" cy="152.73" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6: 9,3 iterações por pedido</title></circle>
+<circle cx="477.6" cy="232.1" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7: 5,6 iterações por pedido</title></circle>
+<circle cx="540" cy="229.56" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8: 5,7 iterações por pedido</title></circle>
+<circle cx="602.4" cy="254.75" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2" tabindex="0"><title>Execução 9: 4,5 iterações por pedido. Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></circle>
+<circle cx="664.8" cy="238.03" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10: 5,3 iterações por pedido</title></circle>
+<text x="103.2" y="131.03" text-anchor="middle" font-size="11" fill="#0b0b0b">9,92</text>
+<text x="165.6" y="141.61" text-anchor="middle" font-size="11" fill="#0b0b0b">9,42</text>
+<text x="228" y="133.99" text-anchor="middle" font-size="11" fill="#0b0b0b">9,78</text>
+<text x="290.4" y="154.73" text-anchor="middle" font-size="11" fill="#0b0b0b">8,80</text>
+<text x="352.8" y="145.84" text-anchor="middle" font-size="11" fill="#0b0b0b">9,22</text>
+<text x="415.2" y="143.73" text-anchor="middle" font-size="11" fill="#0b0b0b">9,32</text>
+<text x="477.6" y="223.1" text-anchor="middle" font-size="11" fill="#0b0b0b">5,57</text>
+<text x="540" y="220.56" text-anchor="middle" font-size="11" fill="#0b0b0b">5,69</text>
+<text x="602.4" y="245.75" text-anchor="middle" font-size="11" fill="#0b0b0b">4,50</text>
+<text x="664.8" y="229.03" text-anchor="middle" font-size="11" fill="#0b0b0b">5,29</text>
+</svg>
+</section>
+<section>
+<h2>Iterações contra tokens de entrada</h2>
+<p class="leitura">Cada ponto é uma execução: mais à direita, mais iterações; mais alto, mais tokens por rodada.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t4 d4" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t4">Iterações por pedido contra tokens de entrada</title>
+<desc id="d4">Iterações médias por pedido (horizontal) contra tokens de entrada por rodada (vertical), uma marca por execução com o número ao lado. execução 1 (Prompt antigo (1 a 6)): 9,92 iterações e 25,4 mil tokens de entrada; execução 2 (Prompt antigo (1 a 6)): 9,42 iterações e 23,4 mil tokens de entrada; execução 3 (Prompt antigo (1 a 6)): 9,78 iterações e 32,5 mil tokens de entrada; execução 4 (Prompt antigo (1 a 6)): 8,80 iterações e 25,0 mil tokens de entrada; execução 5 (Prompt antigo (1 a 6)): 9,22 iterações e 30,0 mil tokens de entrada; execução 6 (Prompt antigo (1 a 6)): 9,32 iterações e 30,5 mil tokens de entrada; execução 7 (Prompt que economiza iterações (7 a 10)): 5,57 iterações e 17,8 mil tokens de entrada; execução 8 (Prompt que economiza iterações (7 a 10)): 5,69 iterações e 17,9 mil tokens de entrada; execução 9 (Prompt que economiza iterações (7 a 10)): 4,50 iterações e 14,2 mil tokens de entrada; execução 10 (Prompt que economiza iterações (7 a 10)): 5,29 iterações e 16,3 mil tokens de entrada.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Iterações por pedido contra tokens de entrada</text>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">Prompt antigo (1 a 6)</text>
+<circle cx="208.5" cy="54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="222.5" y="58" font-size="12" fill="#52514e">Prompt que economiza iterações (7 a 10)</text>
+<circle cx="32" cy="72" r="4.5" fill="#ffffff" stroke="#52514e" stroke-width="2"/>
+<text x="46" y="76" font-size="12" fill="#52514e">marcador vazado: execução 9 com poucas rodadas válidas</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="288" x2="696" y2="288" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="292" text-anchor="end" font-size="11" fill="#898781">10</text>
+<line x1="72" y1="226" x2="696" y2="226" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="230" text-anchor="end" font-size="11" fill="#898781">20</text>
+<line x1="72" y1="164" x2="696" y2="164" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="168" text-anchor="end" font-size="11" fill="#898781">30</text>
+<line x1="72" y1="102" x2="696" y2="102" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="106" text-anchor="end" font-size="11" fill="#898781">40</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="72" y="366" text-anchor="middle" font-size="11" fill="#898781">0</text>
+<text x="176" y="366" text-anchor="middle" font-size="11" fill="#898781">2</text>
+<text x="280" y="366" text-anchor="middle" font-size="11" fill="#898781">4</text>
+<text x="384" y="366" text-anchor="middle" font-size="11" fill="#898781">6</text>
+<text x="488" y="366" text-anchor="middle" font-size="11" fill="#898781">8</text>
+<text x="592" y="366" text-anchor="middle" font-size="11" fill="#898781">10</text>
+<text x="696" y="366" text-anchor="middle" font-size="11" fill="#898781">12</text>
+<text x="22" y="226" transform="rotate(-90 22 226)" text-anchor="middle" font-size="11" fill="#52514e">Tokens de entrada por rodada (mil)</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Iterações por pedido</text>
+<circle cx="587.84" cy="192.57" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1: 9,9 iterações, 25,4 mil tokens de entrada</title></circle>
+<circle cx="561.84" cy="204.94" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2: 9,4 iterações, 23,4 mil tokens de entrada</title></circle>
+<circle cx="580.56" cy="148.24" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3: 9,8 iterações, 32,5 mil tokens de entrada</title></circle>
+<circle cx="529.6" cy="194.96" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4: 8,8 iterações, 25,0 mil tokens de entrada</title></circle>
+<circle cx="551.44" cy="164.09" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5: 9,2 iterações, 30,0 mil tokens de entrada</title></circle>
+<circle cx="556.64" cy="160.75" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6: 9,3 iterações, 30,5 mil tokens de entrada</title></circle>
+<circle cx="361.64" cy="239.73" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7: 5,6 iterações, 17,8 mil tokens de entrada</title></circle>
+<circle cx="367.88" cy="239.11" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8: 5,7 iterações, 17,9 mil tokens de entrada</title></circle>
+<circle cx="306" cy="261.93" r="4.5" fill="#ffffff" stroke="#eb6834" stroke-width="2" tabindex="0"><title>Execução 9: 4,5 iterações, 14,2 mil tokens de entrada. Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></circle>
+<circle cx="347.08" cy="248.96" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10: 5,3 iterações, 16,3 mil tokens de entrada</title></circle>
+<text x="594.84" y="196.57" font-size="11" fill="#52514e">1</text>
+<text x="568.84" y="208.94" font-size="11" fill="#52514e">2</text>
+<text x="587.56" y="152.24" font-size="11" fill="#52514e">3</text>
+<text x="536.6" y="198.96" font-size="11" fill="#52514e">4</text>
+<text x="558.44" y="168.09" font-size="11" fill="#52514e">5</text>
+<text x="563.64" y="164.75" font-size="11" fill="#52514e">6</text>
+<text x="368.64" y="243.73" font-size="11" fill="#52514e">7</text>
+<text x="374.88" y="243.11" font-size="11" fill="#52514e">8</text>
+<text x="313" y="265.93" font-size="11" fill="#52514e">9</text>
+<text x="354.08" y="252.96" font-size="11" fill="#52514e">10</text>
+</svg>
+</section>
+<section>
+<h2>Contexto ao longo dos turnos</h2>
+<p class="leitura">Quanto cresce o contexto enviado ao modelo a cada turno do agente.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t5 d5" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t5">Tokens de entrada por turno do agente</title>
+<desc id="d5">Tokens de entrada no turno, por turno do agente, uma linha por curva. REPL (Code Mode), linha de base: turno 1 1.414, turno 2 2.836, turno 3 3.137, turno 4 3.459, turno 5 3.882, turno 6 4.286.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Tokens de entrada por turno do agente</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode), linha de base</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="299.2" x2="696" y2="299.2" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="303.2" text-anchor="end" font-size="11" fill="#898781">1.000</text>
+<line x1="72" y1="248.4" x2="696" y2="248.4" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="252.4" text-anchor="end" font-size="11" fill="#898781">2.000</text>
+<line x1="72" y1="197.6" x2="696" y2="197.6" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="201.6" text-anchor="end" font-size="11" fill="#898781">3.000</text>
+<line x1="72" y1="146.8" x2="696" y2="146.8" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="150.8" text-anchor="end" font-size="11" fill="#898781">4.000</text>
+<line x1="72" y1="96" x2="696" y2="96" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="100" text-anchor="end" font-size="11" fill="#898781">5.000</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="72" y="366" text-anchor="middle" font-size="11" fill="#898781">0</text>
+<text x="228" y="366" text-anchor="middle" font-size="11" fill="#898781">2</text>
+<text x="384" y="366" text-anchor="middle" font-size="11" fill="#898781">4</text>
+<text x="540" y="366" text-anchor="middle" font-size="11" fill="#898781">6</text>
+<text x="696" y="366" text-anchor="middle" font-size="11" fill="#898781">8</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Tokens de entrada no turno</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Turno do agente</text>
+<path d="M150 278.17 L228 205.93 L306 190.64 L384 174.28 L462 152.79 L540 132.27" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="150" cy="278.17" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 1: 1.414 tokens de entrada</title></circle>
+<circle cx="228" cy="205.93" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 2: 2.836 tokens de entrada</title></circle>
+<circle cx="306" cy="190.64" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 3: 3.137 tokens de entrada</title></circle>
+<circle cx="384" cy="174.28" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 4: 3.459 tokens de entrada</title></circle>
+<circle cx="462" cy="152.79" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 5: 3.882 tokens de entrada</title></circle>
+<circle cx="540" cy="132.27" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 6: 4.286 tokens de entrada</title></circle>
+<text x="150" y="269.17" text-anchor="middle" font-size="11" fill="#0b0b0b">1.414</text>
+<text x="228" y="196.93" text-anchor="middle" font-size="11" fill="#0b0b0b">2.836</text>
+<text x="306" y="181.64" text-anchor="middle" font-size="11" fill="#0b0b0b">3.137</text>
+<text x="384" y="165.28" text-anchor="middle" font-size="11" fill="#0b0b0b">3.459</text>
+<text x="462" y="143.79" text-anchor="middle" font-size="11" fill="#0b0b0b">3.882</text>
+<text x="540" y="123.27" text-anchor="middle" font-size="11" fill="#0b0b0b">4.286</text>
+</svg>
+</section>
+<section>
+<h2>Custo por rodada</h2>
+<p class="leitura">Custo médio de uma rodada, em milésimos de dólar, por execução.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t6 d6" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t6">Custo por rodada</title>
+<desc id="d6">Custo por rodada, em milésimos de dólar. REPL (Code Mode): execução 1 0,974, execução 2 0,894, execução 3 1,327, execução 4 1,068, execução 5 1,229, execução 6 1,196, execução 7 0,751, execução 8 0,788, execução 9 0,321, execução 10 0,691.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Custo por rodada</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<circle cx="176" cy="54" r="4.5" fill="#ffffff" stroke="#52514e" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">marcador vazado: execução 9 com poucas rodadas válidas</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0,0</text>
+<line x1="72" y1="265.33" x2="696" y2="265.33" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="269.33" text-anchor="end" font-size="11" fill="#898781">0,5</text>
+<line x1="72" y1="180.67" x2="696" y2="180.67" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="184.67" text-anchor="end" font-size="11" fill="#898781">1,0</text>
+<line x1="72" y1="96" x2="696" y2="96" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="100" text-anchor="end" font-size="11" fill="#898781">1,5</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="103.2" y="366" text-anchor="middle" font-size="11" fill="#898781">1</text>
+<text x="165.6" y="366" text-anchor="middle" font-size="11" fill="#898781">2</text>
+<text x="228" y="366" text-anchor="middle" font-size="11" fill="#898781">3</text>
+<text x="290.4" y="366" text-anchor="middle" font-size="11" fill="#898781">4</text>
+<text x="352.8" y="366" text-anchor="middle" font-size="11" fill="#898781">5</text>
+<text x="415.2" y="366" text-anchor="middle" font-size="11" fill="#898781">6</text>
+<text x="477.6" y="366" text-anchor="middle" font-size="11" fill="#898781">7</text>
+<text x="540" y="366" text-anchor="middle" font-size="11" fill="#898781">8</text>
+<text x="602.4" y="366" text-anchor="middle" font-size="11" fill="#898781">9</text>
+<text x="664.8" y="366" text-anchor="middle" font-size="11" fill="#898781">10</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Custo por rodada (milésimos de US$)</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Execução</text>
+<path d="M103.2 185.07 L165.6 198.62 L228 125.29 L290.4 169.15 L352.8 141.89 L415.2 147.48 L477.6 222.83 L540 216.57 L602.4 295.64 L664.8 232.99" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="103.2" cy="185.07" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1: US$ 0,97 por mil rodadas</title></circle>
+<circle cx="165.6" cy="198.62" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 2: US$ 0,89 por mil rodadas</title></circle>
+<circle cx="228" cy="125.29" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 3: US$ 1,33 por mil rodadas</title></circle>
+<circle cx="290.4" cy="169.15" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 4: US$ 1,07 por mil rodadas</title></circle>
+<circle cx="352.8" cy="141.89" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 5: US$ 1,23 por mil rodadas</title></circle>
+<circle cx="415.2" cy="147.48" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 6: US$ 1,20 por mil rodadas</title></circle>
+<circle cx="477.6" cy="222.83" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 7: US$ 0,75 por mil rodadas</title></circle>
+<circle cx="540" cy="216.57" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 8: US$ 0,79 por mil rodadas</title></circle>
+<circle cx="602.4" cy="295.64" r="4.5" fill="#ffffff" stroke="#2a78d6" stroke-width="2" tabindex="0"><title>Execução 9: US$ 0,32 por mil rodadas. Marcador vazado: Provedor mudou sozinho para Tenstorrent: 86% das rodadas com erro 429</title></circle>
+<circle cx="664.8" cy="232.99" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 10: US$ 0,69 por mil rodadas</title></circle>
+<text x="103.2" y="176.07" text-anchor="middle" font-size="11" fill="#0b0b0b">0,974</text>
+<text x="165.6" y="189.62" text-anchor="middle" font-size="11" fill="#0b0b0b">0,894</text>
+<text x="228" y="116.29" text-anchor="middle" font-size="11" fill="#0b0b0b">1,327</text>
+<text x="290.4" y="160.15" text-anchor="middle" font-size="11" fill="#0b0b0b">1,068</text>
+<text x="352.8" y="132.89" text-anchor="middle" font-size="11" fill="#0b0b0b">1,229</text>
+<text x="415.2" y="138.48" text-anchor="middle" font-size="11" fill="#0b0b0b">1,196</text>
+<text x="477.6" y="213.83" text-anchor="middle" font-size="11" fill="#0b0b0b">0,751</text>
+<text x="540" y="207.57" text-anchor="middle" font-size="11" fill="#0b0b0b">0,788</text>
+<text x="602.4" y="286.64" text-anchor="middle" font-size="11" fill="#0b0b0b">0,321</text>
+<text x="664.8" y="223.99" text-anchor="middle" font-size="11" fill="#0b0b0b">0,691</text>
+</svg>
+</section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var balao = document.createElement('div');
+  balao.className = 'dica';
+  balao.setAttribute('role', 'tooltip');
+  balao.hidden = true;
+  document.body.appendChild(balao);
+  var ativo = null;
+
+  function achar(alvo) {
+    var n = alvo;
+    while (n && n.nodeType === 1 && n.localName !== 'svg') {
+      for (var i = 0; i < n.children.length; i++) {
+        if (n.children[i].localName === 'title') {
+          return { titulo: n.children[i] };
+        }
+      }
+      n = n.parentNode;
+    }
+    return null;
+  }
+
+  function posicionar(x, y) {
+    var w = balao.offsetWidth;
+    var h = balao.offsetHeight;
+    var esquerda = x + 14;
+    var topo = y + 14;
+    if (esquerda + w > window.innerWidth - 8) esquerda = Math.max(8, x - w - 14);
+    if (topo + h > window.innerHeight - 8) topo = Math.max(8, y - h - 14);
+    balao.style.left = (esquerda + window.scrollX) + 'px';
+    balao.style.top = (topo + window.scrollY) + 'px';
+  }
+
+  function esconder() {
+    if (!ativo) return;
+    ativo.titulo.textContent = ativo.texto;
+    ativo = null;
+    balao.hidden = true;
+  }
+
+  function mostrar(achado, x, y) {
+    if (ativo && ativo.titulo === achado.titulo) {
+      posicionar(x, y);
+      return;
+    }
+    esconder();
+    ativo = { titulo: achado.titulo, texto: achado.titulo.textContent };
+    achado.titulo.textContent = '';
+    balao.textContent = ativo.texto;
+    balao.hidden = false;
+    posicionar(x, y);
+  }
+
+  document.addEventListener('pointerover', function (e) {
+    if (e.pointerType !== 'mouse') return;
+    var achado = achar(e.target);
+    if (achado) mostrar(achado, e.clientX, e.clientY); else esconder();
+  });
+  document.addEventListener('pointermove', function (e) {
+    if (e.pointerType === 'mouse' && ativo) posicionar(e.clientX, e.clientY);
+  });
+  document.addEventListener('pointerout', function (e) {
+    if (e.pointerType === 'mouse' && !e.relatedTarget) esconder();
+  });
+  document.addEventListener('pointerdown', function (e) {
+    if (e.pointerType !== 'touch') return;
+    var achado = achar(e.target);
+    if (achado) mostrar(achado, e.clientX, e.clientY); else esconder();
+  });
+  document.addEventListener('focusin', function (e) {
+    var achado = achar(e.target);
+    if (!achado || !e.target.getBoundingClientRect) return;
+    var r = e.target.getBoundingClientRect();
+    mostrar(achado, r.left + r.width / 2, r.top);
+  });
+  document.addEventListener('focusout', esconder);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') esconder();
+  });
+})();
+</script>
+</body>
+</html>
