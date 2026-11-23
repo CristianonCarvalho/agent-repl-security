@@ -26,6 +26,9 @@ Decisões deste módulo (não estão na spec):
   depois do sandbox e são SEMPRE fechados ao fim do pedido (try/finally), inclusive em erro. Um
   servidor que não inicia vira um aviso e não impede o pedido. Só as ferramentas MCP de leitura
   são concedidas ao perfil (D14); as de escrita externa não aparecem nem podem ser chamadas.
+- Telemetria (T20a): só com `HARNESS_TELEMETRIA=langfuse`. Config inválida sai com código 2,
+  antes do sandbox, citando só o nome da variável. O módulo do OpenTelemetry só é importado
+  nesse caso. Trace JSONL e spans levam o mesmo id de sessão.
 """
 
 import argparse
@@ -33,9 +36,9 @@ import contextlib
 import json
 import os
 import sys
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Final, Protocol, TextIO
+from typing import TYPE_CHECKING, Final, Protocol, TextIO
 
 from harness.host.mcp.adaptador import GerenteMcp, registrar_servidores_mcp, verificar_nomes_mcp
 from harness.host.mcp.config import ConfigMcp, ErroConfigMcp, carregar_config_mcp
@@ -56,11 +59,16 @@ from harness.sandbox.contexto import ValorContexto, bytes_do_contexto
 from harness.sandbox.docker_sandbox import IMAGEM_PADRAO, LIMITE_CONTEXTO_BYTES, DockerSandbox
 from harness.telemetry.trace import TraceJsonl
 
+if TYPE_CHECKING:
+    # Só para anotações: o módulo do OpenTelemetry é importado sob demanda, com a telemetria ligada.
+    from harness.telemetry.otel import ConfigTelemetria, TelemetriaOtel
+
 ARQUIVO_ENV: Final = Path(".env")
 PASTA_TRACE_PADRAO: Final = "traces"
 CODIGO_COMPLETO: Final = 0
 CODIGO_NAO_COMPLETO: Final = 1
 CODIGO_USO: Final = 2
+_TELEMETRIA_LIGADA: Final = "langfuse"
 
 
 class SandboxIniciavel(SandboxLike, Protocol):
@@ -119,15 +127,20 @@ def _carregar_contexto(caminho: Path) -> ValorContexto:
 
 
 class _ColetorDeEventos:
-    """Grava cada evento na trace e soma o custo informado pelos turnos do modelo."""
+    """Grava cada evento na trace e na telemetria (se ligada) e soma o custo dos turnos."""
 
-    def __init__(self, trace: TraceJsonl) -> None:
+    def __init__(
+        self, trace: TraceJsonl, telemetria: Callable[[Evento], None] | None = None
+    ) -> None:
         self._trace = trace
+        self._telemetria = telemetria
         self.custo_total = 0.0
         self.custo_informado = False
 
     def __call__(self, evento: Evento) -> None:
         self._trace(evento)
+        if self._telemetria is not None:
+            self._telemetria(evento)
         if evento.tipo != "turno_modelo":
             return
         custo = evento.dados.get("custo")
@@ -208,6 +221,26 @@ def _modelo_de_ambiente() -> ModeloLLM:
     return ClienteOpenRouter(configuracao, chave)
 
 
+def _ambiente_do_processo() -> dict[str, str]:
+    """`.env` do diretório atual, com `os.environ` por cima, como o cliente do modelo."""
+    return {**carregar_env(ARQUIVO_ENV), **os.environ}
+
+
+def _telemetria_ligada(ambiente: Mapping[str, str]) -> bool:
+    return ambiente.get("HARNESS_TELEMETRIA", "").strip().lower() == _TELEMETRIA_LIGADA
+
+
+def _criar_telemetria(
+    config: "ConfigTelemetria", ambiente: Mapping[str, str], saida: TextIO
+) -> "TelemetriaOtel":
+    """Abre a telemetria da CLI. A chave do OpenRouter entra na redação de segredos."""
+    from harness.telemetry.otel import TelemetriaOtel, descricao_telemetria
+
+    saida.write(f"Telemetria: {descricao_telemetria(config)}\n")
+    chave = ambiente.get("OPENROUTER_API_KEY", "").strip()
+    return TelemetriaOtel(config, segredos=[chave] if chave else [])
+
+
 def _avisar_mcp(saida: TextIO, gerente: GerenteMcp) -> None:
     """Uma linha por servidor que não subiu e uma com as ferramentas ignoradas, se houver."""
     for nome, motivo in gerente.falhas.items():
@@ -286,6 +319,19 @@ def main(
             saida.write(f"{erro}\n")
             return CODIGO_USO
 
+    ambiente = _ambiente_do_processo()
+    configuracao_telemetria: ConfigTelemetria | None = None
+    if _telemetria_ligada(ambiente):
+        # Importação só com a telemetria ligada: sem ela, o OpenTelemetry nem é carregado.
+        from harness.telemetry.otel import ErroDeTelemetria
+        from harness.telemetry.otel import config_de_ambiente as config_telemetria
+
+        try:
+            configuracao_telemetria = config_telemetria(ambiente)
+        except ErroDeTelemetria as erro:
+            saida.write(f"{erro}\n")
+            return CODIGO_USO
+
     registro = Registro()
     registrar_todas(registro, args.dados)
     if mcp_config is not None:
@@ -311,7 +357,10 @@ def main(
         return CODIGO_USO
 
     trace = TraceJsonl(args.trace)
-    coletor = _ColetorDeEventos(trace)
+    telemetria: TelemetriaOtel | None = None
+    if configuracao_telemetria is not None:
+        telemetria = _criar_telemetria(configuracao_telemetria, ambiente, saida)
+    coletor = _ColetorDeEventos(trace, telemetria)
     limites: dict[str, int] = {}
     if args.max_iteracoes is not None:
         limites["max_iteracoes"] = args.max_iteracoes
@@ -343,7 +392,12 @@ def main(
             modelo, sandbox, registro, perfil, orcamento=orcamento, eventos=coletor
         ).executar_pedido(args.pedido, contexto=contexto)
         _imprimir(saida, resultado, coletor, trace.caminho)
+        if telemetria is not None:
+            # Mesmo id da trace JSONL, para cruzar as duas saídas.
+            telemetria.exportar({"perfil": perfil.nome}, tags=["cli"], sessao=trace.caminho.stem)
     finally:
         if gerente is not None:
             gerente.fechar()
+        if telemetria is not None:
+            telemetria.fechar()
     return CODIGO_COMPLETO if resultado.completo else CODIGO_NAO_COMPLETO

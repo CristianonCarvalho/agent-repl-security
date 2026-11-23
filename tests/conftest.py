@@ -4,6 +4,7 @@ A imagem `harness-sandbox:dev` é construída uma vez por sessão a partir da ra
 repositório. Sem Docker, os testes que pedem estas fixtures são pulados.
 """
 
+import os
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Any
@@ -11,10 +12,44 @@ from typing import Any
 import docker
 import pytest
 
+from harness.llm.config import carregar_env
 from harness.sandbox.docker_sandbox import DockerSandbox
 
 RAIZ = Path(__file__).resolve().parents[1]
 IMAGEM = "harness-sandbox:dev"
+
+
+RAIZ_ENV = (RAIZ / ".env").resolve()
+
+
+def _sem_o_env_do_projeto(
+    original: Callable[[Path], dict[str, str]],
+) -> Callable[[Path], dict[str, str]]:
+    """Leitor de `.env` que devolve {} para o `.env` da raiz do projeto e lê os demais."""
+
+    def carregar(caminho: Path) -> dict[str, str]:
+        if caminho.resolve() == RAIZ_ENV:
+            return {}
+        return original(caminho)
+
+    return carregar
+
+
+@pytest.fixture(autouse=True)
+def _ambiente_isolado(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Nenhum teste lê o `.env` do projeto nem herda telemetria ligada do shell.
+
+    Testes que escrevem o próprio `.env` num diretório temporário (com `chdir`) continuam
+    lendo o deles. Sem esta guarda, um teste sem `chdir` leria o `.env` real e, com
+    HARNESS_TELEMETRIA ligada, poderia abrir exportação de rede.
+    """
+    for nome in list(os.environ):
+        if nome.startswith(("LANGFUSE_", "HARNESS_TELEMETRIA")):
+            monkeypatch.delenv(nome, raising=False)
+    # Os módulos da CLI e das avaliações importam `carregar_env` por nome: troca-se ali.
+    leitor = _sem_o_env_do_projeto(carregar_env)
+    monkeypatch.setattr("harness.cli.carregar_env", leitor)
+    monkeypatch.setattr("harness.evals.__main__.carregar_env", leitor)
 
 
 @pytest.fixture(scope="session")

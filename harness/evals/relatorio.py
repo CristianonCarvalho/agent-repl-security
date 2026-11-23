@@ -156,6 +156,8 @@ class Relatorio(BaseModel):
     pendentes: tuple[str, ...] = ()
     teto_estourado: bool = False
     teto_motivo: str | None = None
+    # Nome curto da telemetria ligada ("langfuse-us"), ou None. Nunca traz endpoint nem chaves.
+    telemetria: str | None = None
 
     @model_validator(mode="after")
     def _coerente(self) -> Self:

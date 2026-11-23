@@ -15,6 +15,8 @@ Decisões deste módulo (não estão na spec):
 - `--grupo` escolhe desenvolvimento, reservado ou todos (padrão). Como cada par de gêmeos está
   no mesmo grupo e na mesma categoria, nenhum filtro separa um negativo do seu controle.
 - Erros de configuração do Pydantic mostram só o campo e a mensagem, nunca o valor recebido.
+- Telemetria (T20a): ligada pelo mesmo ambiente da CLI. Config inválida sai com código 2 antes
+  de qualquer rodada. O relatório ganha `telemetria` ("langfuse-us") só quando está ligada.
 """
 
 import argparse
@@ -22,7 +24,7 @@ import os
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Final, TextIO
+from typing import Any, Final, TextIO
 
 from pydantic import ValidationError
 
@@ -41,6 +43,17 @@ from harness.llm.config import carregar_env, config_de_ambiente
 from harness.llm.openrouter import ClienteOpenRouter
 from harness.orchestrator.loop import Orcamento
 from harness.sandbox.docker_sandbox import IMAGEM_PADRAO
+from harness.telemetry.otel import (
+    ConfigTelemetria,
+    ErroDeTelemetria,
+    TelemetriaOtel,
+    criar_telemetria,
+    descricao_telemetria,
+    rotulo_telemetria,
+)
+from harness.telemetry.otel import (
+    config_de_ambiente as config_telemetria,
+)
 
 ARQUIVO_ENV: Final = Path(".env")
 PASTA_TRACE_PADRAO: Final = "traces/evals"
@@ -167,6 +180,29 @@ def _fabrica_de_modelo(ambiente: Mapping[str, str]) -> Callable[[], ModeloLLM]:
     return lambda: ClienteOpenRouter(configuracao, chave)
 
 
+def _ambiente_do_processo() -> dict[str, str]:
+    """`.env` do diretório atual, com `os.environ` por cima, como na CLI do harness."""
+    return {**carregar_env(ARQUIVO_ENV), **os.environ}
+
+
+def _config_telemetria(ambiente: Mapping[str, str]) -> ConfigTelemetria | None:
+    """Configuração da telemetria, ou None quando está desligada. Erro vira ErroDeUso."""
+    try:
+        config = config_telemetria(ambiente)
+    except ErroDeTelemetria as erro:
+        raise ErroDeUso(str(erro)) from None
+    return config if config.ligada else None
+
+
+def _fabrica_de_telemetria(
+    ambiente: Mapping[str, str],
+) -> Callable[[], TelemetriaOtel | None]:
+    """Uma telemetria por rodada, com a chave do OpenRouter na redação de segredos."""
+    chave = ambiente.get("OPENROUTER_API_KEY", "").strip()
+    segredos = [chave] if chave else []
+    return lambda: criar_telemetria(ambiente, segredos=segredos)
+
+
 def _selecionar(
     categorias: frozenset[Categoria], grupo: str
 ) -> Callable[[FatosVerdadeiros], list[Caso]]:
@@ -255,24 +291,41 @@ def main(
     try:
         categorias = _categorias(args.categoria)
         config = _config(args)
+        ambiente = _ambiente_do_processo()
         if fabrica_modelo is None:
-            ambiente = {**carregar_env(ARQUIVO_ENV), **os.environ}
             fabrica_modelo = _fabrica_de_modelo(ambiente)
+        configuracao_telemetria = _config_telemetria(ambiente)
     except ErroDeUso as erro:
         saida.write(f"{erro}\n")
         return CODIGO_USO
+
+    fabrica_telemetria: Callable[[], TelemetriaOtel | None] | None = None
+    if configuracao_telemetria is not None:
+        saida.write(f"Telemetria: {descricao_telemetria(configuracao_telemetria)}\n")
+        fabrica_telemetria = _fabrica_de_telemetria(ambiente)
 
     def progresso(caso_id: str, numero: int, classificacao: Classificacao) -> None:
         saida.write(f"{caso_id} rodada {numero}/{config.rodadas}: {classificacao.value}\n")
 
     executor = executar if executar is not None else executar_avaliacao
+    extra: dict[str, Any] = {}
+    if fabrica_telemetria is not None:
+        extra["fabrica_telemetria"] = fabrica_telemetria
     try:
         relatorio = executor(
-            _selecionar(categorias, args.grupo), fabrica_modelo, config, aoprogresso=progresso
+            _selecionar(categorias, args.grupo),
+            fabrica_modelo,
+            config,
+            aoprogresso=progresso,
+            **extra,
         )
     except Exception as erro:
         saida.write(f"a avaliação não pôde ser concluída ({type(erro).__name__})\n")
         return CODIGO_ERRO_INFRA
+    if configuracao_telemetria is not None:
+        relatorio = relatorio.model_copy(
+            update={"telemetria": rotulo_telemetria(configuracao_telemetria)}
+        )
 
     caminho: Path | None = None
     try:

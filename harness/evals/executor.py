@@ -21,13 +21,15 @@ Decisões deste módulo (não estão na spec):
 - `ModeloContabil` embrulha o modelo de cada rodada. Ele repassa a resposta intacta e não
   inventa custo: sem custo informado, o custo fica None.
 - O relógio injetado vale para a duração da rodada e para o orçamento de tempo do orquestrador.
+- Telemetria (T20a): uma por rodada, criada pela `fabrica_telemetria`. O trace é exportado
+  depois da classificação, inclusive para `erro_infra`. Falha dela nunca muda a rodada.
 """
 
 import contextlib
 import math
 import tempfile
 import time
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Final, Protocol
@@ -43,6 +45,7 @@ from harness.host.registry import Registro
 from harness.host.tools import registrar_todas
 from harness.llm.base import Mensagem, ModeloLLM, RespostaLLM
 from harness.orchestrator.loop import (
+    Evento,
     MotivoTermino,
     Orcamento,
     Orquestrador,
@@ -60,6 +63,32 @@ class SandboxIniciavel(SandboxLike, Protocol):
 
     def start(self) -> None:
         """Cria e inicia o contêiner."""
+        ...
+
+
+class TelemetriaDeRodada(Protocol):
+    """O que o executor usa da telemetria de uma rodada. `TelemetriaOtel` satisfaz este contrato.
+
+    Fica como Protocol para que o executor não importe o OpenTelemetry.
+    """
+
+    def __call__(self, evento: Evento) -> None:
+        """Recebe um evento do orquestrador."""
+        ...
+
+    def exportar(
+        self,
+        metadados: Mapping[str, Any] | None = None,
+        *,
+        nome: str | None = None,
+        tags: Sequence[str] = (),
+        sessao: str | None = None,
+    ) -> None:
+        """Envia o trace acumulado da rodada."""
+        ...
+
+    def fechar(self) -> None:
+        """Encerra a telemetria da rodada."""
         ...
 
 
@@ -207,6 +236,74 @@ def _rodada_de_excecao(
     )
 
 
+def _abrir_telemetria(
+    fabrica: Callable[[], TelemetriaDeRodada | None] | None,
+) -> TelemetriaDeRodada | None:
+    """Telemetria da rodada. Falha ao criá-la só desliga a telemetria dessa rodada."""
+    if fabrica is None:
+        return None
+    try:
+        return fabrica()
+    except Exception:
+        return None
+
+
+def _consumidor(
+    trace: TraceJsonl | None, telemetria: TelemetriaDeRodada | None
+) -> Callable[[Evento], None] | None:
+    """Um único callback de eventos para o trace JSONL e para a telemetria."""
+    if trace is None and telemetria is None:
+        return None
+
+    def consumir(evento: Evento) -> None:
+        if trace is not None:
+            trace(evento)
+        if telemetria is not None:
+            telemetria(evento)
+
+    return consumir
+
+
+def _exportar_rodada(
+    telemetria: TelemetriaDeRodada | None,
+    caso: Caso,
+    config: ConfigExecucao,
+    rodada: RodadaCaso,
+    contabil: ModeloContabil | None,
+    caminho_trace: str | None,
+) -> None:
+    """Exporta o trace da rodada, já classificada. Falha aqui nunca muda a rodada."""
+    if telemetria is None:
+        return
+    veredito = rodada.veredito
+    metadados: dict[str, Any] = {
+        "caso_id": caso.id,
+        "categoria": caso.categoria.value,
+        "grupo": caso.grupo,
+        "rodada": rodada.numero,
+        "semente": config.semente,
+        "classificacao": rodada.classificacao.value,
+        "motivo_termino": rodada.motivo_termino,
+        "modelo": (", ".join(sorted(contabil.modelos)) or None) if contabil else None,
+        "aprovado": veredito.aprovado if veredito is not None else None,
+        "regras_reprovadas": (
+            [regra.descricao for regra in veredito.regras if not regra.passou]
+            if veredito is not None
+            else []
+        ),
+        "detalhe": rodada.detalhe,
+    }
+    tags = ["eval", caso.categoria.value, f"grupo-{caso.grupo}", f"rodada-{rodada.numero}"]
+    sessao = Path(caminho_trace).stem if caminho_trace else None
+    try:
+        try:
+            telemetria.exportar(metadados, nome=f"eval/{caso.id}", tags=tags, sessao=sessao)
+        finally:
+            telemetria.fechar()
+    except Exception:
+        pass
+
+
 def _executar_rodada(
     caso: Caso,
     numero: int,
@@ -216,11 +313,17 @@ def _executar_rodada(
     fabrica_sandbox: Callable[[dict[str, Path]], SandboxIniciavel],
     relogio: Callable[[], float],
     vistos: _Vistos,
+    fabrica_telemetria: Callable[[], TelemetriaDeRodada | None] | None = None,
 ) -> RodadaCaso:
-    """Uma rodada completa. Nunca levanta exceção: falha vira `erro_infra`."""
+    """Uma rodada completa. Nunca levanta exceção: falha vira `erro_infra`.
+
+    A telemetria, se houver, recebe os eventos ao lado do trace e exporta o trace no fim, já
+    com a classificação decidida.
+    """
     inicio = relogio()
     contabil: ModeloContabil | None = None
     caminho_trace: str | None = None
+    telemetria = _abrir_telemetria(fabrica_telemetria)
     try:
         contabil = ModeloContabil(fabrica_modelo())
         perfil = perfil_por_nome(caso.perfil)
@@ -238,7 +341,7 @@ def _executar_rodada(
                 perfil,
                 orcamento=config.orcamento,
                 relogio=relogio,
-                eventos=trace,
+                eventos=_consumidor(trace, telemetria),
             )
         except BaseException:
             # Sem Orquestrador, ninguém fecharia o sandbox: fecha aqui e repassa o erro.
@@ -246,13 +349,17 @@ def _executar_rodada(
             raise
         resultado = orquestrador.executar_pedido(caso.pedido)
     except Exception as erro:
-        return _rodada_de_excecao(numero, erro, contabil, relogio() - inicio, caminho_trace)
+        rodada = _rodada_de_excecao(numero, erro, contabil, relogio() - inicio, caminho_trace)
+        _exportar_rodada(telemetria, caso, config, rodada, contabil, caminho_trace)
+        return rodada
 
     vistos.provedores.update(contabil.provedores)
     vistos.modelos.update(contabil.modelos)
-    return _rodada_de_resultado(
+    rodada = _rodada_de_resultado(
         numero, caso, resultado, contabil, relogio() - inicio, caminho_trace
     )
+    _exportar_rodada(telemetria, caso, config, rodada, contabil, caminho_trace)
+    return rodada
 
 
 def _motivo_de_teto(config: ConfigExecucao, custo: float | None, tokens: int) -> str | None:
@@ -272,6 +379,7 @@ def _executar_casos(
     fabrica_sandbox: Callable[[dict[str, Path]], SandboxIniciavel],
     relogio: Callable[[], float],
     aoprogresso: Callable[[str, int, Classificacao], None] | None,
+    fabrica_telemetria: Callable[[], TelemetriaDeRodada | None] | None = None,
 ) -> Relatorio:
     rodadas: dict[str, list[RodadaCaso]] = {}
     vistos = _Vistos()
@@ -292,7 +400,15 @@ def _executar_casos(
                 )
             else:
                 rodada = _executar_rodada(
-                    caso, numero, config, raiz, fabrica_modelo, fabrica_sandbox, relogio, vistos
+                    caso,
+                    numero,
+                    config,
+                    raiz,
+                    fabrica_modelo,
+                    fabrica_sandbox,
+                    relogio,
+                    vistos,
+                    fabrica_telemetria,
                 )
                 tokens_acumulados += rodada.tokens_entrada + rodada.tokens_saida
                 if rodada.custo is not None:
@@ -320,12 +436,14 @@ def executar_avaliacao(
     fabrica_sandbox: Callable[[dict[str, Path]], SandboxIniciavel] | None = None,
     relogio: Callable[[], float] = time.monotonic,
     aoprogresso: Callable[[str, int, Classificacao], None] | None = None,
+    fabrica_telemetria: Callable[[], TelemetriaDeRodada | None] | None = None,
 ) -> Relatorio:
     """Gera os dados, roda os casos ativos N vezes e devolve o relatório.
 
     `fabrica_modelo` é chamada uma vez por rodada. `fabrica_sandbox` recebe as montagens do
     perfil; sem ela, cria um `DockerSandbox` com a imagem da configuração. `aoprogresso` recebe
-    (id do caso, número da rodada, classificação) ao fim de cada rodada.
+    (id do caso, número da rodada, classificação) ao fim de cada rodada. `fabrica_telemetria`,
+    se dada, é chamada uma vez por rodada para criar a telemetria daquela rodada.
     """
     with tempfile.TemporaryDirectory(prefix="avaliacao-") as temporaria:
         raiz = Path(temporaria) / "dados"
@@ -337,4 +455,6 @@ def executar_avaliacao(
             return DockerSandbox(imagem=config.imagem, dados=montagens)
 
         fabrica = fabrica_sandbox if fabrica_sandbox is not None else criar_docker
-        return _executar_casos(lista, raiz, config, fabrica_modelo, fabrica, relogio, aoprogresso)
+        return _executar_casos(
+            lista, raiz, config, fabrica_modelo, fabrica, relogio, aoprogresso, fabrica_telemetria
+        )
