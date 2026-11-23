@@ -143,4 +143,5 @@ uv run pytest -m real_api
 - [Diagramas do fluxo do pedido, protocolo e módulos](docs/diagramas-fluxo-do-pedido.md)
 - [Diagramas das avaliações (evals)](docs/diagramas-evals.md)
 - [Relatório da avaliação do agente (Fase 3, T17a)](docs/relatorios/avaliacao-fase3-t17a.md)
+- [Backlog](docs/backlog.md)
 - [Decisões de arquitetura (ADRs)](docs/adr/README.md)
