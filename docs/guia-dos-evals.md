@@ -540,6 +540,8 @@ Cuidados:
 
 **Gráficos de escala.** Quando alguma variante tem relatórios em duas ou mais escalas de dados (`linhas_pedidos`), o comando `uv run python -m harness.evals graficos --de-relatorios RELATORIO_1.json RELATORIO_2.json ... --saida PASTA` (ou `graficos DADOS.json`) entra automaticamente no modo de escala e gera quatro SVGs com o número de linhas de pedidos em escala logarítmica (`escala-tokens-por-rodada.svg`, `escala-custo-por-rodada.svg`, `escala-pico-contexto.svg` e `escala-taxa-acerto.svg`), o painel combinado (`escala-paineis.svg`) e o `graficos.html`.
 
+**Casos de cálculo (`--conjunto calculo`).** Para testar contas que ferramentas simples de soma e média não resolvem sem código (mediana dos pedidos válidos, região com maior mediana, desvio padrão populacional e contagem de clientes com 3 ou mais pedidos válidos acima de R$ 50.000,00), existem 4 casos (`calculo-01` a `calculo-04`) fora do conjunto congelado `v1`. Para rodá-los, use `uv run python -m harness.evals --conjunto calculo --rodadas 3` (combinável com `--variante` e `--escala N`; não aceita `--salvar-linha-de-base`, pois o conjunto é `calculo-nao-congelado`).
+
 ## 10. O que os evals não provam
 
 - **São perguntas diretas**, cada uma pedindo um valor ou poucos. O resultado não vale para tarefas mais abertas.
