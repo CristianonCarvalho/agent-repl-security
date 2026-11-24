@@ -138,9 +138,7 @@ def test_conjunto_calculo_respeita_grupo_e_categoria(tmp_path: Path) -> None:
     chamadas_dev: list[dict[str, Any]] = []
     assert (
         main(
-            _argumentos(
-                tmp_path / "s1", "--conjunto", "calculo", "--grupo", "desenvolvimento"
-            ),
+            _argumentos(tmp_path / "s1", "--conjunto", "calculo", "--grupo", "desenvolvimento"),
             saida=io.StringIO(),
             executar=_executor_falso(chamadas_dev, fatos),
             fabrica_modelo=_fabrica,
@@ -219,9 +217,7 @@ def test_conjunto_calculo_com_escala_e_tres_variantes(tmp_path: Path) -> None:
         chamadas: list[dict[str, Any]] = []
         saida = tmp_path / f"saida-{variante}"
         codigo = main(
-            _argumentos(
-                saida, "--conjunto", "calculo", "--escala", "5", "--variante", variante
-            ),
+            _argumentos(saida, "--conjunto", "calculo", "--escala", "5", "--variante", variante),
             saida=io.StringIO(),
             executar=_executor_falso(chamadas, fatos),
             fabrica_modelo=_fabrica,

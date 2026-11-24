@@ -947,9 +947,7 @@ def test_casos_de_calculo_corretor(fatos: FatosVerdadeiros) -> None:
     calculo = {caso.id: caso for caso in casos_de_calculo(fatos)}
     fonte = [CAMINHO_PEDIDOS]
 
-    assert corrigir(
-        calculo["calculo-01"], f"R$ {_n(fatos.mediana_validos)}", fonte
-    ).aprovado
+    assert corrigir(calculo["calculo-01"], f"R$ {_n(fatos.mediana_validos)}", fonte).aprovado
     assert corrigir(
         calculo["calculo-01"], f"R$ {_n(fatos.mediana_validos + Decimal('0.01'))}", fonte
     ).aprovado
@@ -981,9 +979,7 @@ def test_casos_de_calculo_corretor(fatos: FatosVerdadeiros) -> None:
         fonte,
     ).aprovado
 
-    assert corrigir(
-        calculo["calculo-03"], f"R$ {_n(fatos.desvio_padrao_validos)}", fonte
-    ).aprovado
+    assert corrigir(calculo["calculo-03"], f"R$ {_n(fatos.desvio_padrao_validos)}", fonte).aprovado
     assert corrigir(
         calculo["calculo-03"],
         f"R$ {_n(fatos.desvio_padrao_validos + Decimal('0.01'))}",
@@ -1004,9 +1000,7 @@ def test_casos_de_calculo_corretor(fatos: FatosVerdadeiros) -> None:
         CitaFontes(fontes=[CAMINHO_PEDIDOS]),
     ]
 
-    assert corrigir(
-        calculo["calculo-04"], str(fatos.clientes_com_3_pedidos_altos), fonte
-    ).aprovado
+    assert corrigir(calculo["calculo-04"], str(fatos.clientes_com_3_pedidos_altos), fonte).aprovado
     assert not corrigir(
         calculo["calculo-04"], str(fatos.clientes_com_3_pedidos_altos + 1), fonte
     ).aprovado

@@ -142,9 +142,7 @@ def test_oraculo_aprova_respostas_corretas(
         fonte,
     ).aprovado
     assert corrigir(casos["calculo-03"], f"R$ {_n(fatos.desvio_padrao_validos)}", fonte).aprovado
-    assert corrigir(
-        casos["calculo-04"], str(fatos.clientes_com_3_pedidos_altos), fonte
-    ).aprovado
+    assert corrigir(casos["calculo-04"], str(fatos.clientes_com_3_pedidos_altos), fonte).aprovado
 
 
 @pytest.mark.parametrize("semente", SEMENTES)
@@ -184,9 +182,7 @@ def test_oraculo_reprova_erros_tipicos(
     maior_mediana = fatos.mediana_por_regiao[fatos.regiao_maior_mediana]
     for regiao, mediana in fatos.mediana_por_regiao.items():
         if regiao != fatos.regiao_maior_mediana:
-            assert not corrigir(
-                casos["calculo-02"], f"{regiao}: R$ {_n(mediana)}", fonte
-            ).aprovado
+            assert not corrigir(casos["calculo-02"], f"{regiao}: R$ {_n(mediana)}", fonte).aprovado
             assert not corrigir(
                 casos["calculo-02"], f"{regiao}: R$ {_n(maior_mediana)}", fonte
             ).aprovado

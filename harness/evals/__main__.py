@@ -762,9 +762,7 @@ def main(
 
     # Sem caso ativo na seleção, nada roda: não lê o `.env`, não confere a chave e não chama o
     # modelo. Só lista os pendentes, cada um com o que o destrava, e sai com zero.
-    selecao = _selecao_sem_modelo(
-        categorias, args.grupo, args.semente, args.escala, args.conjunto
-    )
+    selecao = _selecao_sem_modelo(categorias, args.grupo, args.semente, args.escala, args.conjunto)
     if not any(caso.situacao.ativo for caso in selecao):
         _sem_casos_ativos(saida, selecao, categorias, args.grupo)
         return CODIGO_OK

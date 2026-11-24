@@ -163,9 +163,7 @@ def test_categoria_inexistente_sai_com_dois_sem_executar(tmp_path: Path) -> None
     assert chamadas == []
 
 
-def test_categoria_calculo_aceita_na_cli(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_categoria_calculo_aceita_na_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.chdir(tmp_path)
     fala = io.StringIO()
     chamadas: list[dict[str, Any]] = []
