@@ -838,6 +838,7 @@ def casos_de_calculo(fatos: FatosVerdadeiros) -> list[Caso]:
             [
                 ContemNumero(
                     valor=Decimal(fatos.clientes_com_3_pedidos_altos),
+                    tolerancia=Decimal("0"),
                     unidade="quantidade",
                 ),
                 CitaFontes(fontes=[_PEDIDOS]),
