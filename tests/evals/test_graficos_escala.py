@@ -365,6 +365,32 @@ def test_grafico_escala_usa_execucao_mais_recente_quando_repetida_na_mesma_escal
     assert not any("10,0%" in t for t in titulos)
 
 
+def test_grafico_escala_repetida_usa_iniciado_em_mesmo_em_ordem_inversa(tmp_path: Path) -> None:
+    mais_novo = _relatorio(
+        [_valida(1, aprovada=True)], variante="repl", linhas_pedidos=60
+    ).model_copy(update={"iniciado_em": "2026-11-24T10:00:00+00:00"})
+    mais_antigo = _relatorio(
+        [_valida(1, aprovada=False)], variante="repl", linhas_pedidos=60
+    ).model_copy(update={"iniciado_em": "2026-11-23T10:00:00+00:00"})
+    outra_escala = _relatorio(
+        [_valida(1, aprovada=True)], variante="repl", linhas_pedidos=600
+    ).model_copy(update={"iniciado_em": "2026-11-23T12:00:00+00:00"})
+
+    # O mais novo vem antes do mais antigo na lista de arquivos (numero=1 < numero=2).
+    dados = dados_de_relatorios(
+        [
+            _gravar(mais_novo, tmp_path / "novo.json"),
+            _gravar(mais_antigo, tmp_path / "antigo.json"),
+            _gravar(outra_escala, tmp_path / "escala600.json"),
+        ]
+    )
+    assert dados.execucoes[0].iniciado_em == "2026-11-24T10:00:00+00:00"
+    titulos = _titulos(grafico_escala_taxa(dados))
+    assert len(titulos) == 2
+    assert all(": 100,0%" in t for t in titulos)
+    assert not any(": 0,0%" in t for t in titulos)
+
+
 def test_grafico_escala_sem_duas_escalas_devolve_sem_dados() -> None:
     dados = DadosEvolucao(versao=1, execucoes=(_exec(1, "repl", 60),))
     svg = grafico_escala_tokens(dados)

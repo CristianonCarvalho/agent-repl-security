@@ -48,6 +48,7 @@ import math
 import statistics
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, Literal, Self
 from xml.sax.saxutils import escape
@@ -318,6 +319,7 @@ class Execucao(BaseModel):
         default=None, ge=0, allow_inf_nan=False
     )
     custo_por_rodada_executada_usd: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    iniciado_em: str | None = None
 
 
 class CurvaDeContexto(BaseModel):
@@ -499,6 +501,7 @@ def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Exec
         linhas_pedidos=relatorio.linhas_pedidos,
         tokens_entrada_por_rodada_executada=tokens_executada,
         custo_por_rodada_executada_usd=custo_executada,
+        iniciado_em=relatorio.iniciado_em,
     )
 
 
@@ -1348,10 +1351,23 @@ def _paineis_comparacao() -> tuple[_Painel, ...]:
     )
 
 
+def _chave_mais_recente(execucao: Execucao) -> tuple[int, float, int]:
+    """Chave de ordenação para escolher a execução mais recente: `iniciado_em`, depois `numero`."""
+    if execucao.iniciado_em is not None:
+        try:
+            dt = datetime.fromisoformat(execucao.iniciado_em)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=UTC)
+            return (1, dt.timestamp(), execucao.numero)
+        except ValueError:
+            pass
+    return (0, 0.0, execucao.numero)
+
+
 def _ultimas_execucoes(execucoes: Iterable[Execucao]) -> dict[str, Execucao]:
-    """A execução de maior `numero` de cada variante."""
+    """A execução mais recente (`iniciado_em`, depois `numero`) de cada variante."""
     ultimas: dict[str, Execucao] = {}
-    for execucao in sorted(execucoes, key=lambda e: (e.variante, e.numero)):
+    for execucao in sorted(execucoes, key=lambda e: (e.variante, _chave_mais_recente(e))):
         ultimas[execucao.variante] = execucao
     return ultimas
 
@@ -1603,10 +1619,10 @@ def tem_modo_escala(dados: DadosEvolucao) -> bool:
 def _ultimas_por_escala(
     execucoes: Iterable[Execucao],
 ) -> tuple[list[str], list[int], dict[tuple[str, int], Execucao]]:
-    """Execução mais recente (maior `numero`) para cada par (variante, linhas_pedidos)."""
-    com_escala = [e for e in _ordenadas(execucoes) if e.linhas_pedidos is not None]
+    """Execução mais recente (`iniciado_em`, depois `numero`) por `(variante, linhas_pedidos)`."""
+    com_escala = [e for e in execucoes if e.linhas_pedidos is not None]
     ultimas: dict[tuple[str, int], Execucao] = {}
-    for execucao in com_escala:
+    for execucao in sorted(com_escala, key=_chave_mais_recente):
         assert execucao.linhas_pedidos is not None
         ultimas[(execucao.variante, execucao.linhas_pedidos)] = execucao
     variantes = _variantes(ultimas.values())
