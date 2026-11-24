@@ -521,3 +521,21 @@ def test_custo_ausente_em_um_lado_nao_inventa_delta() -> None:
 
     assert custo.delta is None
     assert "não informado" in formatar_texto(comparacao)
+
+
+def test_comparacao_com_categoria_calculo_e_relatorio_antigo_sem_calculo() -> None:
+    base = _relatorio(
+        [_caso("consulta-01", 0.8), _caso("calculo-01", 0.5, categoria=Categoria.CALCULO)]
+    )
+    novo = _relatorio(
+        [_caso("consulta-01", 0.8), _caso("calculo-01", 1.0, categoria=Categoria.CALCULO)]
+    )
+    comparacao = comparar(base, novo)
+    calculo = _recorte(comparacao, "calculo")
+    assert calculo.casos == 1
+    assert calculo.delta_pp == pytest.approx(50.0)
+
+    antigo_sem_calculo = _relatorio([_caso("consulta-01", 0.8)])
+    comp_mista = comparar(antigo_sem_calculo, novo)
+    assert _recorte(comp_mista, "calculo").veredito == "sem_dados"
+    assert _recorte(comp_mista, "consulta").delta_pp == pytest.approx(0.0)

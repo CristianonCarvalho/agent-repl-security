@@ -470,3 +470,33 @@ def test_execucao_incompleta_e_ponto_fraco_juntos_combina_tooltip_e_legenda() ->
     svg = grafico_taxa_total(dados)
     assert any("1 de 4 rodadas válidas" in t and motivo in t for t in _titulos(svg))
     assert "marcador vazado: execução incompleta ou com poucas rodadas válidas" in _textos(svg)
+
+
+def test_taxa_por_categoria_inclui_calculo_quando_presente() -> None:
+    dados = _dados(
+        [
+            _ex(
+                1,
+                categorias_pct={
+                    "calculo": 80.0,
+                    "conformidade": 50.0,
+                    "consulta": 60.0,
+                    "cruzamento": 40.0,
+                    "permissao": 70.0,
+                },
+            ),
+            _ex(
+                2,
+                categorias_pct={
+                    "calculo": 90.0,
+                    "conformidade": 55.0,
+                    "consulta": 65.0,
+                    "cruzamento": 45.0,
+                    "permissao": 75.0,
+                },
+            ),
+        ]
+    )
+    svg = grafico_taxa_por_categoria(dados, "repl")
+    assert len(list(_raiz(svg).iter(f"{NS}path"))) == 5
+    assert "Calculo" in _textos(svg)

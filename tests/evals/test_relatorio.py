@@ -429,3 +429,23 @@ def test_relatorio_antigo_sem_grupo_carrega_como_desenvolvimento() -> None:
 
     assert {resumo.grupo for resumo in antigo.casos} == {"desenvolvimento"}
     assert antigo.grupos == ()
+
+
+def test_categoria_calculo_no_relatorio_e_ausente_em_relatorio_antigo() -> None:
+    casos = [_caso("consulta-01", Categoria.CONSULTA), _caso("calculo-01", Categoria.CALCULO)]
+    rodadas = {
+        "consulta-01": [_rodada(1, APROVADA, caso_id="consulta-01")],
+        "calculo-01": [_rodada(1, REPROVADA, caso_id="calculo-01")],
+    }
+    relatorio = _agregar(casos, rodadas)
+    por_cat = {resumo.categoria: resumo for resumo in relatorio.categorias}
+    assert por_cat[Categoria.CALCULO].taxa == pytest.approx(0.0)
+    assert por_cat[Categoria.CALCULO].casos_considerados == 1
+
+    # Relatório antigo sem a categoria calculo continua válido ao carregar do JSON.
+    relatorio_antigo = _agregar(
+        [_caso("consulta-01", Categoria.CONSULTA)],
+        {"consulta-01": [_rodada(1, APROVADA, caso_id="consulta-01")]},
+    )
+    de_volta = relatorio_de_json(relatorio_para_json(relatorio_antigo))
+    assert [c.categoria for c in de_volta.categorias] == [Categoria.CONSULTA]
