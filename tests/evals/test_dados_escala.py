@@ -416,6 +416,21 @@ def test_fatos_estatisticos_batem_com_a_planilha_nas_escalas(
         for cliente in fatos.total_por_cliente
     }
     maior_total = max(totais_por_cliente.values())
+    assert sum(1 for v in totais_por_cliente.values() if v == maior_total) == 1
     assert fatos.valor_maior_total == maior_total
     assert fatos.total_por_cliente[fatos.cliente_maior_total] == maior_total
     assert totais_por_cliente[fatos.cliente_maior_total] == maior_total
+
+
+@pytest.mark.parametrize("semente", [42, 7, 123])
+@pytest.mark.parametrize("escala", [1, 10, 100])
+def test_cliente_maior_total_e_unico_sem_empate(
+    tmp_path: Path, semente: int, escala: int
+) -> None:
+    fatos = gerar_dados(tmp_path / f"s{semente}_e{escala}", semente=semente, escala=escala)
+    empatados = [
+        cliente
+        for cliente, total in fatos.total_por_cliente.items()
+        if total == fatos.valor_maior_total
+    ]
+    assert empatados == [fatos.cliente_maior_total]
