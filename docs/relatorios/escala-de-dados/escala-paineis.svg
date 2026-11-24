@@ -1,0 +1,139 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="472" viewBox="0 0 720 472" role="img" aria-labelledby="t d" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t">Comparação em escala</title>
+<desc id="d">Comparação em escala entre variantes, com linhas de pedidos em escala logarítmica. Tokens de entrada por rodada (mil): REPL (Code Mode): 60 14,7, 600 15,1, 6.000 15,7; Tool calling em JSON: 60 20,6, 600 78,6, 6.000 177,0; Tool calling em JSON, com agregação: 60 18,9, 600 18,6, 6.000 20,9. Custo por rodada (milésimos de US$): REPL (Code Mode): 60 0,648, 600 0,668, 6.000 0,682; Tool calling em JSON: 60 0,908, 600 7,349, 6.000 14,818; Tool calling em JSON, com agregação: 60 0,758, 600 0,805, 6.000 0,933. Pico de contexto médio (tokens): REPL (Code Mode): 60 3.905, 600 3.768, 6.000 3.830; Tool calling em JSON: 60 7.304, 600 29.425, 6.000 66.032; Tool calling em JSON, com agregação: 60 5.879, 600 5.438, 6.000 5.628. Taxa de acerto (%): REPL (Code Mode): 60 100,0%, 600 100,0%, 6.000 100,0%; Tool calling em JSON: 60 100,0%, 600 86,7%, 6.000 0,0%; Tool calling em JSON, com agregação: 60 100,0%, 600 100,0%, 6.000 100,0%.</desc>
+<rect x="0.5" y="0.5" width="719" height="471" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Comparação em escala</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<line x1="168" y1="54" x2="184" y2="54" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="176" cy="54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">Tool calling em JSON</text>
+<line x1="338" y1="54" x2="354" y2="54" stroke="#2bb5c8" stroke-width="2" stroke-linecap="round"/>
+<circle cx="346" cy="54" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2"/>
+<text x="360" y="58" font-size="12" fill="#52514e">Tool calling em JSON, com agregação</text>
+<circle cx="32" cy="72" r="4.5" fill="#ffffff" stroke="#52514e" stroke-width="2"/>
+<text x="46" y="76" font-size="12" fill="#52514e">marcador vazado: execução 3 incompleta</text>
+<text x="24" y="116" font-size="13" font-weight="500" fill="#0b0b0b">Tokens de entrada por rodada (mil)</text>
+<text x="62" y="226" text-anchor="end" font-size="10" fill="#898781">0</text>
+<line x1="68" y1="200.5" x2="336" y2="200.5" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="204.5" text-anchor="end" font-size="10" fill="#898781">50</text>
+<line x1="68" y1="179" x2="336" y2="179" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="183" text-anchor="end" font-size="10" fill="#898781">100</text>
+<line x1="68" y1="157.5" x2="336" y2="157.5" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="161.5" text-anchor="end" font-size="10" fill="#898781">150</text>
+<line x1="68" y1="136" x2="336" y2="136" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="140" text-anchor="end" font-size="10" fill="#898781">200</text>
+<line x1="68" y1="222" x2="336" y2="222" stroke="#c3c2b7" stroke-width="1"/>
+<line x1="86.48" y1="222" x2="86.48" y2="226" stroke="#c3c2b7" stroke-width="1"/>
+<text x="86.48" y="237" text-anchor="middle" font-size="10" fill="#898781">60</text>
+<line x1="202" y1="222" x2="202" y2="226" stroke="#c3c2b7" stroke-width="1"/>
+<text x="202" y="237" text-anchor="middle" font-size="10" fill="#898781">600</text>
+<line x1="317.52" y1="222" x2="317.52" y2="226" stroke="#c3c2b7" stroke-width="1"/>
+<text x="317.52" y="237" text-anchor="middle" font-size="10" fill="#898781">6.000</text>
+<text x="202" y="251" text-anchor="middle" font-size="10" fill="#52514e">Linhas de pedidos (escala logarítmica)</text>
+<path d="M86.48 215.67 L202 215.51 L317.52 215.25" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M86.48 213.15 L202 188.21 L317.52 145.88" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M86.48 213.88 L202 214.01 L317.52 213.02" fill="none" stroke="#2bb5c8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="86.48" cy="215.67" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 60 linhas: 14,7 mil tokens de entrada por rodada</title></circle>
+<circle cx="202" cy="215.51" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 600 linhas: 15,1 mil tokens de entrada por rodada</title></circle>
+<circle cx="317.52" cy="215.25" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 6.000 linhas: 15,7 mil tokens de entrada por rodada</title></circle>
+<circle cx="86.48" cy="213.15" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 60 linhas: 20,6 mil tokens de entrada por rodada</title></circle>
+<circle cx="202" cy="188.21" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 600 linhas: 78,6 mil tokens de entrada por rodada</title></circle>
+<circle cx="317.52" cy="145.88" r="4.5" fill="#ffffff" stroke="#eb6834" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 6.000 linhas: 177,0 mil tokens de entrada por rodada. Marcador vazado: execução incompleta: teto de gasto estourado; 9 rodadas não executadas; 5 erros de infraestrutura</title></circle>
+<circle cx="86.48" cy="213.88" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 60 linhas: 18,9 mil tokens de entrada por rodada</title></circle>
+<circle cx="202" cy="214.01" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 600 linhas: 18,6 mil tokens de entrada por rodada</title></circle>
+<circle cx="317.52" cy="213.02" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 6.000 linhas: 20,9 mil tokens de entrada por rodada</title></circle>
+<text x="372" y="116" font-size="13" font-weight="500" fill="#0b0b0b">Custo por rodada (milésimos de US$)</text>
+<text x="410" y="226" text-anchor="end" font-size="10" fill="#898781">0</text>
+<line x1="416" y1="200.5" x2="684" y2="200.5" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="204.5" text-anchor="end" font-size="10" fill="#898781">5</text>
+<line x1="416" y1="179" x2="684" y2="179" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="183" text-anchor="end" font-size="10" fill="#898781">10</text>
+<line x1="416" y1="157.5" x2="684" y2="157.5" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="161.5" text-anchor="end" font-size="10" fill="#898781">15</text>
+<line x1="416" y1="136" x2="684" y2="136" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="140" text-anchor="end" font-size="10" fill="#898781">20</text>
+<line x1="416" y1="222" x2="684" y2="222" stroke="#c3c2b7" stroke-width="1"/>
+<line x1="434.48" y1="222" x2="434.48" y2="226" stroke="#c3c2b7" stroke-width="1"/>
+<text x="434.48" y="237" text-anchor="middle" font-size="10" fill="#898781">60</text>
+<line x1="550" y1="222" x2="550" y2="226" stroke="#c3c2b7" stroke-width="1"/>
+<text x="550" y="237" text-anchor="middle" font-size="10" fill="#898781">600</text>
+<line x1="665.52" y1="222" x2="665.52" y2="226" stroke="#c3c2b7" stroke-width="1"/>
+<text x="665.52" y="237" text-anchor="middle" font-size="10" fill="#898781">6.000</text>
+<text x="550" y="251" text-anchor="middle" font-size="10" fill="#52514e">Linhas de pedidos (escala logarítmica)</text>
+<path d="M434.48 219.21 L550 219.13 L665.52 219.07" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M434.48 218.1 L550 190.4 L665.52 158.28" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M434.48 218.74 L550 218.54 L665.52 217.99" fill="none" stroke="#2bb5c8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="434.48" cy="219.21" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 60 linhas: 0,648 milésimos de US$ por rodada</title></circle>
+<circle cx="550" cy="219.13" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 600 linhas: 0,668 milésimos de US$ por rodada</title></circle>
+<circle cx="665.52" cy="219.07" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 6.000 linhas: 0,682 milésimos de US$ por rodada</title></circle>
+<circle cx="434.48" cy="218.1" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 60 linhas: 0,908 milésimos de US$ por rodada</title></circle>
+<circle cx="550" cy="190.4" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 600 linhas: 7,349 milésimos de US$ por rodada</title></circle>
+<circle cx="665.52" cy="158.28" r="4.5" fill="#ffffff" stroke="#eb6834" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 6.000 linhas: 14,818 milésimos de US$ por rodada. Marcador vazado: execução incompleta: teto de gasto estourado; 9 rodadas não executadas; 5 erros de infraestrutura</title></circle>
+<circle cx="434.48" cy="218.74" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 60 linhas: 0,758 milésimos de US$ por rodada</title></circle>
+<circle cx="550" cy="218.54" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 600 linhas: 0,805 milésimos de US$ por rodada</title></circle>
+<circle cx="665.52" cy="217.99" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 6.000 linhas: 0,933 milésimos de US$ por rodada</title></circle>
+<text x="24" y="296" font-size="13" font-weight="500" fill="#0b0b0b">Pico de contexto médio (tokens)</text>
+<text x="62" y="406" text-anchor="end" font-size="10" fill="#898781">0</text>
+<line x1="68" y1="380.5" x2="336" y2="380.5" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="384.5" text-anchor="end" font-size="10" fill="#898781">20.000</text>
+<line x1="68" y1="359" x2="336" y2="359" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="363" text-anchor="end" font-size="10" fill="#898781">40.000</text>
+<line x1="68" y1="337.5" x2="336" y2="337.5" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="341.5" text-anchor="end" font-size="10" fill="#898781">60.000</text>
+<line x1="68" y1="316" x2="336" y2="316" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="320" text-anchor="end" font-size="10" fill="#898781">80.000</text>
+<line x1="68" y1="402" x2="336" y2="402" stroke="#c3c2b7" stroke-width="1"/>
+<line x1="86.48" y1="402" x2="86.48" y2="406" stroke="#c3c2b7" stroke-width="1"/>
+<text x="86.48" y="417" text-anchor="middle" font-size="10" fill="#898781">60</text>
+<line x1="202" y1="402" x2="202" y2="406" stroke="#c3c2b7" stroke-width="1"/>
+<text x="202" y="417" text-anchor="middle" font-size="10" fill="#898781">600</text>
+<line x1="317.52" y1="402" x2="317.52" y2="406" stroke="#c3c2b7" stroke-width="1"/>
+<text x="317.52" y="417" text-anchor="middle" font-size="10" fill="#898781">6.000</text>
+<text x="202" y="431" text-anchor="middle" font-size="10" fill="#52514e">Linhas de pedidos (escala logarítmica)</text>
+<path d="M86.48 397.8 L202 397.95 L317.52 397.88" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M86.48 394.15 L202 370.37 L317.52 331.02" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M86.48 395.68 L202 396.15 L317.52 395.95" fill="none" stroke="#2bb5c8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="86.48" cy="397.8" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 60 linhas: 3.905 tokens de pico de contexto</title></circle>
+<circle cx="202" cy="397.95" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 600 linhas: 3.768 tokens de pico de contexto</title></circle>
+<circle cx="317.52" cy="397.88" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 6.000 linhas: 3.830 tokens de pico de contexto</title></circle>
+<circle cx="86.48" cy="394.15" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 60 linhas: 7.304 tokens de pico de contexto</title></circle>
+<circle cx="202" cy="370.37" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 600 linhas: 29.425 tokens de pico de contexto</title></circle>
+<circle cx="317.52" cy="331.02" r="4.5" fill="#ffffff" stroke="#eb6834" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 6.000 linhas: 66.032 tokens de pico de contexto. Marcador vazado: execução incompleta: teto de gasto estourado; 9 rodadas não executadas; 5 erros de infraestrutura</title></circle>
+<circle cx="86.48" cy="395.68" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 60 linhas: 5.879 tokens de pico de contexto</title></circle>
+<circle cx="202" cy="396.15" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 600 linhas: 5.438 tokens de pico de contexto</title></circle>
+<circle cx="317.52" cy="395.95" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 6.000 linhas: 5.628 tokens de pico de contexto</title></circle>
+<text x="372" y="296" font-size="13" font-weight="500" fill="#0b0b0b">Taxa de acerto (%)</text>
+<text x="410" y="406" text-anchor="end" font-size="10" fill="#898781">0</text>
+<line x1="416" y1="385.62" x2="684" y2="385.62" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="389.62" text-anchor="end" font-size="10" fill="#898781">20</text>
+<line x1="416" y1="369.24" x2="684" y2="369.24" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="373.24" text-anchor="end" font-size="10" fill="#898781">40</text>
+<line x1="416" y1="352.86" x2="684" y2="352.86" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="356.86" text-anchor="end" font-size="10" fill="#898781">60</text>
+<line x1="416" y1="336.48" x2="684" y2="336.48" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="340.48" text-anchor="end" font-size="10" fill="#898781">80</text>
+<line x1="416" y1="320.1" x2="684" y2="320.1" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="324.1" text-anchor="end" font-size="10" fill="#898781">100</text>
+<line x1="416" y1="402" x2="684" y2="402" stroke="#c3c2b7" stroke-width="1"/>
+<line x1="434.48" y1="402" x2="434.48" y2="406" stroke="#c3c2b7" stroke-width="1"/>
+<text x="434.48" y="417" text-anchor="middle" font-size="10" fill="#898781">60</text>
+<line x1="550" y1="402" x2="550" y2="406" stroke="#c3c2b7" stroke-width="1"/>
+<text x="550" y="417" text-anchor="middle" font-size="10" fill="#898781">600</text>
+<line x1="665.52" y1="402" x2="665.52" y2="406" stroke="#c3c2b7" stroke-width="1"/>
+<text x="665.52" y="417" text-anchor="middle" font-size="10" fill="#898781">6.000</text>
+<text x="550" y="431" text-anchor="middle" font-size="10" fill="#52514e">Linhas de pedidos (escala logarítmica)</text>
+<path d="M434.48 320.1 L550 320.1 L665.52 320.1" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M434.48 320.1 L550 331.02 L665.52 402" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M434.48 320.1 L550 320.1 L665.52 320.1" fill="none" stroke="#2bb5c8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="434.48" cy="320.1" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 60 linhas: 100,0% de acerto</title></circle>
+<circle cx="550" cy="320.1" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 600 linhas: 100,0% de acerto</title></circle>
+<circle cx="665.52" cy="320.1" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 6.000 linhas: 100,0% de acerto</title></circle>
+<circle cx="434.48" cy="320.1" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 60 linhas: 100,0% de acerto</title></circle>
+<circle cx="550" cy="331.02" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 600 linhas: 86,7% de acerto</title></circle>
+<circle cx="665.52" cy="402" r="4.5" fill="#ffffff" stroke="#eb6834" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 6.000 linhas: 0,0% de acerto. Marcador vazado: execução incompleta: teto de gasto estourado; 9 rodadas não executadas; 5 erros de infraestrutura</title></circle>
+<circle cx="434.48" cy="320.1" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 60 linhas: 100,0% de acerto</title></circle>
+<circle cx="550" cy="320.1" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 600 linhas: 100,0% de acerto</title></circle>
+<circle cx="665.52" cy="320.1" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 6.000 linhas: 100,0% de acerto</title></circle>
+</svg>

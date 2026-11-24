@@ -446,8 +446,7 @@ def test_execucao_incompleta_gera_marcador_vazado_tooltip_e_legenda(
     vazados = [
         el
         for el in raiz.iter(f"{NS}circle")
-        if el.find(f"{NS}title") is not None
-        and motivo in (el.find(f"{NS}title").text or "")  # type: ignore[union-attr]
+        if el.find(f"{NS}title") is not None and motivo in (el.find(f"{NS}title").text or "")  # type: ignore[union-attr]
     ]
     assert vazados
     assert all(el.get("fill") == "#ffffff" for el in vazados)

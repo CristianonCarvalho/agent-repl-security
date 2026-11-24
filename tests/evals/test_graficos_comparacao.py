@@ -536,9 +536,7 @@ def test_cli_relatorio_invalido_sai_com_dois_e_cita_so_o_nome(tmp_path: Path) ->
 
 def test_execucao_incompleta_sinaliza_teto_nao_executadas_e_erros_infra(tmp_path: Path) -> None:
     completa = _relatorio({"consulta-01": (Categoria.CONSULTA, [_valida(1), _valida(2)])})
-    parcial = _relatorio(
-        {"consulta-01": (Categoria.CONSULTA, [_valida(1), _erro(2)])}
-    ).model_copy(
+    parcial = _relatorio({"consulta-01": (Categoria.CONSULTA, [_valida(1), _erro(2)])}).model_copy(
         update={
             "teto_estourado": True,
             "teto_motivo": "custo",
@@ -546,9 +544,9 @@ def test_execucao_incompleta_sinaliza_teto_nao_executadas_e_erros_infra(tmp_path
             "erros_infra": 5,
         }
     )
-    singular = _relatorio(
-        {"consulta-01": (Categoria.CONSULTA, [_valida(1), _erro(2)])}
-    ).model_copy(update={"nao_executadas": 1, "erros_infra": 1})
+    singular = _relatorio({"consulta-01": (Categoria.CONSULTA, [_valida(1), _erro(2)])}).model_copy(
+        update={"nao_executadas": 1, "erros_infra": 1}
+    )
 
     dados = dados_de_relatorios(
         [

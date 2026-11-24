@@ -491,7 +491,7 @@ def test_pagina_html_escala_csp_interatividade_e_escape() -> None:
     pagina = gerar_pagina_html(dados)
     assert (
         '<meta http-equiv="Content-Security-Policy" '
-        'content="default-src \'none\'; style-src \'unsafe-inline\'; script-src \'unsafe-inline\'">'
+        "content=\"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'\">"
     ) in pagina
     assert "pointerover" in pagina and "focusin" in pagina
     assert 'tabindex="0"' in pagina
@@ -559,8 +559,7 @@ def test_escala_e_paineis_sinalizam_execucao_incompleta() -> None:
         vazados = [
             el
             for el in raiz.iter(f"{NS}circle")
-            if el.find(f"{NS}title") is not None
-            and motivo in (el.find(f"{NS}title").text or "")  # type: ignore[union-attr]
+            if el.find(f"{NS}title") is not None and motivo in (el.find(f"{NS}title").text or "")  # type: ignore[union-attr]
         ]
         assert vazados
         assert all(el.get("fill") == "#ffffff" for el in vazados)

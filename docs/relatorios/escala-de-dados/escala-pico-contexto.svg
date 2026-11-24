@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t d" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t">Pico de contexto médio por escala</title>
+<desc id="d">Pico de contexto médio (em tokens) por número de linhas de pedidos (escala logarítmica). REPL (Code Mode): 60 linhas 3.905, 600 linhas 3.768, 6.000 linhas 3.830; Tool calling em JSON: 60 linhas 7.304, 600 linhas 29.425, 6.000 linhas 66.032; Tool calling em JSON, com agregação: 60 linhas 5.879, 600 linhas 5.438, 6.000 linhas 5.628.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Pico de contexto médio por escala</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<line x1="168" y1="54" x2="184" y2="54" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="176" cy="54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">Tool calling em JSON</text>
+<line x1="338" y1="54" x2="354" y2="54" stroke="#2bb5c8" stroke-width="2" stroke-linecap="round"/>
+<circle cx="346" cy="54" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2"/>
+<text x="360" y="58" font-size="12" fill="#52514e">Tool calling em JSON, com agregação</text>
+<circle cx="32" cy="72" r="4.5" fill="#ffffff" stroke="#52514e" stroke-width="2"/>
+<text x="46" y="76" font-size="12" fill="#52514e">marcador vazado: execução 3 incompleta</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="288" x2="696" y2="288" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="292" text-anchor="end" font-size="11" fill="#898781">20.000</text>
+<line x1="72" y1="226" x2="696" y2="226" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="230" text-anchor="end" font-size="11" fill="#898781">40.000</text>
+<line x1="72" y1="164" x2="696" y2="164" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="168" text-anchor="end" font-size="11" fill="#898781">60.000</text>
+<line x1="72" y1="102" x2="696" y2="102" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="106" text-anchor="end" font-size="11" fill="#898781">80.000</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="115.03" y="366" text-anchor="middle" font-size="11" fill="#898781">60</text>
+<text x="384" y="366" text-anchor="middle" font-size="11" fill="#898781">600</text>
+<text x="652.97" y="366" text-anchor="middle" font-size="11" fill="#898781">6.000</text>
+<text x="22" y="226" transform="rotate(-90 22 226)" text-anchor="middle" font-size="11" fill="#52514e">Pico de contexto médio (tokens)</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Linhas de pedidos (escala logarítmica)</text>
+<path d="M115.03 337.89 L384 338.32 L652.97 338.13" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M115.03 327.36 L384 258.78 L652.97 145.3" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M115.03 331.77 L384 333.14 L652.97 332.55" fill="none" stroke="#2bb5c8" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="115.03" cy="337.89" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 60 linhas: 3.905 tokens de pico de contexto</title></circle>
+<circle cx="384" cy="338.32" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 600 linhas: 3.768 tokens de pico de contexto</title></circle>
+<circle cx="652.97" cy="338.13" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>REPL (Code Mode), 6.000 linhas: 3.830 tokens de pico de contexto</title></circle>
+<circle cx="115.03" cy="327.36" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 60 linhas: 7.304 tokens de pico de contexto</title></circle>
+<circle cx="384" cy="258.78" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 600 linhas: 29.425 tokens de pico de contexto</title></circle>
+<circle cx="652.97" cy="145.3" r="4.5" fill="#ffffff" stroke="#eb6834" stroke-width="2" tabindex="0"><title>Tool calling em JSON, 6.000 linhas: 66.032 tokens de pico de contexto. Marcador vazado: execução incompleta: teto de gasto estourado; 9 rodadas não executadas; 5 erros de infraestrutura</title></circle>
+<circle cx="115.03" cy="331.77" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 60 linhas: 5.879 tokens de pico de contexto</title></circle>
+<circle cx="384" cy="333.14" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 600 linhas: 5.438 tokens de pico de contexto</title></circle>
+<circle cx="652.97" cy="332.55" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Tool calling em JSON, com agregação, 6.000 linhas: 5.628 tokens de pico de contexto</title></circle>
+</svg>

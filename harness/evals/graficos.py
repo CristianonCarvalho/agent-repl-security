@@ -1878,9 +1878,7 @@ def grafico_escala_paineis(dados: DadosEvolucao) -> str:
         x0 = _COLUNAS_PAINEIS[indice % 2]
         topo_painel = topo_paineis + (indice // 2) * _PAINEL_ESCALA_PASSO
         elementos.extend(
-            _painel_escala_svg(
-                metrica, variantes, escalas, ultimas, cores, eixo_x, x0, topo_painel
-            )
+            _painel_escala_svg(metrica, variantes, escalas, ultimas, cores, eixo_x, x0, topo_painel)
         )
     elementos.append("</svg>")
     return "\n".join(elementos) + "\n"
