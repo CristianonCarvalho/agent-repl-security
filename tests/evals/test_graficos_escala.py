@@ -5,6 +5,7 @@ eixo X logarítmico, os quatro SVGs de escala, o SVG combinado de quatro painéi
 import io
 import re
 import xml.etree.ElementTree as ET
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +29,7 @@ from harness.evals.graficos import (
     SECOES,
     DadosEvolucao,
     Execucao,
+    carregar_dados,
     dados_de_relatorios,
     gerar_pagina_html,
     gerar_todos,
@@ -38,6 +40,7 @@ from harness.evals.graficos import (
     grafico_escala_tokens,
     tem_modo_escala,
 )
+from harness.evals.procedencia import RAIZ_DO_REPOSITORIO
 from harness.evals.relatorio import (
     Classificacao,
     Relatorio,
@@ -562,3 +565,158 @@ def test_escala_e_paineis_sinalizam_execucao_incompleta() -> None:
         assert vazados
         assert all(el.get("fill") == "#ffffff" for el in vazados)
         assert "marcador vazado: execução 2 incompleta" in _textos(svg)
+
+
+class _ValidadorHTML(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.svgs = 0
+        self.scripts = 0
+        self.estilos = 0
+        self.csp: list[str | None] = []
+        self.pilha: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        mapa = dict(attrs)
+        if tag == "svg":
+            self.svgs += 1
+        elif tag == "script":
+            self.scripts += 1
+        elif tag == "style":
+            self.estilos += 1
+        elif tag == "meta" and mapa.get("http-equiv") == "Content-Security-Policy":
+            self.csp.append(mapa.get("content"))
+        if tag not in {"meta", "br", "hr", "img", "input", "link"}:
+            self.pilha.append(tag)
+
+    def handle_endtag(self, tag: str) -> None:
+        if self.pilha and self.pilha[-1] == tag:
+            self.pilha.pop()
+
+
+def test_modo_escala_com_relatorios_sinteticos_tres_escalas_e_tres_variantes(
+    tmp_path: Path,
+) -> None:
+    # Escalas 1 (60 linhas), 10 (600 linhas), 100 (6000 linhas) para as três variantes.
+    caminhos: list[Path] = []
+    escala_por_fator = {1: 60, 10: 600, 100: 6000}
+    variantes = ("repl", "json", "json-agregacao")
+    for idx_v, variante in enumerate(variantes, 1):
+        for fator, linhas in escala_por_fator.items():
+            incompleta = variante == "json" and fator == 100
+            rodadas = [
+                _valida(1, aprovada=True, entrada=1000 * fator * idx_v, custo=0.001 * fator),
+                (
+                    _nao_executada(2)
+                    if incompleta
+                    else _valida(
+                        2, aprovada=fator < 100, entrada=1200 * fator, custo=0.0012 * fator
+                    )
+                ),
+            ]
+            rel = agregar(
+                [_caso("consulta-01")],
+                {"consulta-01": rodadas},
+                semente=42,
+                rodadas_por_caso=len(rodadas),
+                variante=variante,  # type: ignore[arg-type]
+                linhas_pedidos=linhas,
+                teto_motivo="teto de gasto estourado" if incompleta else None,
+            )
+            caminhos.append(_gravar(rel, tmp_path / f"{variante}-x{fator}.json"))
+
+    dados = dados_de_relatorios(caminhos)
+    assert tem_modo_escala(dados)
+
+    pasta_a = tmp_path / "saida_a"
+    pasta_b = tmp_path / "saida_b"
+    gerados_a = gerar_todos(dados, pasta_a)
+    gerados_b = gerar_todos(dados, pasta_b)
+    assert [c.name for c in gerados_a] == [*NOMES_ESCALA, NOME_ESCALA_PAINEIS, NOME_PAGINA]
+    # Determinismo: duas gerações produzem exatamente os mesmos bytes.
+    for a, b in zip(gerados_a, gerados_b, strict=True):
+        assert a.read_bytes() == b.read_bytes()
+
+    # Eixo X logarítmico com marcas exatamente em 60, 600 e 6.000.
+    raiz_tokens = _raiz((pasta_a / "escala-tokens-por-rodada.svg").read_text(encoding="utf-8"))
+    x_por_rotulo = {
+        el.text: float(el.get("x", "0"))
+        for el in raiz_tokens.iter(f"{NS}text")
+        if el.text in ("60", "600", "6.000")
+    }
+    assert set(x_por_rotulo) == {"60", "600", "6.000"}
+    assert x_por_rotulo["600"] - x_por_rotulo["60"] == pytest.approx(
+        x_por_rotulo["6.000"] - x_por_rotulo["600"], abs=0.1
+    )
+
+    # Painel combinado com 9 pontos * 4 painéis = 36 tooltips e marcador vazado na incompleta.
+    paineis_svg = (pasta_a / NOME_ESCALA_PAINEIS).read_text(encoding="utf-8")
+    assert len(_titulos(paineis_svg)) == 36
+    vazados = [
+        el
+        for el in _raiz(paineis_svg).iter(f"{NS}circle")
+        if el.find(f"{NS}title") is not None
+        and "teto de gasto estourado" in (el.find(f"{NS}title").text or "")  # type: ignore[union-attr]
+    ]
+    assert len(vazados) == 4
+    assert all(el.get("fill") == "#ffffff" for el in vazados)
+
+    # HTML válido com CSP inalterada e 5 SVGs inline.
+    html = (pasta_a / NOME_PAGINA).read_text(encoding="utf-8")
+    validador = _ValidadorHTML()
+    validador.feed(html)
+    assert validador.pilha == []
+    assert validador.svgs == 5
+    assert validador.scripts == 1
+    assert validador.estilos == 1
+    assert validador.csp == [
+        "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+    ]
+
+
+def test_relatorio_sem_escala_tratado_como_escala_1_e_linhas_60(tmp_path: Path) -> None:
+    sem_escala = _gravar(
+        _relatorio([_valida(1, entrada=1000, custo=0.001)], variante="repl", linhas_pedidos=None),
+        tmp_path / "sem-escala.json",
+    )
+    so_antigo = dados_de_relatorios([sem_escala])
+    assert so_antigo.execucoes[0].linhas_pedidos == 60
+    assert not tem_modo_escala(so_antigo)
+
+    escala_10 = _gravar(
+        _relatorio([_valida(1, entrada=2000, custo=0.002)], variante="repl", linhas_pedidos=600),
+        tmp_path / "escala-10.json",
+    )
+    misto = dados_de_relatorios([sem_escala, escala_10])
+    assert tem_modo_escala(misto)
+    textos = _textos(grafico_escala_tokens(misto))
+    assert "60" in textos and "600" in textos
+
+
+def test_uma_escala_so_com_uma_execucao_por_variante_nao_gera_graficos_de_linha(
+    tmp_path: Path,
+) -> None:
+    caminhos = [
+        _gravar(
+            _relatorio([_valida(1)], variante=variante, linhas_pedidos=None),
+            tmp_path / f"{variante}.json",
+        )
+        for variante in ("repl", "json", "json-agregacao")
+    ]
+    dados = dados_de_relatorios(caminhos)
+    assert not tem_modo_escala(dados)
+    gerados = gerar_todos(dados, tmp_path / "saida")
+    assert [c.name for c in gerados] == [
+        "dispersao-iteracoes-tokens.svg",
+        "curva-de-contexto.svg",
+        NOME_COMPARACAO,
+        NOME_PAGINA,
+    ]
+
+
+def test_evolucao_execucoes_real_continua_gerando_seis_graficos(tmp_path: Path) -> None:
+    caminho = RAIZ_DO_REPOSITORIO / "docs" / "relatorios" / "dados" / "evolucao-execucoes.json"
+    dados = carregar_dados(caminho)
+    assert not tem_modo_escala(dados)
+    gerados = gerar_todos(dados, tmp_path)
+    assert [c.name for c in gerados] == [*NOMES_ARQUIVOS, NOME_PAGINA]
