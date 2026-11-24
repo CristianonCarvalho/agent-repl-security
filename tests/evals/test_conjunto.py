@@ -950,9 +950,18 @@ def test_casos_de_calculo_corretor(fatos: FatosVerdadeiros) -> None:
     assert corrigir(
         calculo["calculo-01"], f"R$ {_n(fatos.mediana_validos)}", fonte
     ).aprovado
+    assert corrigir(
+        calculo["calculo-01"], f"R$ {_n(fatos.mediana_validos + Decimal('0.01'))}", fonte
+    ).aprovado
     assert not corrigir(
         calculo["calculo-01"], f"R$ {_n(fatos.mediana_validos + Decimal('10'))}", fonte
     ).aprovado
+    assert "sem os cancelados" in calculo["calculo-01"].pedido.lower()
+    assert "média dos dois valores do meio" in calculo["calculo-01"].pedido.lower()
+    assert calculo["calculo-01"].gabarito == [
+        ContemNumero(valor=fatos.mediana_validos, tolerancia=Decimal("0.01")),
+        CitaFontes(fontes=[CAMINHO_PEDIDOS]),
+    ]
 
     assert corrigir(calculo["calculo-02"], fatos.regiao_maior_mediana, fonte).aprovado
     assert not corrigir(calculo["calculo-02"], "Centro-Oeste", fonte).aprovado
