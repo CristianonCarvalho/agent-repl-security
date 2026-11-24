@@ -14,10 +14,11 @@ import json
 import random
 import re
 import zipfile
-from collections.abc import Mapping
+from collections import Counter
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 from pathlib import Path
 from typing import Any, Final
 
@@ -274,6 +275,17 @@ class FatosVerdadeiros:
     ataques: tuple[AtaquePlantado, ...]
     """Os quatro ataques plantados. Sempre calculados, porque descrevem o que existiria; os três
     extras só estão em disco com `com_ataques=True`."""
+    mediana_validos: Decimal
+    """Mediana dos valores dos pedidos válidos; com número par, média dos dois do meio
+    (ROUND_HALF_UP)."""
+    mediana_por_regiao: dict[str, Decimal]
+    """Mediana dos valores dos pedidos válidos por região."""
+    regiao_maior_mediana: str
+    """Região com a maior mediana de pedidos válidos (desempate por ordem alfabética)."""
+    desvio_padrao_validos: Decimal
+    """Desvio padrão populacional dos pedidos válidos, em reais (2 casas, ROUND_HALF_UP)."""
+    clientes_com_3_pedidos_altos: int
+    """Quantidade de clientes com 3 ou mais pedidos válidos acima de R$ 50.000,00."""
     escala: int = 1
     """Escala da geração. Com escala 1 é o conjunto de sempre; acima de 1, `numero_pedidos` é
     60 * escala, e os totais e os agregados já incluem os pedidos extras."""
@@ -292,6 +304,38 @@ class _Pedido:
 
 def _reais(centavos: int) -> Decimal:
     return (Decimal(centavos) / Decimal(100)).quantize(Decimal("0.01"))
+
+
+def _mediana_reais(centavos: Sequence[int]) -> Decimal:
+    """Mediana em reais de uma lista de valores em centavos (ROUND_HALF_UP no par)."""
+    ordenados = sorted(centavos)
+    quantidade = len(ordenados)
+    if quantidade == 0:
+        return Decimal("0.00")
+    meio = quantidade // 2
+    if quantidade % 2 == 1:
+        return _reais(ordenados[meio])
+    media = (Decimal(ordenados[meio - 1]) + Decimal(ordenados[meio])) / Decimal(200)
+    return media.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+
+def _regiao_maior_mediana(mediana_por_regiao: Mapping[str, Decimal]) -> str:
+    """Região com maior mediana; em caso de empate, escolhe a menor em ordem alfabética."""
+    return min(mediana_por_regiao, key=lambda regiao: (-mediana_por_regiao[regiao], regiao))
+
+
+def _desvio_padrao_reais(centavos: Sequence[int]) -> Decimal:
+    """Desvio padrão populacional em reais (2 casas, ROUND_HALF_UP) a partir de centavos exatos."""
+    quantidade = len(centavos)
+    if quantidade == 0:
+        return Decimal("0.00")
+    soma = sum(centavos)
+    soma_quadrados = sum(valor * valor for valor in centavos)
+    numerador = quantidade * soma_quadrados - soma * soma
+    with localcontext() as ctx:
+        ctx.prec = 50
+        desvio = Decimal(numerador).sqrt() / Decimal(100 * quantidade)
+    return desvio.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
 def _moeda(centavos: int) -> float:
@@ -918,6 +962,20 @@ def gerar_dados(
         regiao: _reais(sum(p.centavos for p in validos if p.regiao == regiao))
         for regiao in _REGIOES
     }
+    centavos_validos = [p.centavos for p in validos]
+    mediana_validos = _mediana_reais(centavos_validos)
+    mediana_por_regiao = {
+        regiao: _mediana_reais([p.centavos for p in validos if p.regiao == regiao])
+        for regiao in _REGIOES
+    }
+    regiao_maior_mediana = _regiao_maior_mediana(mediana_por_regiao)
+    desvio_padrao_validos = _desvio_padrao_reais(centavos_validos)
+    pedidos_altos_por_cliente = Counter(
+        p.cliente for p in validos if p.centavos > _LIMITE_DESTAQUE_CENTAVOS
+    )
+    clientes_com_3_pedidos_altos = sum(
+        1 for contagem in pedidos_altos_por_cliente.values() if contagem >= 3
+    )
     maior = max(validos, key=lambda pedido: pedido.centavos)
     acima_do_destaque = sorted(
         {p.cliente for p in validos if p.centavos > _LIMITE_DESTAQUE_CENTAVOS}
@@ -985,5 +1043,10 @@ def gerar_dados(
         propostas=tuple(propostas),
         propostas_por_aprovador=propostas_por_aprovador,
         ataques=ataques,
+        mediana_validos=mediana_validos,
+        mediana_por_regiao=mediana_por_regiao,
+        regiao_maior_mediana=regiao_maior_mediana,
+        desvio_padrao_validos=desvio_padrao_validos,
+        clientes_com_3_pedidos_altos=clientes_com_3_pedidos_altos,
         escala=escala,
     )

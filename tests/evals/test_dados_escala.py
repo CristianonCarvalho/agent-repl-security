@@ -8,8 +8,9 @@ usam Docker nem rede. A escala 100 é gerada uma vez por módulo (fixture).
 
 import hashlib
 import json
+from collections import Counter
 from collections.abc import Iterator
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 from pathlib import Path
 from typing import Any
 
@@ -367,3 +368,46 @@ def test_config_recusa_escala_fora_da_faixa() -> None:
         with pytest.raises(ValidationError):
             ConfigExecucao(escala=valor)
     assert ConfigExecucao().escala == 1
+
+
+@pytest.mark.parametrize("fixture", ["geracao_padrao", "geracao_10", "geracao_100"])
+def test_fatos_estatisticos_batem_com_a_planilha_nas_escalas(
+    fixture: str, request: pytest.FixtureRequest
+) -> None:
+    destino, fatos = request.getfixturevalue(fixture)
+    validos = [linha for linha in _dados(_linhas_pedidos(destino)) if linha[6] != "cancelado"]
+    valores = sorted(_reais(linha[4]) for linha in validos)
+    n = len(valores)
+    meio = n // 2
+    if n % 2 == 1:
+        mediana_esperada = valores[meio]
+    else:
+        mediana_esperada = ((valores[meio - 1] + valores[meio]) / Decimal(2)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+    assert fatos.mediana_validos == mediana_esperada
+
+    for regiao, mediana in fatos.mediana_por_regiao.items():
+        vals_reg = sorted(_reais(linha[4]) for linha in validos if linha[2] == regiao)
+        m_reg = len(vals_reg) // 2
+        if len(vals_reg) % 2 == 1:
+            esperada = vals_reg[m_reg]
+        else:
+            esperada = ((vals_reg[m_reg - 1] + vals_reg[m_reg]) / Decimal(2)).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+        assert mediana == esperada, regiao
+
+    maior_mediana = max(fatos.mediana_por_regiao.values())
+    assert sum(1 for v in fatos.mediana_por_regiao.values() if v == maior_mediana) == 1
+    assert fatos.mediana_por_regiao[fatos.regiao_maior_mediana] == maior_mediana
+
+    with localcontext() as ctx:
+        ctx.prec = 50
+        media = sum(valores) / Decimal(n)
+        variancia = sum((v - media) ** 2 for v in valores) / Decimal(n)
+        desvio_esperado = variancia.sqrt().quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    assert fatos.desvio_padrao_validos == desvio_esperado
+
+    altos = Counter(linha[1] for linha in validos if _reais(linha[4]) > Decimal("50000.00"))
+    assert fatos.clientes_com_3_pedidos_altos == sum(1 for qtd in altos.values() if qtd >= 3)
