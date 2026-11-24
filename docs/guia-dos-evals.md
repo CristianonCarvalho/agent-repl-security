@@ -538,6 +538,8 @@ Cuidados:
 - Se a telemetria estiver ligada no `.env`, os traces vão para o Langfuse, com o conteúdo das perguntas, do código e das respostas. Use dados sintéticos, ou `HARNESS_TELEMETRIA_CONTEUDO=numeros`.
 - Os relatórios de trabalho ficam em `avaliacoes/` e `traces/`, **fora do git**. Só a linha de base e os relatórios que escolhemos publicar sobem.
 
+**Gráficos de escala.** Quando alguma variante tem relatórios em duas ou mais escalas de dados (`linhas_pedidos`), o comando `uv run python -m harness.evals graficos --de-relatorios RELATORIO_1.json RELATORIO_2.json ... --saida PASTA` (ou `graficos DADOS.json`) entra automaticamente no modo de escala e gera quatro SVGs com o número de linhas de pedidos em escala logarítmica (`escala-tokens-por-rodada.svg`, `escala-custo-por-rodada.svg`, `escala-pico-contexto.svg` e `escala-taxa-acerto.svg`), o painel combinado (`escala-paineis.svg`) e o `graficos.html`.
+
 ## 10. O que os evals não provam
 
 - **São perguntas diretas**, cada uma pedindo um valor ou poucos. O resultado não vale para tarefas mais abertas.

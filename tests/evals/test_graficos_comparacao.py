@@ -429,13 +429,36 @@ def test_uma_variante_nao_cria_comparacao_e_a_pagina_fica_sem_secao(tmp_path: Pa
     assert SECAO_COMPARACAO[0] not in pagina
 
 
-def test_tres_variantes_criam_comparacao_e_secao_antes_das_demais(tmp_path: Path) -> None:
+def test_tres_variantes_criam_comparacao_e_omitem_linhas_com_uma_execucao(tmp_path: Path) -> None:
     caminhos = gerar_todos(_tres_variantes(), tmp_path)
-    assert [c.name for c in caminhos] == [*NOMES_ARQUIVOS, NOME_COMPARACAO, NOME_PAGINA]
+    assert [c.name for c in caminhos] == [
+        "dispersao-iteracoes-tokens.svg",
+        "curva-de-contexto.svg",
+        NOME_COMPARACAO,
+        NOME_PAGINA,
+    ]
+    for omitido in (
+        "taxa-total.svg",
+        "taxa-por-categoria.svg",
+        "iteracoes-por-pedido.svg",
+        "custo-por-rodada.svg",
+    ):
+        assert not (tmp_path / omitido).exists()
     assert (tmp_path / NOME_COMPARACAO).read_text(encoding="utf-8").startswith("<svg")
     pagina = (tmp_path / NOME_PAGINA).read_text(encoding="utf-8")
-    assert pagina.index(SECAO_COMPARACAO[0]) < pagina.index("Taxa de acerto por execução")
+    assert pagina.index(SECAO_COMPARACAO[0]) < pagina.index("Iterações contra tokens de entrada")
     assert SECAO_COMPARACAO[1] in pagina
+    assert "Taxa de acerto por execução" not in pagina
+
+
+def test_variante_com_duas_execucoes_gera_todos_os_seis_graficos_e_comparacao(
+    tmp_path: Path,
+) -> None:
+    dados = _dados(_exec(1, "repl"), _exec(2, "repl"), _exec(1, "json"))
+    caminhos = gerar_todos(dados, tmp_path)
+    assert [c.name for c in caminhos] == [*NOMES_ARQUIVOS, NOME_COMPARACAO, NOME_PAGINA]
+    pagina = (tmp_path / NOME_PAGINA).read_text(encoding="utf-8")
+    assert pagina.index(SECAO_COMPARACAO[0]) < pagina.index("Taxa de acerto por execução")
 
 
 def test_pagina_com_comparacao_mantem_ids_unicos_e_sem_recurso_externo(tmp_path: Path) -> None:
@@ -463,7 +486,7 @@ def test_cli_de_relatorios_com_saida_explicita(tmp_path: Path) -> None:
     assert (tmp_path / "saida" / NOME_COMPARACAO).exists()
     assert (tmp_path / "saida" / NOME_PAGINA).exists()
     linhas = [x for x in buf.getvalue().splitlines() if x.startswith("Gráfico gerado:")]
-    assert len(linhas) == 8
+    assert len(linhas) == 4
 
 
 def test_cli_de_relatorios_padrao_grava_na_pasta_de_comparacao(tmp_path: Path) -> None:
@@ -471,7 +494,8 @@ def test_cli_de_relatorios_padrao_grava_na_pasta_de_comparacao(tmp_path: Path) -
     buf = io.StringIO()
     codigo = main(["graficos", "--de-relatorios", str(a)], saida=buf, raiz=tmp_path)
     assert codigo == CODIGO_OK
-    assert (tmp_path / PASTA_COMPARACAO / "taxa-total.svg").exists()
+    assert (tmp_path / PASTA_COMPARACAO / "dispersao-iteracoes-tokens.svg").exists()
+    assert not (tmp_path / PASTA_COMPARACAO / "taxa-total.svg").exists()
     assert not (tmp_path / "docs" / "relatorios" / "graficos").exists()
 
 
@@ -508,3 +532,42 @@ def test_cli_relatorio_invalido_sai_com_dois_e_cita_so_o_nome(tmp_path: Path) ->
     texto = buf.getvalue()
     assert "ruim.json" in texto
     assert "segredo_xyz" not in texto
+
+
+def test_execucao_incompleta_sinaliza_teto_nao_executadas_e_erros_infra(tmp_path: Path) -> None:
+    completa = _relatorio({"consulta-01": (Categoria.CONSULTA, [_valida(1), _valida(2)])})
+    parcial = _relatorio(
+        {"consulta-01": (Categoria.CONSULTA, [_valida(1), _erro(2)])}
+    ).model_copy(
+        update={
+            "teto_estourado": True,
+            "teto_motivo": "custo",
+            "nao_executadas": 9,
+            "erros_infra": 5,
+        }
+    )
+    singular = _relatorio(
+        {"consulta-01": (Categoria.CONSULTA, [_valida(1), _erro(2)])}
+    ).model_copy(update={"nao_executadas": 1, "erros_infra": 1})
+
+    dados = dados_de_relatorios(
+        [
+            _gravar(completa, tmp_path / "c.json"),
+            _gravar(parcial, tmp_path / "p.json"),
+            _gravar(singular, tmp_path / "s.json"),
+        ]
+    )
+    exec_c, exec_p, exec_s = dados.execucoes
+    assert exec_c.incompleta is False
+    assert exec_c.motivo_incompleta == ""
+
+    assert exec_p.incompleta is True
+    assert exec_p.motivo_incompleta == (
+        "execução incompleta: teto de gasto estourado; 9 rodadas não executadas; "
+        "5 erros de infraestrutura"
+    )
+
+    assert exec_s.incompleta is True
+    assert exec_s.motivo_incompleta == (
+        "execução incompleta: 1 rodada não executada; 1 erro de infraestrutura"
+    )

@@ -424,3 +424,50 @@ def test_numeros_aleatorios_nunca_quebram_e_sao_xml_valido(
     dados = _dados(execucoes)
     for funcao in FUNCOES:
         _raiz(funcao(dados))
+
+
+@pytest.mark.parametrize(
+    "funcao",
+    [
+        grafico_taxa_total,
+        grafico_taxa_por_categoria,
+        grafico_iteracoes,
+        grafico_dispersao_iteracoes_tokens,
+        grafico_custo_por_rodada,
+    ],
+)
+def test_execucao_incompleta_gera_marcador_vazado_tooltip_e_legenda(
+    funcao: Callable[[DadosEvolucao], str],
+) -> None:
+    motivo = "execução incompleta: teto de gasto estourado; 2 rodadas não executadas"
+    dados = _dados([_ex(1), _ex(2, incompleta=True, motivo_incompleta=motivo)])
+    svg = funcao(dados)
+    raiz = _raiz(svg)
+    vazados = [
+        el
+        for el in raiz.iter(f"{NS}circle")
+        if el.find(f"{NS}title") is not None
+        and motivo in (el.find(f"{NS}title").text or "")  # type: ignore[union-attr]
+    ]
+    assert vazados
+    assert all(el.get("fill") == "#ffffff" for el in vazados)
+    assert "marcador vazado: execução 2 incompleta" in _textos(svg)
+
+
+def test_execucao_incompleta_e_ponto_fraco_juntos_combina_tooltip_e_legenda() -> None:
+    motivo = "execução incompleta: 3 erros de infraestrutura"
+    dados = _dados(
+        [
+            _ex(1),
+            _ex(
+                2,
+                ponto_fraco=True,
+                nota="1 de 4 rodadas válidas",
+                incompleta=True,
+                motivo_incompleta=motivo,
+            ),
+        ]
+    )
+    svg = grafico_taxa_total(dados)
+    assert any("1 de 4 rodadas válidas" in t and motivo in t for t in _titulos(svg))
+    assert "marcador vazado: execução incompleta ou com poucas rodadas válidas" in _textos(svg)

@@ -48,6 +48,7 @@ import math
 import statistics
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, Literal, Self
 from xml.sax.saxutils import escape
@@ -90,11 +91,54 @@ PASTA_COMPARACAO: Final = Path("docs") / "relatorios" / "comparacao-variantes"
 NOME_PAGINA: Final = "graficos.html"
 NOME_COMPARACAO: Final = "comparacao-de-variantes.svg"
 ALTURA_COMPARACAO: Final = 600
+NOME_ESCALA_PAINEIS: Final = "escala-paineis.svg"
+ALTURA_ESCALA_PAINEIS: Final = 472
 # (título da seção, frase curta de leitura) da comparação, que vai antes das demais na página.
 SECAO_COMPARACAO: Final = (
     "Comparação entre variantes",
     "Cada barra é a execução mais recente de uma variante. Os seis painéis têm escala própria: "
     "leia o valor escrito sobre cada barra.",
+)
+SECAO_ESCALA: Final = (
+    "Escala dos dados",
+    "Métricas por número de linhas de pedidos em escala logarítmica, comparando as variantes.",
+)
+SECAO_ESCALA_PAINEIS: Final = (
+    "Comparação em escala",
+    "Cada linha é uma variante; o eixo horizontal mostra o número de linhas de pedidos em escala "
+    "logarítmica. Os quatro painéis têm escala vertical própria.",
+)
+NOMES_ESCALA: Final = (
+    "escala-tokens-por-rodada.svg",
+    "escala-custo-por-rodada.svg",
+    "escala-pico-contexto.svg",
+    "escala-taxa-acerto.svg",
+)
+SECOES_ESCALA: Final = (
+    (
+        "escala-tokens-por-rodada.svg",
+        "Tokens de entrada por rodada por escala",
+        "Tokens de entrada totais divididos pelas rodadas executadas, em milhares, por número de "
+        "linhas de pedidos (escala logarítmica).",
+    ),
+    (
+        "escala-custo-por-rodada.svg",
+        "Custo por rodada por escala",
+        "Custo total dividido pelas rodadas executadas, em milésimos de dólar, por número de "
+        "linhas de pedidos (escala logarítmica).",
+    ),
+    (
+        "escala-pico-contexto.svg",
+        "Pico de contexto médio por escala",
+        "Maior número de tokens de entrada em um turno, em média nas rodadas válidas, por número "
+        "de linhas de pedidos (escala logarítmica).",
+    ),
+    (
+        "escala-taxa-acerto.svg",
+        "Taxa de acerto por escala",
+        "Porcentagem de rodadas aprovadas entre as válidas, por número de linhas de pedidos "
+        "(escala logarítmica).",
+    ),
 )
 NOMES_ARQUIVOS: Final = (
     "taxa-total.svg",
@@ -263,10 +307,19 @@ class Execucao(BaseModel):
     prompt: str = ""
     ponto_fraco: bool = False
     nota: str = ""
+    incompleta: bool = False
+    motivo_incompleta: str = ""
     # Campos da comparação de variantes (Ajuste 2). Opcionais: o arquivo antigo não os tem.
     pico_contexto_medio: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     caracteres_observacao_medio: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     custo_por_acerto_usd: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    # Campos do modo escala (T18c). Opcionais: relatórios antigos não os têm.
+    linhas_pedidos: int | None = Field(default=None, ge=1)
+    tokens_entrada_por_rodada_executada: float | None = Field(
+        default=None, ge=0, allow_inf_nan=False
+    )
+    custo_por_rodada_executada_usd: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    iniciado_em: str | None = None
 
 
 class CurvaDeContexto(BaseModel):
@@ -357,6 +410,29 @@ def _taxa_pct(aprovadas: int, validas: int) -> float | None:
     return aprovadas / validas * 100 if validas else None
 
 
+def _motivo_incompleta(relatorio: Relatorio) -> str:
+    """Descreve por que a execução foi incompleta, ou vazio quando completa."""
+    partes: list[str] = []
+    if relatorio.teto_estourado:
+        partes.append("teto de gasto estourado")
+    if relatorio.nao_executadas > 0:
+        rotulo = (
+            "rodada não executada" if relatorio.nao_executadas == 1 else "rodadas não executadas"
+        )
+        partes.append(f"{_inteiro_br(relatorio.nao_executadas)} {rotulo}")
+    if relatorio.erros_infra > 0:
+        rotulo = (
+            "erro de infraestrutura" if relatorio.erros_infra == 1 else "erros de infraestrutura"
+        )
+        partes.append(f"{_inteiro_br(relatorio.erros_infra)} {rotulo}")
+    if not partes:
+        return ""
+    return "execução incompleta: " + "; ".join(partes)
+
+
+_LINHAS_PEDIDOS_PADRAO: Final = 60  # escala 1x do conjunto padrão de pedidos (dados.py)
+
+
 def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Execucao:
     """Uma execução a partir de um relatório. Médias são sobre as rodadas válidas."""
     todas = [rodada for caso in relatorio.casos for rodada in caso.rodadas]
@@ -381,7 +457,21 @@ def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Exec
         ganhas = sum(1 for r in do_grupo if r.classificacao is Classificacao.APROVADA)
         categorias_pct[categoria] = _taxa_pct(ganhas, len(do_grupo))
     fraco = total > 0 and len(validas) * 2 < total
+    motivo_incompleta = _motivo_incompleta(relatorio)
+    incompleta = bool(motivo_incompleta)
     custos = [r.custo for r in validas if r.custo is not None]
+    executadas = sum(
+        1
+        for r in todas
+        if r.classificacao
+        in (Classificacao.APROVADA, Classificacao.REPROVADA, Classificacao.ERRO_INFRA)
+    )
+    tokens_executada = relatorio.tokens_entrada_total / executadas if executadas else None
+    custo_executada = (
+        relatorio.custo_total / executadas
+        if executadas and relatorio.custo_total is not None
+        else None
+    )
     return Execucao(
         numero=numero,
         variante=relatorio.variante,
@@ -406,9 +496,19 @@ def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Exec
         nota=(
             f"{base_legivel}: {len(validas)} de {total} rodadas válidas" if fraco else base_legivel
         ),
+        incompleta=incompleta,
+        motivo_incompleta=motivo_incompleta,
         pico_contexto_medio=relatorio.pico_contexto_medio,
         caracteres_observacao_medio=relatorio.caracteres_observacao_medio,
         custo_por_acerto_usd=relatorio.custo_por_acerto,
+        linhas_pedidos=(
+            relatorio.linhas_pedidos
+            if relatorio.linhas_pedidos is not None
+            else _LINHAS_PEDIDOS_PADRAO
+        ),
+        tokens_entrada_por_rodada_executada=tokens_executada,
+        custo_por_rodada_executada_usd=custo_executada,
+        iniciado_em=relatorio.iniciado_em,
     )
 
 
@@ -786,12 +886,22 @@ def _rotulo_execucao(execucao: Execucao, com_variante: bool) -> str:
     return f"{base} ({_rotulo_variante(execucao.variante)})" if com_variante else base
 
 
+def _eh_oco(execucao: Execucao) -> bool:
+    return execucao.ponto_fraco or execucao.incompleta
+
+
 def _dica(texto: str, execucao: Execucao) -> str:
-    """Tooltip de uma execução. Marcador vazado acrescenta a nota (ou a frase padrão)."""
-    if not execucao.ponto_fraco:
+    """Tooltip de uma execução. Marcador vazado acrescenta a nota e/ou o motivo de incompletude."""
+    partes: list[str] = []
+    if execucao.ponto_fraco:
+        nota = execucao.nota.strip()
+        partes.append(nota or "poucas rodadas válidas")
+    if execucao.incompleta:
+        motivo = execucao.motivo_incompleta.strip()
+        partes.append(motivo or "execução incompleta")
+    if not partes:
         return texto
-    nota = execucao.nota.strip()
-    return f"{texto}. Marcador vazado: {nota or 'poucas rodadas válidas'}"
+    return f"{texto}. Marcador vazado: {'; '.join(partes)}"
 
 
 def _fmt_taxa(valor: float) -> str:
@@ -836,7 +946,7 @@ def _series_por_variante(
                 _Ponto(
                     x=float(execucao.numero),
                     y=medida,
-                    oco=execucao.ponto_fraco,
+                    oco=_eh_oco(execucao),
                     rotulo=formatar(medida) if com_rotulo else None,
                     dica=dica(rotulo_execucao, execucao, medida),
                 )
@@ -855,11 +965,21 @@ def _itens_series(series: Sequence[_Serie]) -> list[_Item]:
 
 
 def _item_ponto_fraco(plotadas: Sequence[Execucao]) -> list[_Item]:
-    """Legenda do marcador vazado, se alguma execução plotada tem ponto fraco."""
-    fracas = [execucao for execucao in plotadas if execucao.ponto_fraco]
-    if not fracas:
+    """Legenda do marcador vazado, se alguma execução plotada é ponto fraco ou incompleta."""
+    vazadas = [execucao for execucao in plotadas if _eh_oco(execucao)]
+    if not vazadas:
         return []
-    if len(fracas) == 1 and 0 < len(fracas[0].nota) <= TETO_NOTA_CURTA:
+    fracas = [execucao for execucao in vazadas if execucao.ponto_fraco]
+    incompletas = [execucao for execucao in vazadas if execucao.incompleta]
+    if incompletas and not fracas:
+        texto = (
+            f"marcador vazado: execução {incompletas[0].numero} incompleta"
+            if len(incompletas) == 1
+            else "marcador vazado: execuções incompletas"
+        )
+    elif incompletas and fracas:
+        texto = "marcador vazado: execução incompleta ou com poucas rodadas válidas"
+    elif len(fracas) == 1 and 0 < len(fracas[0].nota) <= TETO_NOTA_CURTA:
         texto = f"marcador vazado: execução {fracas[0].numero}: {fracas[0].nota}"
     else:
         numeros = ", ".join(str(execucao.numero) for execucao in fracas)
@@ -941,7 +1061,7 @@ def grafico_taxa_por_categoria(dados: DadosEvolucao, variante: str = "repl") -> 
                 _Ponto(
                     float(execucao.numero),
                     medida,
-                    oco=execucao.ponto_fraco,
+                    oco=_eh_oco(execucao),
                     dica=_dica(texto, execucao),
                 )
             )
@@ -1047,7 +1167,7 @@ def grafico_dispersao_iteracoes_tokens(dados: DadosEvolucao) -> str:
                 _Ponto(
                     x=iteracoes,
                     y=tokens / 1000,
-                    oco=execucao.ponto_fraco,
+                    oco=_eh_oco(execucao),
                     rotulo=str(execucao.numero),
                     posicao="direita",
                     dica=_dica(texto, execucao),
@@ -1238,10 +1358,23 @@ def _paineis_comparacao() -> tuple[_Painel, ...]:
     )
 
 
+def _chave_mais_recente(execucao: Execucao) -> tuple[int, float, int]:
+    """Chave de ordenação para escolher a execução mais recente: `iniciado_em`, depois `numero`."""
+    if execucao.iniciado_em is not None:
+        try:
+            dt = datetime.fromisoformat(execucao.iniciado_em)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=UTC)
+            return (1, dt.timestamp(), execucao.numero)
+        except ValueError:
+            pass
+    return (0, 0.0, execucao.numero)
+
+
 def _ultimas_execucoes(execucoes: Iterable[Execucao]) -> dict[str, Execucao]:
-    """A execução de maior `numero` de cada variante."""
+    """A execução mais recente (`iniciado_em`, depois `numero`) de cada variante."""
     ultimas: dict[str, Execucao] = {}
-    for execucao in sorted(execucoes, key=lambda e: (e.variante, e.numero)):
+    for execucao in sorted(execucoes, key=lambda e: (e.variante, _chave_mais_recente(e))):
         ultimas[execucao.variante] = execucao
     return ultimas
 
@@ -1390,15 +1523,412 @@ def _comparacao_se_houver(dados: DadosEvolucao) -> str | None:
     return grafico_comparacao_de_variantes(dados)
 
 
-def _todos_os_svgs(dados: DadosEvolucao) -> list[str]:
-    """Os seis SVG, na ordem de `NOMES_ARQUIVOS`."""
+# --- modo escala ------------------------------------------------------------------------------
+
+_PAINEL_ESCALA_PASSO: Final = 180.0
+_TITULO_X_ESCALA: Final = "Linhas de pedidos (escala logarítmica)"
+
+
+@dataclass(frozen=True)
+class _MetricaEscala:
+    """Definição compartilhada entre os quatro gráficos individuais e os quatro painéis."""
+
+    titulo: str
+    titulo_painel: str
+    titulo_y: str
+    descricao_base: str
+    valor: Callable[[Execucao], float | None]
+    formatar: Callable[[float], str]
+    unidade_dica: str
+    teto: float | None = None
+    separador: bool = False
+
+
+def _tokens_escala_mil(execucao: Execucao) -> float | None:
+    bruto = (
+        execucao.tokens_entrada_por_rodada_executada
+        if execucao.tokens_entrada_por_rodada_executada is not None
+        else _opcional(execucao.tokens_entrada_por_rodada)
+    )
+    return None if bruto is None else bruto / 1000
+
+
+def _custo_escala_milesimos(execucao: Execucao) -> float | None:
+    bruto = (
+        execucao.custo_por_rodada_executada_usd
+        if execucao.custo_por_rodada_executada_usd is not None
+        else execucao.custo_por_rodada_usd
+    )
+    return None if bruto is None else round(bruto * 1000, 6)
+
+
+def _fmt_mil(valor: float) -> str:
+    return _br(valor, 1)
+
+
+def _metricas_escala() -> tuple[_MetricaEscala, ...]:
+    return (
+        _MetricaEscala(
+            titulo="Tokens de entrada por rodada por escala",
+            titulo_painel="Tokens de entrada por rodada (mil)",
+            titulo_y="Tokens de entrada por rodada (mil)",
+            descricao_base=(
+                "Tokens de entrada por rodada (em milhares) por número de linhas de pedidos"
+            ),
+            valor=_tokens_escala_mil,
+            formatar=_fmt_mil,
+            unidade_dica="mil tokens de entrada por rodada",
+            separador=True,
+        ),
+        _MetricaEscala(
+            titulo="Custo por rodada por escala",
+            titulo_painel="Custo por rodada (milésimos de US$)",
+            titulo_y="Custo por rodada (milésimos de US$)",
+            descricao_base=(
+                "Custo por rodada (em milésimos de dólar) por número de linhas de pedidos"
+            ),
+            valor=_custo_escala_milesimos,
+            formatar=_fmt_custo,
+            unidade_dica="milésimos de US$ por rodada",
+        ),
+        _MetricaEscala(
+            titulo="Pico de contexto médio por escala",
+            titulo_painel="Pico de contexto médio (tokens)",
+            titulo_y="Pico de contexto médio (tokens)",
+            descricao_base="Pico de contexto médio (em tokens) por número de linhas de pedidos",
+            valor=lambda e: e.pico_contexto_medio,
+            formatar=_fmt_tokens,
+            unidade_dica="tokens de pico de contexto",
+            separador=True,
+        ),
+        _MetricaEscala(
+            titulo="Taxa de acerto por escala",
+            titulo_painel="Taxa de acerto (%)",
+            titulo_y="Rodadas aprovadas (%)",
+            descricao_base="Taxa de acerto (em porcentagem) por número de linhas de pedidos",
+            valor=lambda e: e.taxa_pct,
+            formatar=_fmt_taxa,
+            unidade_dica="de acerto",
+            teto=105.0,
+        ),
+    )
+
+
+def tem_modo_escala(dados: DadosEvolucao) -> bool:
+    """Verdadeiro quando alguma variante tem relatórios em duas ou mais escalas diferentes."""
+    por_variante: dict[str, set[int]] = {}
+    for execucao in dados.execucoes:
+        if execucao.linhas_pedidos is not None:
+            por_variante.setdefault(execucao.variante, set()).add(execucao.linhas_pedidos)
+    return any(len(escalas) >= 2 for escalas in por_variante.values())
+
+
+def _ultimas_por_escala(
+    execucoes: Iterable[Execucao],
+) -> tuple[list[str], list[int], dict[tuple[str, int], Execucao]]:
+    """Execução mais recente (`iniciado_em`, depois `numero`) por `(variante, linhas_pedidos)`."""
+    com_escala = [e for e in execucoes if e.linhas_pedidos is not None]
+    ultimas: dict[tuple[str, int], Execucao] = {}
+    for execucao in sorted(com_escala, key=_chave_mais_recente):
+        assert execucao.linhas_pedidos is not None
+        ultimas[(execucao.variante, execucao.linhas_pedidos)] = execucao
+    variantes = _variantes(ultimas.values())
+    escalas = sorted({escala for _, escala in ultimas})
+    return variantes, escalas, ultimas
+
+
+def _eixo_log_escalas(escalas: Sequence[int]) -> _Eixo:
+    """Eixo X em escala logarítmica (base 10) com marcas exatamente nos valores presentes."""
+    ordenadas = sorted(set(escalas))
+    logs = tuple(math.log10(v) for v in ordenadas)
+    span = logs[-1] - logs[0]
+    folga = span * 0.08 if span > 0 else 0.5
+    return _Eixo(logs[0] - folga, logs[-1] + folga, logs, tuple(_inteiro_br(v) for v in ordenadas))
+
+
+def _series_escala(
+    metrica: _MetricaEscala,
+    variantes: Sequence[str],
+    escalas: Sequence[int],
+    ultimas: Mapping[tuple[str, int], Execucao],
+    cores: Mapping[str, str],
+    *,
+    com_rotulo: bool,
+) -> tuple[list[_Serie], list[Execucao], list[float]]:
+    series: list[_Serie] = []
+    plotadas: list[Execucao] = []
+    valores_y: list[float] = []
+    for variante in variantes:
+        pontos: list[_Ponto | None] = []
+        for escala in escalas:
+            execucao = ultimas.get((variante, escala))
+            if execucao is None:
+                continue
+            medida = metrica.valor(execucao)
+            if medida is None:
+                pontos.append(None)
+                continue
+            plotadas.append(execucao)
+            valores_y.append(medida)
+            texto = (
+                f"{_rotulo_variante(variante)}, {_inteiro_br(escala)} linhas: "
+                f"{metrica.formatar(medida)} {metrica.unidade_dica}"
+            )
+            pontos.append(
+                _Ponto(
+                    x=math.log10(escala),
+                    y=medida,
+                    oco=_eh_oco(execucao),
+                    rotulo=metrica.formatar(medida) if com_rotulo else None,
+                    dica=_dica(texto, execucao),
+                )
+            )
+        series.append(
+            _Serie(nome=_rotulo_variante(variante), cor=cores[variante], pontos=tuple(pontos))
+        )
+    return series, plotadas, valores_y
+
+
+def _grafico_escala(dados: DadosEvolucao, metrica: _MetricaEscala) -> str:
+    if not tem_modo_escala(dados):
+        return _svg_sem_dados(metrica.titulo)
+    variantes, escalas, ultimas = _ultimas_por_escala(dados.execucoes)
+    cores = _cores_variantes(variantes)
+    series, plotadas, valores_y = _series_escala(
+        metrica, variantes, escalas, ultimas, cores, com_rotulo=len(variantes) <= 2
+    )
+    if not valores_y:
+        return _svg_sem_dados(metrica.titulo)
+    eixo_x = _eixo_log_escalas(escalas)
+    hi = metrica.teto if metrica.teto is not None else _teto(max(valores_y))
+    eixo_y = _eixo(0.0, hi, separador=metrica.separador)
+    trechos: list[str] = []
+    for variante in variantes:
+        partes: list[str] = []
+        for escala in escalas:
+            execucao = ultimas.get((variante, escala))
+            if execucao is None:
+                continue
+            medida = metrica.valor(execucao)
+            if medida is not None:
+                partes.append(f"{_inteiro_br(escala)} linhas {metrica.formatar(medida)}")
+        trechos.append(
+            f"{_rotulo_variante(variante)}: " + (", ".join(partes) if partes else "sem valores")
+        )
+    descricao = f"{metrica.descricao_base} (escala logarítmica). " + "; ".join(trechos) + "."
+    return _svg(
+        titulo=metrica.titulo,
+        descricao=descricao,
+        eixo_x=eixo_x,
+        eixo_y=eixo_y,
+        titulo_x=_TITULO_X_ESCALA,
+        titulo_y=metrica.titulo_y,
+        series=series,
+        legenda=[*_itens_series(series), *_item_ponto_fraco(plotadas)],
+    )
+
+
+def grafico_escala_tokens(dados: DadosEvolucao) -> str:
+    """Tokens de entrada por rodada (milhares) por número de linhas de pedidos (escala log)."""
+    return _grafico_escala(dados, _metricas_escala()[0])
+
+
+def grafico_escala_custo(dados: DadosEvolucao) -> str:
+    """Custo por rodada (milésimos de US$) por número de linhas de pedidos (escala log)."""
+    return _grafico_escala(dados, _metricas_escala()[1])
+
+
+def grafico_escala_pico_contexto(dados: DadosEvolucao) -> str:
+    """Pico de contexto médio (tokens) por número de linhas de pedidos (escala log)."""
+    return _grafico_escala(dados, _metricas_escala()[2])
+
+
+def grafico_escala_taxa(dados: DadosEvolucao) -> str:
+    """Taxa de acerto (%) por número de linhas de pedidos (escala log)."""
+    return _grafico_escala(dados, _metricas_escala()[3])
+
+
+def _painel_escala_svg(
+    metrica: _MetricaEscala,
+    variantes: Sequence[str],
+    escalas: Sequence[int],
+    ultimas: Mapping[tuple[str, int], Execucao],
+    cores: Mapping[str, str],
+    eixo_x: _Eixo,
+    x0: float,
+    topo_painel: float,
+) -> list[str]:
+    esquerda = x0 + _PLOT_ESQUERDA
+    direita = x0 + _PLOT_DIREITA
+    topo = topo_painel + _PLOT_TOPO
+    base = topo_painel + _PLOT_BASE
+    series, _, valores_y = _series_escala(
+        metrica, variantes, escalas, ultimas, cores, com_rotulo=False
+    )
+    hi = metrica.teto if metrica.teto is not None else _teto(max(valores_y, default=0.0))
+    eixo_y = _eixo(0.0, hi, separador=metrica.separador)
+
+    elementos: list[str] = [
+        f'<text x="{_c(x0)}" y="{_c(topo_painel + 14)}" font-size="13" font-weight="500" '
+        f'fill="{COR_TEXTO}">{_esc(metrica.titulo_painel)}</text>'
+    ]
+    for valor, rotulo in zip(eixo_y.valores, eixo_y.rotulos, strict=True):
+        y = _px(valor, eixo_y, base, topo)
+        if valor != eixo_y.lo:
+            elementos.append(
+                f'<line x1="{_c(esquerda)}" y1="{_c(y)}" x2="{_c(direita)}" y2="{_c(y)}" '
+                f'stroke="{COR_GRADE}" stroke-width="1"/>'
+            )
+        elementos.append(
+            f'<text x="{_c(esquerda - 6)}" y="{_c(y + 4)}" text-anchor="end" font-size="10" '
+            f'fill="{COR_TICK}">{_esc(rotulo)}</text>'
+        )
+    elementos.append(
+        f'<line x1="{_c(esquerda)}" y1="{_c(base)}" x2="{_c(direita)}" y2="{_c(base)}" '
+        f'stroke="{COR_BASE}" stroke-width="1"/>'
+    )
+    for valor, rotulo in zip(eixo_x.valores, eixo_x.rotulos, strict=True):
+        x = _px(valor, eixo_x, esquerda, direita)
+        elementos.append(
+            f'<line x1="{_c(x)}" y1="{_c(base)}" x2="{_c(x)}" y2="{_c(base + 4)}" '
+            f'stroke="{COR_BASE}" stroke-width="1"/>'
+        )
+        elementos.append(
+            f'<text x="{_c(x)}" y="{_c(base + 15)}" text-anchor="middle" font-size="10" '
+            f'fill="{COR_TICK}">{_esc(rotulo)}</text>'
+        )
+    elementos.append(
+        f'<text x="{_c((esquerda + direita) / 2)}" y="{_c(base + 29)}" text-anchor="middle" '
+        f'font-size="10" fill="{COR_EIXO_TEXTO}">{_esc(_TITULO_X_ESCALA)}</text>'
+    )
+    if not valores_y:
+        elementos.append(
+            f'<text x="{_c((esquerda + direita) / 2)}" y="{_c((topo + base) / 2)}" '
+            f'text-anchor="middle" font-size="11" fill="{COR_TICK}">sem dado</text>'
+        )
+        return elementos
+
+    linhas: list[str] = []
+    marcadores: list[str] = []
+    for serie in series:
+        segmentos: list[list[tuple[float, float]]] = [[]]
+        for ponto in serie.pontos:
+            if ponto is None:
+                segmentos.append([])
+                continue
+            x = _px(ponto.x, eixo_x, esquerda, direita)
+            y = _px(ponto.y, eixo_y, base, topo)
+            segmentos[-1].append((x, y))
+            marcadores.append(_marcador(serie.forma, x, y, serie.cor, ponto.oco, ponto.dica))
+        for segmento in segmentos:
+            if len(segmento) >= 2:
+                trecho = " L".join(f"{_c(x)} {_c(y)}" for x, y in segmento)
+                linhas.append(
+                    f'<path d="M{trecho}" fill="none" stroke="{serie.cor}" '
+                    f'stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
+                )
+    return elementos + linhas + marcadores
+
+
+def grafico_escala_paineis(dados: DadosEvolucao) -> str:
+    """Quatro painéis de escala (tokens, custo, pico de contexto e taxa de acerto) em log X."""
+    titulo = SECAO_ESCALA_PAINEIS[0]
+    if not tem_modo_escala(dados):
+        return _svg_sem_dados(titulo)
+    variantes, escalas, ultimas = _ultimas_por_escala(dados.execucoes)
+    cores = _cores_variantes(variantes)
+    eixo_x = _eixo_log_escalas(escalas)
+    metricas = _metricas_escala()
+    trechos: list[str] = []
+    for metrica in metricas:
+        partes: list[str] = []
+        for variante in variantes:
+            vals = [
+                f"{_inteiro_br(escala)} {metrica.formatar(medida)}"
+                for escala in escalas
+                if (execucao := ultimas.get((variante, escala))) is not None
+                and (medida := metrica.valor(execucao)) is not None
+            ]
+            resumo_vals = ", ".join(vals) if vals else "sem dado"
+            partes.append(f"{_rotulo_variante(variante)}: {resumo_vals}")
+        trechos.append(f"{metrica.titulo_painel}: " + "; ".join(partes) + ".")
+    descricao = (
+        "Comparação em escala entre variantes, com linhas de pedidos em escala logarítmica. "
+        + " ".join(trechos)
+    )
+    plotadas = [
+        execucao
+        for execucao in ultimas.values()
+        if any(metrica.valor(execucao) is not None for metrica in metricas)
+    ]
+    legenda_svg, topo_legenda = _legenda(
+        [
+            *[_Item(texto=_rotulo_variante(v), cor=cores[v]) for v in variantes],
+            *_item_ponto_fraco(plotadas),
+        ]
+    )
+    topo_paineis = max(_PAINEIS_TOPO, topo_legenda)
+    elementos = _cabecalho(titulo, descricao, ALTURA_ESCALA_PAINEIS)
+    elementos.append(
+        f'<text x="24" y="34" font-size="16" font-weight="500" fill="{COR_TEXTO}">'
+        f"{_esc(titulo)}</text>"
+    )
+    elementos.extend(legenda_svg)
+    for indice, metrica in enumerate(metricas):
+        x0 = _COLUNAS_PAINEIS[indice % 2]
+        topo_painel = topo_paineis + (indice // 2) * _PAINEL_ESCALA_PASSO
+        elementos.extend(
+            _painel_escala_svg(
+                metrica, variantes, escalas, ultimas, cores, eixo_x, x0, topo_painel
+            )
+        )
+    elementos.append("</svg>")
+    return "\n".join(elementos) + "\n"
+
+
+def _svgs_escala(dados: DadosEvolucao) -> list[str]:
+    """Os quatro SVG de escala, na ordem de `NOMES_ESCALA`."""
+    return [_grafico_escala(dados, metrica) for metrica in _metricas_escala()]
+
+
+_ARQUIVOS_SEM_EVOLUCAO: Final = frozenset(
+    {"dispersao-iteracoes-tokens.svg", "curva-de-contexto.svg"}
+)
+
+
+def _tem_evolucao_por_execucao(dados: DadosEvolucao) -> bool:
+    """Verdadeiro quando alguma variante tem duas ou mais execuções."""
+    contagem: dict[str, int] = {}
+    for execucao in dados.execucoes:
+        contagem[execucao.variante] = contagem.get(execucao.variante, 0) + 1
+        if contagem[execucao.variante] >= 2:
+            return True
+    return False
+
+
+def _geradores_fora_escala(
+    dados: DadosEvolucao,
+) -> list[tuple[str, str, str, Callable[[DadosEvolucao], str]]]:
+    """Pares (arquivo, título, leitura, função) fora do modo escala.
+
+    Os gráficos de linha por execução (`taxa-total`, `taxa-por-categoria`, `iteracoes-por-pedido`,
+    `custo-por-rodada`) só entram quando alguma variante tem duas ou mais execuções. Quando cada
+    variante tem no máximo uma execução, ficam apenas a dispersão e a curva de contexto (além do
+    painel de comparação quando há duas ou mais variantes).
+    """
+    funcoes: tuple[Callable[[DadosEvolucao], str], ...] = (
+        grafico_taxa_total,
+        grafico_taxa_por_categoria,
+        grafico_iteracoes,
+        grafico_dispersao_iteracoes_tokens,
+        grafico_curva_de_contexto,
+        grafico_custo_por_rodada,
+    )
+    incluir_linhas = _tem_evolucao_por_execucao(dados)
     return [
-        grafico_taxa_total(dados),
-        grafico_taxa_por_categoria(dados),
-        grafico_iteracoes(dados),
-        grafico_dispersao_iteracoes_tokens(dados),
-        grafico_curva_de_contexto(dados),
-        grafico_custo_por_rodada(dados),
+        (arquivo, titulo, leitura, fn)
+        for (arquivo, titulo, leitura), fn in zip(SECOES, funcoes, strict=True)
+        if incluir_linhas or arquivo in _ARQUIVOS_SEM_EVOLUCAO
     ]
 
 
@@ -1412,24 +1942,61 @@ def _com_identificador(svg: str, sufixo: str) -> str:
 
 
 def gerar_pagina_html(dados: DadosEvolucao) -> str:
-    """Página HTML5 autônoma com os seis gráficos inline e tooltips. Sem recurso externo."""
-    svgs = _todos_os_svgs(dados)
+    """Página HTML5 autônoma com os gráficos inline e tooltips. Sem recurso externo.
+
+    No modo escala (`tem_modo_escala(dados)`), inclui apenas os gráficos de escala (painéis e
+    os quatro individuais). Os gráficos por execução (`taxa-total`, `taxa-por-categoria`,
+    `iteracoes-por-pedido`, `custo-por-rodada`), o painel de barras da comparação
+    (`comparacao-de-variantes`), a dispersão (`dispersao-iteracoes-tokens`) e a curva de
+    contexto (`curva-de-contexto`) são omitidos porque misturam execuções de escalas diferentes
+    sem distinguir a escala.
+
+    Fora do modo escala, os gráficos de linha por execução só entram quando alguma variante tem
+    duas ou mais execuções.
+    """
     secoes: list[str] = []
-    comparacao = _comparacao_se_houver(dados)
-    if comparacao is not None:
-        titulo_comparacao, leitura_comparacao = SECAO_COMPARACAO
-        secoes.append(
-            f"<section>\n<h2>{_esc(titulo_comparacao)}</h2>\n"
-            f'<p class="leitura">{_esc(leitura_comparacao)}</p>\n'
-            f"{_com_identificador(comparacao, 'c')}</section>"
-        )
-    for indice, ((_, titulo, leitura), svg) in enumerate(zip(SECOES, svgs, strict=True), 1):
-        secoes.append(
-            f"<section>\n<h2>{_esc(titulo)}</h2>\n"
-            f'<p class="leitura">{_esc(leitura)}</p>\n'
-            f"{_com_identificador(svg, str(indice))}</section>"
-        )
+    if tem_modo_escala(dados):
+        titulo_escala, leitura_escala = SECAO_ESCALA
+        titulo_ep, leitura_ep = SECAO_ESCALA_PAINEIS
+        partes_escala = [
+            f"<h2>{_esc(titulo_escala)}</h2>",
+            f'<p class="leitura">{_esc(leitura_escala)}</p>',
+            f"<h3>{_esc(titulo_ep)}</h3>",
+            f'<p class="leitura">{_esc(leitura_ep)}</p>',
+            _com_identificador(grafico_escala_paineis(dados), "ep"),
+        ]
+        for indice, ((_, titulo_e, leitura_e), svg_e) in enumerate(
+            zip(SECOES_ESCALA, _svgs_escala(dados), strict=True), 1
+        ):
+            partes_escala.extend(
+                [
+                    f"<h3>{_esc(titulo_e)}</h3>",
+                    f'<p class="leitura">{_esc(leitura_e)}</p>',
+                    _com_identificador(svg_e, f"e{indice}"),
+                ]
+            )
+        secoes.append("<section>\n" + "\n".join(partes_escala) + "</section>")
+    else:
+        comparacao = _comparacao_se_houver(dados)
+        if comparacao is not None:
+            titulo_comparacao, leitura_comparacao = SECAO_COMPARACAO
+            secoes.append(
+                f"<section>\n<h2>{_esc(titulo_comparacao)}</h2>\n"
+                f'<p class="leitura">{_esc(leitura_comparacao)}</p>\n'
+                f"{_com_identificador(comparacao, 'c')}</section>"
+            )
+        for indice, (_, titulo, leitura, fn) in enumerate(_geradores_fora_escala(dados), 1):
+            secoes.append(
+                f"<section>\n<h2>{_esc(titulo)}</h2>\n"
+                f'<p class="leitura">{_esc(leitura)}</p>\n'
+                f"{_com_identificador(fn(dados), str(indice))}</section>"
+            )
     intro = dados.descricao or "Métricas por execução real da avaliação."
+    css = (
+        f"{_CSS}h3 {{ font-size: 15px; font-weight: 600; margin: 24px 0 4px; }}\n"
+        if tem_modo_escala(dados)
+        else _CSS
+    )
     linhas = [
         "<!doctype html>",
         '<html lang="pt-BR">',
@@ -1438,7 +2005,7 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f'<meta http-equiv="Content-Security-Policy" content="{_CSP}">',
         "<title>Avaliações do agente: gráficos</title>",
-        f"<style>\n{_CSS}</style>",
+        f"<style>\n{css}</style>",
         "</head>",
         "<body>",
         "<main>",
@@ -1455,17 +2022,28 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
 
 
 def gerar_todos(dados: DadosEvolucao, pasta: Path) -> list[Path]:
-    """Grava os seis SVG e a página `graficos.html`, com nomes fixos. Sobrescreve.
+    """Grava os SVG e a página `graficos.html`, com nomes fixos. Sobrescreve.
 
-    Com duas ou mais variantes, grava também `comparacao-de-variantes.svg`, depois dos seis. A
-    pasta é criada se preciso. Devolve os caminhos: os SVG na ordem de `NOMES_ARQUIVOS` (e a
-    comparação, se houver), e depois a página.
+    Fora do modo escala, grava os seis SVG em `NOMES_ARQUIVOS` quando alguma variante tem duas ou
+    mais execuções (e `comparacao-de-variantes.svg` quando há duas ou mais variantes) e depois a
+    página. Quando cada variante tem no máximo uma execução, grava apenas a dispersão, a curva de
+    contexto, `comparacao-de-variantes.svg` (se houver >=2 variantes) e a página.
+
+    No modo escala (`tem_modo_escala(dados)`), grava apenas os quatro SVG de escala
+    (`NOMES_ESCALA`), o painel combinado (`NOME_ESCALA_PAINEIS`) e a página: os gráficos de linha
+    por execução (`taxa-total`, `taxa-por-categoria`, `iteracoes-por-pedido`, `custo-por-rodada`),
+    o painel de barras da comparação (`comparacao-de-variantes`), a dispersão
+    (`dispersao-iteracoes-tokens`) e a curva de contexto (`curva-de-contexto`) são omitidos porque
+    misturam execuções de escalas diferentes sem distinguir a escala.
     """
-    svgs = _todos_os_svgs(dados)
-    comparacao = _comparacao_se_houver(dados)
-    arquivos = list(zip(NOMES_ARQUIVOS, svgs, strict=True))
-    if comparacao is not None:
-        arquivos.append((NOME_COMPARACAO, comparacao))
+    if tem_modo_escala(dados):
+        arquivos = list(zip(NOMES_ESCALA, _svgs_escala(dados), strict=True))
+        arquivos.append((NOME_ESCALA_PAINEIS, grafico_escala_paineis(dados)))
+    else:
+        arquivos = [(nome, fn(dados)) for nome, _, _, fn in _geradores_fora_escala(dados)]
+        comparacao = _comparacao_se_houver(dados)
+        if comparacao is not None:
+            arquivos.append((NOME_COMPARACAO, comparacao))
     pagina = gerar_pagina_html(dados)
     caminhos: list[Path] = []
     try:
