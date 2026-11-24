@@ -302,6 +302,8 @@ class Execucao(BaseModel):
     prompt: str = ""
     ponto_fraco: bool = False
     nota: str = ""
+    incompleta: bool = False
+    motivo_incompleta: str = ""
     # Campos da comparação de variantes (Ajuste 2). Opcionais: o arquivo antigo não os tem.
     pico_contexto_medio: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     caracteres_observacao_medio: float | None = Field(default=None, ge=0, allow_inf_nan=False)
@@ -402,6 +404,26 @@ def _taxa_pct(aprovadas: int, validas: int) -> float | None:
     return aprovadas / validas * 100 if validas else None
 
 
+def _motivo_incompleta(relatorio: Relatorio) -> str:
+    """Descreve por que a execução foi incompleta, ou vazio quando completa."""
+    partes: list[str] = []
+    if relatorio.teto_estourado:
+        partes.append("teto de gasto estourado")
+    if relatorio.nao_executadas > 0:
+        rotulo = (
+            "rodada não executada" if relatorio.nao_executadas == 1 else "rodadas não executadas"
+        )
+        partes.append(f"{_inteiro_br(relatorio.nao_executadas)} {rotulo}")
+    if relatorio.erros_infra > 0:
+        rotulo = (
+            "erro de infraestrutura" if relatorio.erros_infra == 1 else "erros de infraestrutura"
+        )
+        partes.append(f"{_inteiro_br(relatorio.erros_infra)} {rotulo}")
+    if not partes:
+        return ""
+    return "execução incompleta: " + "; ".join(partes)
+
+
 def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Execucao:
     """Uma execução a partir de um relatório. Médias são sobre as rodadas válidas."""
     todas = [rodada for caso in relatorio.casos for rodada in caso.rodadas]
@@ -426,6 +448,8 @@ def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Exec
         ganhas = sum(1 for r in do_grupo if r.classificacao is Classificacao.APROVADA)
         categorias_pct[categoria] = _taxa_pct(ganhas, len(do_grupo))
     fraco = total > 0 and len(validas) * 2 < total
+    motivo_incompleta = _motivo_incompleta(relatorio)
+    incompleta = bool(motivo_incompleta)
     custos = [r.custo for r in validas if r.custo is not None]
     executadas = sum(
         1
@@ -463,6 +487,8 @@ def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Exec
         nota=(
             f"{base_legivel}: {len(validas)} de {total} rodadas válidas" if fraco else base_legivel
         ),
+        incompleta=incompleta,
+        motivo_incompleta=motivo_incompleta,
         pico_contexto_medio=relatorio.pico_contexto_medio,
         caracteres_observacao_medio=relatorio.caracteres_observacao_medio,
         custo_por_acerto_usd=relatorio.custo_por_acerto,
@@ -846,12 +872,22 @@ def _rotulo_execucao(execucao: Execucao, com_variante: bool) -> str:
     return f"{base} ({_rotulo_variante(execucao.variante)})" if com_variante else base
 
 
+def _eh_oco(execucao: Execucao) -> bool:
+    return execucao.ponto_fraco or execucao.incompleta
+
+
 def _dica(texto: str, execucao: Execucao) -> str:
-    """Tooltip de uma execução. Marcador vazado acrescenta a nota (ou a frase padrão)."""
-    if not execucao.ponto_fraco:
+    """Tooltip de uma execução. Marcador vazado acrescenta a nota e/ou o motivo de incompletude."""
+    partes: list[str] = []
+    if execucao.ponto_fraco:
+        nota = execucao.nota.strip()
+        partes.append(nota or "poucas rodadas válidas")
+    if execucao.incompleta:
+        motivo = execucao.motivo_incompleta.strip()
+        partes.append(motivo or "execução incompleta")
+    if not partes:
         return texto
-    nota = execucao.nota.strip()
-    return f"{texto}. Marcador vazado: {nota or 'poucas rodadas válidas'}"
+    return f"{texto}. Marcador vazado: {'; '.join(partes)}"
 
 
 def _fmt_taxa(valor: float) -> str:
@@ -896,7 +932,7 @@ def _series_por_variante(
                 _Ponto(
                     x=float(execucao.numero),
                     y=medida,
-                    oco=execucao.ponto_fraco,
+                    oco=_eh_oco(execucao),
                     rotulo=formatar(medida) if com_rotulo else None,
                     dica=dica(rotulo_execucao, execucao, medida),
                 )
@@ -915,11 +951,21 @@ def _itens_series(series: Sequence[_Serie]) -> list[_Item]:
 
 
 def _item_ponto_fraco(plotadas: Sequence[Execucao]) -> list[_Item]:
-    """Legenda do marcador vazado, se alguma execução plotada tem ponto fraco."""
-    fracas = [execucao for execucao in plotadas if execucao.ponto_fraco]
-    if not fracas:
+    """Legenda do marcador vazado, se alguma execução plotada é ponto fraco ou incompleta."""
+    vazadas = [execucao for execucao in plotadas if _eh_oco(execucao)]
+    if not vazadas:
         return []
-    if len(fracas) == 1 and 0 < len(fracas[0].nota) <= TETO_NOTA_CURTA:
+    fracas = [execucao for execucao in vazadas if execucao.ponto_fraco]
+    incompletas = [execucao for execucao in vazadas if execucao.incompleta]
+    if incompletas and not fracas:
+        texto = (
+            f"marcador vazado: execução {incompletas[0].numero} incompleta"
+            if len(incompletas) == 1
+            else "marcador vazado: execuções incompletas"
+        )
+    elif incompletas and fracas:
+        texto = "marcador vazado: execução incompleta ou com poucas rodadas válidas"
+    elif len(fracas) == 1 and 0 < len(fracas[0].nota) <= TETO_NOTA_CURTA:
         texto = f"marcador vazado: execução {fracas[0].numero}: {fracas[0].nota}"
     else:
         numeros = ", ".join(str(execucao.numero) for execucao in fracas)
@@ -1001,7 +1047,7 @@ def grafico_taxa_por_categoria(dados: DadosEvolucao, variante: str = "repl") -> 
                 _Ponto(
                     float(execucao.numero),
                     medida,
-                    oco=execucao.ponto_fraco,
+                    oco=_eh_oco(execucao),
                     dica=_dica(texto, execucao),
                 )
             )
@@ -1107,7 +1153,7 @@ def grafico_dispersao_iteracoes_tokens(dados: DadosEvolucao) -> str:
                 _Ponto(
                     x=iteracoes,
                     y=tokens / 1000,
-                    oco=execucao.ponto_fraco,
+                    oco=_eh_oco(execucao),
                     rotulo=str(execucao.numero),
                     posicao="direita",
                     dica=_dica(texto, execucao),
@@ -1605,7 +1651,7 @@ def _series_escala(
                 _Ponto(
                     x=math.log10(escala),
                     y=medida,
-                    oco=execucao.ponto_fraco,
+                    oco=_eh_oco(execucao),
                     rotulo=metrica.formatar(medida) if com_rotulo else None,
                     dica=_dica(texto, execucao),
                 )
@@ -1783,9 +1829,18 @@ def grafico_escala_paineis(dados: DadosEvolucao) -> str:
         "Comparação em escala entre variantes, com linhas de pedidos em escala logarítmica. "
         + " ".join(trechos)
     )
-    legenda_svg, _ = _legenda(
-        [_Item(texto=_rotulo_variante(v), cor=cores[v]) for v in variantes]
+    plotadas = [
+        execucao
+        for execucao in ultimas.values()
+        if any(metrica.valor(execucao) is not None for metrica in metricas)
+    ]
+    legenda_svg, topo_legenda = _legenda(
+        [
+            *[_Item(texto=_rotulo_variante(v), cor=cores[v]) for v in variantes],
+            *_item_ponto_fraco(plotadas),
+        ]
     )
+    topo_paineis = max(_PAINEIS_TOPO, topo_legenda)
     elementos = _cabecalho(titulo, descricao, ALTURA_ESCALA_PAINEIS)
     elementos.append(
         f'<text x="24" y="34" font-size="16" font-weight="500" fill="{COR_TEXTO}">'
@@ -1794,7 +1849,7 @@ def grafico_escala_paineis(dados: DadosEvolucao) -> str:
     elementos.extend(legenda_svg)
     for indice, metrica in enumerate(metricas):
         x0 = _COLUNAS_PAINEIS[indice % 2]
-        topo_painel = _PAINEIS_TOPO + (indice // 2) * _PAINEL_ESCALA_PASSO
+        topo_painel = topo_paineis + (indice // 2) * _PAINEL_ESCALA_PASSO
         elementos.extend(
             _painel_escala_svg(
                 metrica, variantes, escalas, ultimas, cores, eixo_x, x0, topo_painel
