@@ -405,7 +405,12 @@ def test_gerar_todos_e_pagina_incluem_escala_apenas_quando_ativa(tmp_path: Path)
     sem_escala = DadosEvolucao(versao=1, execucoes=(_exec(1, "repl", 60), _exec(1, "json", 60)))
     pasta_a = tmp_path / "sem"
     caminhos_a = gerar_todos(sem_escala, pasta_a)
-    assert [c.name for c in caminhos_a] == [*NOMES_ARQUIVOS, NOME_COMPARACAO, NOME_PAGINA]
+    assert [c.name for c in caminhos_a] == [
+        "dispersao-iteracoes-tokens.svg",
+        "curva-de-contexto.svg",
+        NOME_COMPARACAO,
+        NOME_PAGINA,
+    ]
     assert not (pasta_a / NOME_ESCALA_PAINEIS).exists()
 
     com_escala = _dados_escala()
