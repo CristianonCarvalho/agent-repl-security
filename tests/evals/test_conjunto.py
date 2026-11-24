@@ -1000,26 +1000,31 @@ def test_casos_de_calculo_corretor(fatos: FatosVerdadeiros) -> None:
         CitaFontes(fontes=[CAMINHO_PEDIDOS]),
     ]
 
-    assert corrigir(calculo["calculo-04"], str(fatos.clientes_com_3_pedidos_altos), fonte).aprovado
-    assert not corrigir(
-        calculo["calculo-04"], str(fatos.clientes_com_3_pedidos_altos + 1), fonte
-    ).aprovado
-    assert not corrigir(
+    assert corrigir(
         calculo["calculo-04"],
-        f"{fatos.clientes_com_3_pedidos_altos},01",
+        f"{fatos.cliente_maior_total}: R$ {_n(fatos.valor_maior_total)}",
         fonte,
     ).aprovado
     assert not corrigir(
-        calculo["calculo-04"], str(fatos.clientes_com_3_pedidos_altos), [CAMINHO_CONTAS]
+        calculo["calculo-04"],
+        f"{fatos.cliente_maior_total}: R$ {_n(fatos.valor_maior_total + Decimal('10'))}",
+        fonte,
     ).aprovado
-    assert "3 ou mais pedidos válidos" in calculo["calculo-04"].pedido.lower()
+    outro_cliente = next(c for c in fatos.total_por_cliente if c != fatos.cliente_maior_total)
+    assert not corrigir(
+        calculo["calculo-04"],
+        f"{outro_cliente}: R$ {_n(fatos.valor_maior_total)}",
+        fonte,
+    ).aprovado
+    assert not corrigir(
+        calculo["calculo-04"],
+        f"{fatos.cliente_maior_total}: R$ {_n(fatos.valor_maior_total)}",
+        [CAMINHO_CONTAS],
+    ).aprovado
+    assert "maior total em pedidos válidos" in calculo["calculo-04"].pedido.lower()
     assert "sem os cancelados" in calculo["calculo-04"].pedido.lower()
-    assert "50.000,00" in calculo["calculo-04"].pedido
     assert calculo["calculo-04"].gabarito == [
-        ContemNumero(
-            valor=Decimal(fatos.clientes_com_3_pedidos_altos),
-            tolerancia=Decimal("0"),
-            unidade="quantidade",
-        ),
+        ContemTodos(textos=[fatos.cliente_maior_total]),
+        ContemNumero(valor=fatos.valor_maior_total),
         CitaFontes(fontes=[CAMINHO_PEDIDOS]),
     ]

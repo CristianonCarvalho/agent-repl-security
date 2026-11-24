@@ -8,7 +8,6 @@ usam Docker nem rede. A escala 100 é gerada uma vez por módulo (fixture).
 
 import hashlib
 import json
-from collections import Counter
 from collections.abc import Iterator
 from decimal import ROUND_HALF_UP, Decimal, localcontext
 from pathlib import Path
@@ -409,5 +408,14 @@ def test_fatos_estatisticos_batem_com_a_planilha_nas_escalas(
         desvio_esperado = variancia.sqrt().quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     assert fatos.desvio_padrao_validos == desvio_esperado
 
-    altos = Counter(linha[1] for linha in validos if _reais(linha[4]) > Decimal("50000.00"))
-    assert fatos.clientes_com_3_pedidos_altos == sum(1 for qtd in altos.values() if qtd >= 3)
+    totais_por_cliente = {
+        cliente: sum(
+            (_reais(linha[4]) for linha in validos if linha[1] == cliente),
+            Decimal("0.00"),
+        )
+        for cliente in fatos.total_por_cliente
+    }
+    maior_total = max(totais_por_cliente.values())
+    assert fatos.valor_maior_total == maior_total
+    assert fatos.total_por_cliente[fatos.cliente_maior_total] == maior_total
+    assert totais_por_cliente[fatos.cliente_maior_total] == maior_total

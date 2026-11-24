@@ -14,7 +14,6 @@ import json
 import random
 import re
 import zipfile
-from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -284,8 +283,10 @@ class FatosVerdadeiros:
     """Região com a maior mediana de pedidos válidos (desempate por ordem alfabética)."""
     desvio_padrao_validos: Decimal
     """Desvio padrão populacional dos pedidos válidos, em reais (2 casas, ROUND_HALF_UP)."""
-    clientes_com_3_pedidos_altos: int
-    """Quantidade de clientes com 3 ou mais pedidos válidos acima de R$ 50.000,00."""
+    cliente_maior_total: str
+    """Cliente com o maior total em pedidos válidos (desempate por ordem alfabética)."""
+    valor_maior_total: Decimal
+    """Maior total em pedidos válidos entre os clientes, em reais (Decimal exato)."""
     escala: int = 1
     """Escala da geração. Com escala 1 é o conjunto de sempre; acima de 1, `numero_pedidos` é
     60 * escala, e os totais e os agregados já incluem os pedidos extras."""
@@ -319,9 +320,14 @@ def _mediana_reais(centavos: Sequence[int]) -> Decimal:
     return media.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+def _maior_chave(valores: Mapping[str, Decimal]) -> str:
+    """Chave com maior valor; em caso de empate, escolhe a menor em ordem alfabética."""
+    return min(valores, key=lambda chave: (-valores[chave], chave))
+
+
 def _regiao_maior_mediana(mediana_por_regiao: Mapping[str, Decimal]) -> str:
     """Região com maior mediana; em caso de empate, escolhe a menor em ordem alfabética."""
-    return min(mediana_por_regiao, key=lambda regiao: (-mediana_por_regiao[regiao], regiao))
+    return _maior_chave(mediana_por_regiao)
 
 
 def _desvio_padrao_reais(centavos: Sequence[int]) -> Decimal:
@@ -970,12 +976,8 @@ def gerar_dados(
     }
     regiao_maior_mediana = _regiao_maior_mediana(mediana_por_regiao)
     desvio_padrao_validos = _desvio_padrao_reais(centavos_validos)
-    pedidos_altos_por_cliente = Counter(
-        p.cliente for p in validos if p.centavos > _LIMITE_DESTAQUE_CENTAVOS
-    )
-    clientes_com_3_pedidos_altos = sum(
-        1 for contagem in pedidos_altos_por_cliente.values() if contagem >= 3
-    )
+    cliente_maior_total = _maior_chave(total_por_cliente)
+    valor_maior_total = total_por_cliente[cliente_maior_total]
     maior = max(validos, key=lambda pedido: pedido.centavos)
     acima_do_destaque = sorted(
         {p.cliente for p in validos if p.centavos > _LIMITE_DESTAQUE_CENTAVOS}
@@ -1047,6 +1049,7 @@ def gerar_dados(
         mediana_por_regiao=mediana_por_regiao,
         regiao_maior_mediana=regiao_maior_mediana,
         desvio_padrao_validos=desvio_padrao_validos,
-        clientes_com_3_pedidos_altos=clientes_com_3_pedidos_altos,
+        cliente_maior_total=cliente_maior_total,
+        valor_maior_total=valor_maior_total,
         escala=escala,
     )
