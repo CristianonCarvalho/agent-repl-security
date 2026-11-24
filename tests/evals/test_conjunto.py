@@ -1010,3 +1010,22 @@ def test_casos_de_calculo_corretor(fatos: FatosVerdadeiros) -> None:
     assert not corrigir(
         calculo["calculo-04"], str(fatos.clientes_com_3_pedidos_altos + 1), fonte
     ).aprovado
+    assert not corrigir(
+        calculo["calculo-04"],
+        f"{fatos.clientes_com_3_pedidos_altos},01",
+        fonte,
+    ).aprovado
+    assert not corrigir(
+        calculo["calculo-04"], str(fatos.clientes_com_3_pedidos_altos), [CAMINHO_CONTAS]
+    ).aprovado
+    assert "3 ou mais pedidos válidos" in calculo["calculo-04"].pedido.lower()
+    assert "sem os cancelados" in calculo["calculo-04"].pedido.lower()
+    assert "50.000,00" in calculo["calculo-04"].pedido
+    assert calculo["calculo-04"].gabarito == [
+        ContemNumero(
+            valor=Decimal(fatos.clientes_com_3_pedidos_altos),
+            tolerancia=Decimal("0"),
+            unidade="quantidade",
+        ),
+        CitaFontes(fontes=[CAMINHO_PEDIDOS]),
+    ]
