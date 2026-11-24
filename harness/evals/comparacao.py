@@ -250,6 +250,7 @@ def _contexto(base: Relatorio, novo: Relatorio) -> tuple[DiferencaContexto, ...]
         ("árvore do git suja", _sim_nao(base.commit_sujo), _sim_nao(novo.commit_sujo)),
         ("orçamento", _formatar_orcamento(base.orcamento), _formatar_orcamento(novo.orcamento)),
         ("rodadas por caso", str(base.rodadas_por_caso), str(novo.rodadas_por_caso)),
+        ("conjunto", base.conjunto, novo.conjunto),
         ("versão do conjunto", base.versao_conjunto, novo.versao_conjunto),
         ("escala", str(base.escala), str(novo.escala)),
         ("telemetria", base.telemetria, novo.telemetria),
@@ -407,9 +408,14 @@ def comparar(
             "uma das execuções tem menos de 3 rodadas por caso: a margem é pouco confiável"
         )
 
-    # Escala diferente (T18c-a) é incomparável como semente diferente: os dados são outros.
+    # Conjunto ou escala diferente é incomparável como semente diferente: os casos ou dados mudam.
     motivo_incomparavel: str | None = None
-    if base.escala != novo.escala:
+    if base.conjunto != novo.conjunto:
+        motivo_incomparavel = (
+            f"conjuntos diferentes ({base.conjunto} e {novo.conjunto}): os conjuntos de casos "
+            "não são os mesmos"
+        )
+    elif base.escala != novo.escala:
         motivo_incomparavel = (
             f"escalas diferentes ({base.escala} e {novo.escala}): os dados dos casos não são os "
             "mesmos. A linha de base é sempre de escala 1"

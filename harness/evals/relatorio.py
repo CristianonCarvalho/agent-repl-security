@@ -64,6 +64,7 @@ from harness.evals.correcao import Veredito
 
 MINIMO_RODADAS_PARA_CURVA: Final = 10
 VarianteRelatorio = Literal["repl", "json", "json-agregacao"]
+ConjuntoRelatorio = Literal["padrao", "calculo"]
 
 
 class ErroDeRelatorio(Exception):
@@ -220,6 +221,8 @@ class Relatorio(BaseModel):
     escala: int = Field(default=1, ge=1)
     # Linhas de dados da planilha de pedidos (60 * escala). None em relatório antigo.
     linhas_pedidos: int | None = Field(default=None, ge=0)
+    # Conjunto de casos usado na CLI (padrao ou calculo). Relatório antigo não o tem: vale "padrao".
+    conjunto: ConjuntoRelatorio = "padrao"
 
     @model_validator(mode="after")
     def _coerente(self) -> Self:
