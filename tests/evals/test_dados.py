@@ -605,6 +605,7 @@ def test_fatos_estatisticos_batem_com_a_planilha(geracao: tuple[Path, FatosVerda
         for cliente in fatos.total_por_cliente
     }
     maior_total = max(totais_por_cliente.values())
+    assert sum(1 for v in totais_por_cliente.values() if v == maior_total) == 1
     assert fatos.valor_maior_total == maior_total
     assert fatos.total_por_cliente[fatos.cliente_maior_total] == maior_total
     assert totais_por_cliente[fatos.cliente_maior_total] == maior_total
