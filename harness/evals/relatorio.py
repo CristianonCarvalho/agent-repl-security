@@ -213,6 +213,8 @@ class Relatorio(BaseModel):
     pico_contexto_medio: float | None = None
     caracteres_observacao_medio: float | None = None
     custo_por_acerto: float | None = None
+    # Escala do conjunto de pedidos usada na execução (T18c). None em relatórios antigos.
+    linhas_pedidos: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def _coerente(self) -> Self:
@@ -349,6 +351,7 @@ def agregar(
     orcamento: Mapping[str, float | int] | None = None,
     ferramentas_json: str | None = None,
     hash_ferramentas: str | None = None,
+    linhas_pedidos: int | None = None,
 ) -> Relatorio:
     """Monta o relatório a partir dos casos e das rodadas de cada um. Não faz I/O.
 
@@ -420,6 +423,7 @@ def agregar(
         pico_contexto_medio=_media(picos),
         caracteres_observacao_medio=_media(caracteres),
         custo_por_acerto=_custo_por_acerto(custo_total, aprovadas),
+        linhas_pedidos=linhas_pedidos,
     )
 
 
