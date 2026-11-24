@@ -430,6 +430,9 @@ def _motivo_incompleta(relatorio: Relatorio) -> str:
     return "execução incompleta: " + "; ".join(partes)
 
 
+_LINHAS_PEDIDOS_PADRAO: Final = 60  # escala 1x do conjunto padrão de pedidos (dados.py)
+
+
 def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Execucao:
     """Uma execução a partir de um relatório. Médias são sobre as rodadas válidas."""
     todas = [rodada for caso in relatorio.casos for rodada in caso.rodadas]
@@ -498,7 +501,11 @@ def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Exec
         pico_contexto_medio=relatorio.pico_contexto_medio,
         caracteres_observacao_medio=relatorio.caracteres_observacao_medio,
         custo_por_acerto_usd=relatorio.custo_por_acerto,
-        linhas_pedidos=relatorio.linhas_pedidos,
+        linhas_pedidos=(
+            relatorio.linhas_pedidos
+            if relatorio.linhas_pedidos is not None
+            else _LINHAS_PEDIDOS_PADRAO
+        ),
         tokens_entrada_por_rodada_executada=tokens_executada,
         custo_por_rodada_executada_usd=custo_executada,
         iniciado_em=relatorio.iniciado_em,
