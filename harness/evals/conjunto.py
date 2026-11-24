@@ -824,7 +824,7 @@ def casos_de_calculo(fatos: FatosVerdadeiros) -> list[Caso]:
             "Qual é o desvio padrão populacional dos valores dos pedidos válidos, sem os "
             "cancelados, em outubro de 2026? Responda só com o valor em reais e cite a fonte.",
             [
-                ContemNumero(valor=fatos.desvio_padrao_validos),
+                ContemNumero(valor=fatos.desvio_padrao_validos, tolerancia=Decimal("0.01")),
                 CitaFontes(fontes=[_PEDIDOS]),
             ],
             grupo="desenvolvimento",

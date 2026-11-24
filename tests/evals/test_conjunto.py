@@ -984,9 +984,25 @@ def test_casos_de_calculo_corretor(fatos: FatosVerdadeiros) -> None:
     assert corrigir(
         calculo["calculo-03"], f"R$ {_n(fatos.desvio_padrao_validos)}", fonte
     ).aprovado
+    assert corrigir(
+        calculo["calculo-03"],
+        f"R$ {_n(fatos.desvio_padrao_validos + Decimal('0.01'))}",
+        fonte,
+    ).aprovado
+    assert not corrigir(
+        calculo["calculo-03"],
+        f"R$ {_n(fatos.desvio_padrao_validos + Decimal('10'))}",
+        fonte,
+    ).aprovado
     assert not corrigir(
         calculo["calculo-03"], f"R$ {_n(fatos.desvio_padrao_validos)}", [CAMINHO_CONTAS]
     ).aprovado
+    assert "desvio padrão populacional" in calculo["calculo-03"].pedido.lower()
+    assert "sem os cancelados" in calculo["calculo-03"].pedido.lower()
+    assert calculo["calculo-03"].gabarito == [
+        ContemNumero(valor=fatos.desvio_padrao_validos, tolerancia=Decimal("0.01")),
+        CitaFontes(fontes=[CAMINHO_PEDIDOS]),
+    ]
 
     assert corrigir(
         calculo["calculo-04"], str(fatos.clientes_com_3_pedidos_altos), fonte
