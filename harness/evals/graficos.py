@@ -1864,15 +1864,44 @@ def _svgs_escala(dados: DadosEvolucao) -> list[str]:
     return [_grafico_escala(dados, metrica) for metrica in _metricas_escala()]
 
 
-def _todos_os_svgs(dados: DadosEvolucao) -> list[str]:
-    """Os seis SVG, na ordem de `NOMES_ARQUIVOS`."""
+_ARQUIVOS_SEM_EVOLUCAO: Final = frozenset(
+    {"dispersao-iteracoes-tokens.svg", "curva-de-contexto.svg"}
+)
+
+
+def _tem_evolucao_por_execucao(dados: DadosEvolucao) -> bool:
+    """Verdadeiro quando alguma variante tem duas ou mais execuções."""
+    contagem: dict[str, int] = {}
+    for execucao in dados.execucoes:
+        contagem[execucao.variante] = contagem.get(execucao.variante, 0) + 1
+        if contagem[execucao.variante] >= 2:
+            return True
+    return False
+
+
+def _geradores_fora_escala(
+    dados: DadosEvolucao,
+) -> list[tuple[str, str, str, Callable[[DadosEvolucao], str]]]:
+    """Pares (arquivo, título, leitura, função) fora do modo escala.
+
+    Os gráficos de linha por execução (`taxa-total`, `taxa-por-categoria`, `iteracoes-por-pedido`,
+    `custo-por-rodada`) só entram quando alguma variante tem duas ou mais execuções. Quando cada
+    variante tem no máximo uma execução, ficam apenas a dispersão e a curva de contexto (além do
+    painel de comparação quando há duas ou mais variantes).
+    """
+    funcoes: tuple[Callable[[DadosEvolucao], str], ...] = (
+        grafico_taxa_total,
+        grafico_taxa_por_categoria,
+        grafico_iteracoes,
+        grafico_dispersao_iteracoes_tokens,
+        grafico_curva_de_contexto,
+        grafico_custo_por_rodada,
+    )
+    incluir_linhas = _tem_evolucao_por_execucao(dados)
     return [
-        grafico_taxa_total(dados),
-        grafico_taxa_por_categoria(dados),
-        grafico_iteracoes(dados),
-        grafico_dispersao_iteracoes_tokens(dados),
-        grafico_curva_de_contexto(dados),
-        grafico_custo_por_rodada(dados),
+        (arquivo, titulo, leitura, fn)
+        for (arquivo, titulo, leitura), fn in zip(SECOES, funcoes, strict=True)
+        if incluir_linhas or arquivo in _ARQUIVOS_SEM_EVOLUCAO
     ]
 
 
@@ -1894,6 +1923,9 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
     (`comparacao-de-variantes`), a dispersão (`dispersao-iteracoes-tokens`) e a curva de
     contexto (`curva-de-contexto`) são omitidos porque misturam execuções de escalas diferentes
     sem distinguir a escala.
+
+    Fora do modo escala, os gráficos de linha por execução só entram quando alguma variante tem
+    duas ou mais execuções.
     """
     secoes: list[str] = []
     if tem_modo_escala(dados):
@@ -1912,7 +1944,6 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
                 f"{_com_identificador(svg_e, f'e{indice}')}</section>"
             )
     else:
-        svgs = _todos_os_svgs(dados)
         comparacao = _comparacao_se_houver(dados)
         if comparacao is not None:
             titulo_comparacao, leitura_comparacao = SECAO_COMPARACAO
@@ -1921,11 +1952,11 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
                 f'<p class="leitura">{_esc(leitura_comparacao)}</p>\n'
                 f"{_com_identificador(comparacao, 'c')}</section>"
             )
-        for indice, ((_, titulo, leitura), svg) in enumerate(zip(SECOES, svgs, strict=True), 1):
+        for indice, (_, titulo, leitura, fn) in enumerate(_geradores_fora_escala(dados), 1):
             secoes.append(
                 f"<section>\n<h2>{_esc(titulo)}</h2>\n"
                 f'<p class="leitura">{_esc(leitura)}</p>\n'
-                f"{_com_identificador(svg, str(indice))}</section>"
+                f"{_com_identificador(fn(dados), str(indice))}</section>"
             )
     intro = dados.descricao or "Métricas por execução real da avaliação."
     linhas = [
@@ -1955,8 +1986,10 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
 def gerar_todos(dados: DadosEvolucao, pasta: Path) -> list[Path]:
     """Grava os SVG e a página `graficos.html`, com nomes fixos. Sobrescreve.
 
-    Fora do modo escala, grava os seis SVG em `NOMES_ARQUIVOS` (e `comparacao-de-variantes.svg`
-    quando há duas ou mais variantes) e depois a página.
+    Fora do modo escala, grava os seis SVG em `NOMES_ARQUIVOS` quando alguma variante tem duas ou
+    mais execuções (e `comparacao-de-variantes.svg` quando há duas ou mais variantes) e depois a
+    página. Quando cada variante tem no máximo uma execução, grava apenas a dispersão, a curva de
+    contexto, `comparacao-de-variantes.svg` (se houver >=2 variantes) e a página.
 
     No modo escala (`tem_modo_escala(dados)`), grava apenas os quatro SVG de escala
     (`NOMES_ESCALA`), o painel combinado (`NOME_ESCALA_PAINEIS`) e a página: os gráficos de linha
@@ -1969,9 +2002,8 @@ def gerar_todos(dados: DadosEvolucao, pasta: Path) -> list[Path]:
         arquivos = list(zip(NOMES_ESCALA, _svgs_escala(dados), strict=True))
         arquivos.append((NOME_ESCALA_PAINEIS, grafico_escala_paineis(dados)))
     else:
-        svgs = _todos_os_svgs(dados)
+        arquivos = [(nome, fn(dados)) for nome, _, _, fn in _geradores_fora_escala(dados)]
         comparacao = _comparacao_se_houver(dados)
-        arquivos = list(zip(NOMES_ARQUIVOS, svgs, strict=True))
         if comparacao is not None:
             arquivos.append((NOME_COMPARACAO, comparacao))
     pagina = gerar_pagina_html(dados)

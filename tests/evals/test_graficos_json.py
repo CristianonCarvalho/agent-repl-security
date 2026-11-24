@@ -9,7 +9,6 @@ from pathlib import Path
 
 from harness.evals.graficos import (
     COR_JSON_AGREGACAO,
-    NOMES_ARQUIVOS,
     PALETA,
     ROTULOS_VARIANTE,
     DadosEvolucao,
@@ -79,12 +78,18 @@ def test_tres_variantes_no_mesmo_eixo_com_rotulos_e_cores_proprios(tmp_path: Pat
         ),
     )
     gerados = gerar_todos(dados, tmp_path)
-    taxa = (tmp_path / "taxa-total.svg").read_text(encoding="utf-8")
+    dispersao = (tmp_path / "dispersao-iteracoes-tokens.svg").read_text(encoding="utf-8")
+    pagina = (tmp_path / "graficos.html").read_text(encoding="utf-8")
     for rotulo in ROTULOS_VARIANTE.values():
-        assert rotulo in taxa or rotulo in (tmp_path / "graficos.html").read_text(encoding="utf-8")
-    assert COR_JSON_AGREGACAO in taxa
-    # Seis SVG, a comparação (com três variantes) e a página.
-    assert len(gerados) == len(NOMES_ARQUIVOS) + 2
+        assert rotulo in dispersao or rotulo in pagina
+    assert COR_JSON_AGREGACAO in dispersao
+    # Uma execução por variante: dispersão, curva de contexto, comparação e página.
+    assert [c.name for c in gerados] == [
+        "dispersao-iteracoes-tokens.svg",
+        "curva-de-contexto.svg",
+        "comparacao-de-variantes.svg",
+        "graficos.html",
+    ]
 
 
 def test_variante_com_curva_de_contexto_aparece_na_pagina(tmp_path: Path) -> None:
@@ -92,7 +97,10 @@ def test_variante_com_curva_de_contexto_aparece_na_pagina(tmp_path: Path) -> Non
 
     dados = DadosEvolucao(
         versao=1,
-        execucoes=(_execucao(1, "json-agregacao", 70.0),),
+        execucoes=(
+            _execucao(1, "json-agregacao", 70.0),
+            _execucao(2, "json-agregacao", 75.0),
+        ),
         curvas_de_contexto=(
             CurvaDeContexto(
                 nome="json-agregacao 1",
