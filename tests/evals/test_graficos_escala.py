@@ -23,6 +23,7 @@ from harness.evals.graficos import (
     NOMES_ESCALA,
     PALETA,
     SECAO_COMPARACAO,
+    SECAO_ESCALA,
     SECAO_ESCALA_PAINEIS,
     SECOES,
     DadosEvolucao,
@@ -427,14 +428,49 @@ def test_gerar_todos_e_pagina_incluem_escala_apenas_quando_ativa(tmp_path: Path)
         assert not (pasta_b / nome).exists()
 
     pagina = gerar_pagina_html(com_escala)
-    assert f"<h2>{SECAO_ESCALA_PAINEIS[0]}</h2>" in pagina
+    assert pagina.count("<section>") == 1
+    assert f"<h2>{SECAO_ESCALA[0]}</h2>" in pagina
+    assert "<h2>Escala dos dados</h2>" in pagina
+    assert f"<h3>{SECAO_ESCALA_PAINEIS[0]}</h3>" in pagina
+    assert pagina.count("<svg ") == 5
     assert f"<h2>{SECAO_COMPARACAO[0]}</h2>" not in pagina
     for _, titulo, _ in SECOES:
         assert f"<h2>{titulo}</h2>" not in pagina
     ids = re.findall(r'\sid="([^"]+)"', pagina)
     assert len(ids) == len(set(ids))
-    assert "tep" in ids and "te1" in ids and "te4" in ids
+    assert "tep" in ids and "dep" in ids
+    for i in range(1, 5):
+        assert f"te{i}" in ids and f"de{i}" in ids
     assert "tc" not in ids and "t1" not in ids
+
+
+def test_pagina_html_escala_csp_interatividade_e_escape() -> None:
+    dados = DadosEvolucao(
+        versao=1,
+        descricao='Teste <escala> & "aspas"',
+        execucoes=(
+            _exec(1, 'var<A>&"1"', 60),
+            _exec(
+                2,
+                'var<A>&"1"',
+                600,
+                incompleta=True,
+                motivo_incompleta='motivo <especial> & "teste"',
+            ),
+        ),
+    )
+    pagina = gerar_pagina_html(dados)
+    assert (
+        '<meta http-equiv="Content-Security-Policy" '
+        'content="default-src \'none\'; style-src \'unsafe-inline\'; script-src \'unsafe-inline\'">'
+    ) in pagina
+    assert "pointerover" in pagina and "focusin" in pagina
+    assert 'tabindex="0"' in pagina
+    assert "Teste &lt;escala&gt; &amp; &quot;aspas&quot;" in pagina
+    assert "var&lt;A&gt;&amp;&quot;1&quot;" in pagina
+    assert "motivo &lt;especial&gt; &amp; &quot;teste&quot;" in pagina
+    assert 'var<A>&"1"' not in pagina
+    assert 'motivo <especial> & "teste"' not in pagina
 
 
 def test_cli_de_relatorios_gera_graficos_de_escala(tmp_path: Path) -> None:

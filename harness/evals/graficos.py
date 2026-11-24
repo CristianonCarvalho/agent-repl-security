@@ -98,6 +98,10 @@ SECAO_COMPARACAO: Final = (
     "Cada barra é a execução mais recente de uma variante. Os seis painéis têm escala própria: "
     "leia o valor escrito sobre cada barra.",
 )
+SECAO_ESCALA: Final = (
+    "Escala dos dados",
+    "Métricas por número de linhas de pedidos em escala logarítmica, comparando as variantes.",
+)
 SECAO_ESCALA_PAINEIS: Final = (
     "Comparação em escala",
     "Cada linha é uma variante; o eixo horizontal mostra o número de linhas de pedidos em escala "
@@ -1929,20 +1933,26 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
     """
     secoes: list[str] = []
     if tem_modo_escala(dados):
+        titulo_escala, leitura_escala = SECAO_ESCALA
         titulo_ep, leitura_ep = SECAO_ESCALA_PAINEIS
-        secoes.append(
-            f"<section>\n<h2>{_esc(titulo_ep)}</h2>\n"
-            f'<p class="leitura">{_esc(leitura_ep)}</p>\n'
-            f"{_com_identificador(grafico_escala_paineis(dados), 'ep')}</section>"
-        )
+        partes_escala = [
+            f"<h2>{_esc(titulo_escala)}</h2>",
+            f'<p class="leitura">{_esc(leitura_escala)}</p>',
+            f"<h3>{_esc(titulo_ep)}</h3>",
+            f'<p class="leitura">{_esc(leitura_ep)}</p>',
+            _com_identificador(grafico_escala_paineis(dados), "ep"),
+        ]
         for indice, ((_, titulo_e, leitura_e), svg_e) in enumerate(
             zip(SECOES_ESCALA, _svgs_escala(dados), strict=True), 1
         ):
-            secoes.append(
-                f"<section>\n<h2>{_esc(titulo_e)}</h2>\n"
-                f'<p class="leitura">{_esc(leitura_e)}</p>\n'
-                f"{_com_identificador(svg_e, f'e{indice}')}</section>"
+            partes_escala.extend(
+                [
+                    f"<h3>{_esc(titulo_e)}</h3>",
+                    f'<p class="leitura">{_esc(leitura_e)}</p>',
+                    _com_identificador(svg_e, f"e{indice}"),
+                ]
             )
+        secoes.append("<section>\n" + "\n".join(partes_escala) + "</section>")
     else:
         comparacao = _comparacao_se_houver(dados)
         if comparacao is not None:
@@ -1959,6 +1969,11 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
                 f"{_com_identificador(fn(dados), str(indice))}</section>"
             )
     intro = dados.descricao or "Métricas por execução real da avaliação."
+    css = (
+        f"{_CSS}h3 {{ font-size: 15px; font-weight: 600; margin: 24px 0 4px; }}\n"
+        if tem_modo_escala(dados)
+        else _CSS
+    )
     linhas = [
         "<!doctype html>",
         '<html lang="pt-BR">',
@@ -1967,7 +1982,7 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         f'<meta http-equiv="Content-Security-Policy" content="{_CSP}">',
         "<title>Avaliações do agente: gráficos</title>",
-        f"<style>\n{_CSS}</style>",
+        f"<style>\n{css}</style>",
         "</head>",
         "<body>",
         "<main>",
