@@ -508,3 +508,42 @@ def test_cli_relatorio_invalido_sai_com_dois_e_cita_so_o_nome(tmp_path: Path) ->
     texto = buf.getvalue()
     assert "ruim.json" in texto
     assert "segredo_xyz" not in texto
+
+
+def test_execucao_incompleta_sinaliza_teto_nao_executadas_e_erros_infra(tmp_path: Path) -> None:
+    completa = _relatorio({"consulta-01": (Categoria.CONSULTA, [_valida(1), _valida(2)])})
+    parcial = _relatorio(
+        {"consulta-01": (Categoria.CONSULTA, [_valida(1), _erro(2)])}
+    ).model_copy(
+        update={
+            "teto_estourado": True,
+            "teto_motivo": "custo",
+            "nao_executadas": 9,
+            "erros_infra": 5,
+        }
+    )
+    singular = _relatorio(
+        {"consulta-01": (Categoria.CONSULTA, [_valida(1), _erro(2)])}
+    ).model_copy(update={"nao_executadas": 1, "erros_infra": 1})
+
+    dados = dados_de_relatorios(
+        [
+            _gravar(completa, tmp_path / "c.json"),
+            _gravar(parcial, tmp_path / "p.json"),
+            _gravar(singular, tmp_path / "s.json"),
+        ]
+    )
+    exec_c, exec_p, exec_s = dados.execucoes
+    assert exec_c.incompleta is False
+    assert exec_c.motivo_incompleta == ""
+
+    assert exec_p.incompleta is True
+    assert exec_p.motivo_incompleta == (
+        "execução incompleta: teto de gasto estourado; 9 rodadas não executadas; "
+        "5 erros de infraestrutura"
+    )
+
+    assert exec_s.incompleta is True
+    assert exec_s.motivo_incompleta == (
+        "execução incompleta: 1 rodada não executada; 1 erro de infraestrutura"
+    )

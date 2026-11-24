@@ -464,3 +464,26 @@ def test_cli_de_relatorios_gera_graficos_de_escala(tmp_path: Path) -> None:
     # 6 padrão + 1 comparação + 4 escala + 1 painéis escala + 1 html = 13 arquivos
     linhas = [x for x in buf.getvalue().splitlines() if x.startswith("Gráfico gerado:")]
     assert len(linhas) == 13
+
+
+def test_escala_e_paineis_sinalizam_execucao_incompleta() -> None:
+    motivo = "execução incompleta: teto de gasto estourado; 4 rodadas não executadas"
+    dados = DadosEvolucao(
+        versao=1,
+        execucoes=(
+            _exec(1, "repl", 60),
+            _exec(2, "repl", 600, incompleta=True, motivo_incompleta=motivo),
+        ),
+    )
+    for fn in (grafico_escala_tokens, grafico_escala_paineis):
+        svg = fn(dados)
+        raiz = _raiz(svg)
+        vazados = [
+            el
+            for el in raiz.iter(f"{NS}circle")
+            if el.find(f"{NS}title") is not None
+            and motivo in (el.find(f"{NS}title").text or "")  # type: ignore[union-attr]
+        ]
+        assert vazados
+        assert all(el.get("fill") == "#ffffff" for el in vazados)
+        assert "marcador vazado: execução 2 incompleta" in _textos(svg)
