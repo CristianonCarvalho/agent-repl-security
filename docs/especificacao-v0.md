@@ -519,6 +519,7 @@ Atualizado em 23/11/2026, depois da T20a e da primeira bateria de avaliações r
 | 3. Evals | 15 casos pendentes (geração, alteração, injeção) com bloqueios e gerador de ataques opcional (T17b) | Implementado |
 | 3. Evals | Conjunto congelado, procedência no relatório, linhas de base versionadas e comando de comparação (T17c) | Implementado; falta registrar a primeira linha de base real |
 | 3. Evals | Escala dos dados (`--escala N`), para medir o custo com mais pedidos (T18c-a) | Implementado; sem rodada real |
+| 3. Evals | Conjunto de cálculo (`--conjunto calculo`, 4 casos fora do conjunto v1: mediana, mediana por região, desvio padrão populacional e contagem filtrada) (T18d) | Implementado; sem rodada real |
 | 3. Evals | Comparação com tool calling JSON, medição dos ataques de injeção (T18, T19) | Não iniciado |
 | 4. Segurança | Aprovação humana, política da trifecta, rastreio de arquivos abertos, gVisor | Não iniciado |
 | Transversal | OpenTelemetry e Langfuse (T20a e T20b) | Implementado |
