@@ -71,7 +71,7 @@ from harness.evals.comparacao import (
     formatar_texto,
 )
 from harness.evals.congelamento import ErroDeCongelamento, congelar
-from harness.evals.conjunto import VERSAO_CONJUNTO, conjunto_completo
+from harness.evals.conjunto import VERSAO_CONJUNTO, casos_de_calculo, conjunto_completo
 from harness.evals.dados import ESCALA_MAXIMA, FatosVerdadeiros, gerar_dados
 from harness.evals.executor import (
     VARIANTES,
@@ -125,6 +125,7 @@ CODIGO_ERRO_INFRA: Final = 1
 CODIGO_USO: Final = 2
 CODIGO_TETO: Final = 3
 CODIGO_REGRESSAO: Final = 1
+CONJUNTOS: Final = ("padrao", "calculo")
 
 
 class ErroDeUso(Exception):
@@ -151,9 +152,14 @@ def _escala_argumento(texto: str) -> int:
     return valor
 
 
-def _versao_do_conjunto(escala: int) -> str:
-    """`VERSAO_CONJUNTO` na escala 1. Em outra escala o conjunto não é o congelado, e o rótulo
-    diz isso, para que `comparar` não confunda o relatório com a linha de base."""
+def _versao_do_conjunto(escala: int, conjunto: str = "padrao") -> str:
+    """`VERSAO_CONJUNTO` no conjunto padrão e escala 1.
+
+    Fora disso o conjunto não é o congelado, e o rótulo diz isso para que `comparar` não
+    confunda o relatório com a linha de base.
+    """
+    if conjunto == "calculo":
+        return "calculo-nao-congelado" if escala == 1 else f"calculo-nao-congelado-escala-{escala}"
     return VERSAO_CONJUNTO if escala == 1 else f"nao-congelado-escala-{escala}"
 
 
@@ -246,6 +252,13 @@ def _parser() -> argparse.ArgumentParser:
         default="repl",
         help="agente da avaliação: repl (Code Mode, padrão), json (tool calling em JSON) ou "
         "json-agregacao (JSON com agregação de planilhas)",
+    )
+    parser.add_argument(
+        "--conjunto",
+        choices=CONJUNTOS,
+        default="padrao",
+        help="conjunto de casos: padrao (conjunto congelado v1, padrão) ou calculo (4 casos de "
+        "cálculo, não congelado; sem linha de base)",
     )
     return parser
 
@@ -351,15 +364,15 @@ def _fabrica_de_telemetria(
 
 
 def _selecionar(
-    categorias: frozenset[Categoria], grupo: str
+    categorias: frozenset[Categoria], grupo: str, conjunto: str = "padrao"
 ) -> Callable[[FatosVerdadeiros], list[Caso]]:
-    """Função de casos para o executor: o conjunto completo, filtrado por categoria e por grupo.
+    """Função de casos para o executor: conjunto padrão ou de cálculo, por categoria e grupo.
 
     Pendentes entram na lista, mas o executor não os roda; ficam só em `pendentes` do relatório.
     """
 
     def selecionar(fatos: FatosVerdadeiros) -> list[Caso]:
-        casos = conjunto_completo(fatos)
+        casos = casos_de_calculo(fatos) if conjunto == "calculo" else conjunto_completo(fatos)
         if categorias:
             casos = [caso for caso in casos if caso.categoria in categorias]
         if grupo != "todos":
@@ -370,7 +383,11 @@ def _selecionar(
 
 
 def _selecao_sem_modelo(
-    categorias: frozenset[Categoria], grupo: str, semente: int, escala: int = 1
+    categorias: frozenset[Categoria],
+    grupo: str,
+    semente: int,
+    escala: int = 1,
+    conjunto: str = "padrao",
 ) -> list[Caso]:
     """A seleção inteira, para decidir antes de qualquer configuração se há caso ativo.
 
@@ -378,7 +395,7 @@ def _selecao_sem_modelo(
     """
     with tempfile.TemporaryDirectory(prefix="selecao-") as temporaria:
         fatos = gerar_dados(Path(temporaria) / "dados", semente, escala=escala)
-        return _selecionar(categorias, grupo)(fatos)
+        return _selecionar(categorias, grupo, conjunto)(fatos)
 
 
 def _sem_casos_ativos(
@@ -453,6 +470,8 @@ def _resumo(saida: TextIO, relatorio: Relatorio, caminho: Path | None) -> None:
         )
     if relatorio.custo_por_acerto is not None:
         linhas.append(f"Custo por acerto: US$ {_br(relatorio.custo_por_acerto)}")
+    if relatorio.conjunto != "padrao":
+        linhas.append(f"Conjunto: {relatorio.conjunto} (não congelado)")
     if relatorio.escala != 1:
         linhas.append(
             f"Escala dos dados: {relatorio.escala} (planilha de pedidos com "
@@ -657,6 +676,11 @@ def _validar_linha_de_base(
         validar_nome_da_linha(nome)
     except ErroDeLinhaDeBase as erro:
         raise ErroDeUso(str(erro)) from None
+    if args.conjunto != "padrao":
+        raise ErroDeUso(
+            f"linha de base exige o conjunto padrão (congelado), e o conjunto pedido é "
+            f"{args.conjunto!r}. Use --conjunto padrao ou não use --salvar-linha-de-base."
+        )
     if args.escala != 1:
         raise ErroDeUso(
             f"linha de base exige a escala 1 (o conjunto congelado), e a escala pedida é "
@@ -738,7 +762,9 @@ def main(
 
     # Sem caso ativo na seleção, nada roda: não lê o `.env`, não confere a chave e não chama o
     # modelo. Só lista os pendentes, cada um com o que o destrava, e sai com zero.
-    selecao = _selecao_sem_modelo(categorias, args.grupo, args.semente, args.escala)
+    selecao = _selecao_sem_modelo(
+        categorias, args.grupo, args.semente, args.escala, args.conjunto
+    )
     if not any(caso.situacao.ativo for caso in selecao):
         _sem_casos_ativos(saida, selecao, categorias, args.grupo)
         return CODIGO_OK
@@ -774,7 +800,7 @@ def main(
         extra["fabrica_telemetria"] = fabrica_telemetria
     try:
         relatorio = executor(
-            _selecionar(categorias, args.grupo),
+            _selecionar(categorias, args.grupo, args.conjunto),
             fabrica_modelo,
             config,
             aoprogresso=progresso,
@@ -789,7 +815,8 @@ def main(
         )
     relatorio = relatorio.model_copy(
         update={
-            "versao_conjunto": _versao_do_conjunto(config.escala),
+            "conjunto": args.conjunto,
+            "versao_conjunto": _versao_do_conjunto(config.escala, args.conjunto),
             "escala": config.escala,
             "commit": commit,
             "commit_sujo": sujo,
