@@ -1021,6 +1021,11 @@ def test_casos_de_calculo_corretor(fatos: FatosVerdadeiros) -> None:
         f"{fatos.cliente_maior_total}: R$ {_n(fatos.valor_maior_total)}",
         [CAMINHO_CONTAS],
     ).aprovado
+    assert not corrigir(
+        calculo["calculo-04"],
+        f"{fatos.cliente_maior_total}: R$ {_n(fatos.valor_maior_total)}",
+        [],
+    ).aprovado
     assert "maior total em pedidos válidos" in calculo["calculo-04"].pedido.lower()
     assert "sem os cancelados" in calculo["calculo-04"].pedido.lower()
     assert calculo["calculo-04"].gabarito == [

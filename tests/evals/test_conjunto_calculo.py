@@ -204,6 +204,11 @@ def test_oraculo_reprova_erros_tipicos(
         f"{fatos.cliente_maior_total}: R$ {_n(fatos.valor_maior_total + Decimal('1.00'))}",
         fonte,
     ).aprovado
+    assert not corrigir(
+        casos["calculo-04"],
+        f"{fatos.cliente_maior_total}: R$ {_n(fatos.valor_maior_total)}",
+        [],
+    ).aprovado
 
 
 def test_calculo_04_reprova_incluir_cancelados_no_total_por_cliente(
