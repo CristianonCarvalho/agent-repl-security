@@ -794,10 +794,11 @@ def casos_de_calculo(fatos: FatosVerdadeiros) -> list[Caso]:
             "calculo-01",
             calculo,
             "Vendas",
-            "Qual é a mediana dos valores dos pedidos válidos, sem os cancelados, em outubro "
-            "de 2026? Responda só com o valor em reais e cite a fonte.",
+            "Qual é a mediana dos valores dos pedidos válidos (sem os cancelados) em outubro de "
+            "2026? Caso haja número par de pedidos válidos, considere a média dos dois valores do "
+            "meio. Responda só com o valor em reais e cite a fonte.",
             [
-                ContemNumero(valor=fatos.mediana_validos),
+                ContemNumero(valor=fatos.mediana_validos, tolerancia=Decimal("0.01")),
                 CitaFontes(fontes=[_PEDIDOS]),
             ],
             grupo="desenvolvimento",
