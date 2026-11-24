@@ -781,3 +781,66 @@ def conjunto_completo(fatos: FatosVerdadeiros) -> list[Caso]:
     casos = [*casos_ativos(fatos), *casos_pendentes(fatos)]
     validar_conjunto(casos)
     return casos
+
+
+def casos_de_calculo(fatos: FatosVerdadeiros) -> list[Caso]:
+    """Os 4 casos de cálculo sobre pedidos válidos.
+
+    Ficam fora de `casos_ativos` e `conjunto_completo`.
+    """
+    calculo = Categoria.CALCULO
+    casos = [
+        _caso(
+            "calculo-01",
+            calculo,
+            "Vendas",
+            "Qual é a mediana dos valores dos pedidos válidos, sem os cancelados, em outubro "
+            "de 2026? Responda só com o valor em reais e cite a fonte.",
+            [
+                ContemNumero(valor=fatos.mediana_validos),
+                CitaFontes(fontes=[_PEDIDOS]),
+            ],
+            grupo="desenvolvimento",
+        ),
+        _caso(
+            "calculo-02",
+            calculo,
+            "Vendas",
+            "Qual região tem a maior mediana dos valores dos pedidos válidos, sem os cancelados, "
+            "em outubro de 2026? Responda só com o nome da região e cite a fonte.",
+            [
+                ContemTodos(textos=[fatos.regiao_maior_mediana]),
+                CitaFontes(fontes=[_PEDIDOS]),
+            ],
+            grupo="desenvolvimento",
+        ),
+        _caso(
+            "calculo-03",
+            calculo,
+            "Vendas",
+            "Qual é o desvio padrão populacional dos valores dos pedidos válidos, sem os "
+            "cancelados, em outubro de 2026? Responda só com o valor em reais e cite a fonte.",
+            [
+                ContemNumero(valor=fatos.desvio_padrao_validos),
+                CitaFontes(fontes=[_PEDIDOS]),
+            ],
+            grupo="desenvolvimento",
+        ),
+        _caso(
+            "calculo-04",
+            calculo,
+            "Vendas",
+            "Quantos clientes têm 3 ou mais pedidos válidos, sem os cancelados, com valor acima "
+            "de R$ 50.000,00 em outubro de 2026? Responda só com a quantidade e cite a fonte.",
+            [
+                ContemNumero(
+                    valor=Decimal(fatos.clientes_com_3_pedidos_altos),
+                    unidade="quantidade",
+                ),
+                CitaFontes(fontes=[_PEDIDOS]),
+            ],
+            grupo="reservado",
+        ),
+    ]
+    validar_conjunto(casos)
+    return casos

@@ -34,7 +34,12 @@ from harness.evals.casos import (
     formatar_numero_br,
     validar_conjunto,
 )
-from harness.evals.conjunto import CATEGORIAS_ATIVAS, casos_ativos
+from harness.evals.conjunto import (
+    CATEGORIAS_ATIVAS,
+    casos_ativos,
+    casos_de_calculo,
+    conjunto_completo,
+)
 from harness.evals.correcao import corrigir
 from harness.evals.dados import FatosVerdadeiros, gerar_dados
 from harness.host.perfil import PERFIS, montagens_do_perfil, perfil_por_nome
@@ -911,3 +916,57 @@ def test_excecao_documentada_nao_tem_cancelado(
     for id_caso in _EXCECOES_DE_OVERLAP:
         assert set(_SEM_A_REGRA[id_caso](destino)) == set(_ORACULO[id_caso](destino).numeros)
     assert CLIENTE_COM_DUAS_GRAFIAS not in _clientes_com_cancelado(destino)
+
+
+# --- casos de cálculo ------------------------------------------------------------------------
+
+
+def test_casos_de_calculo_estrutura_e_isolamento(fatos: FatosVerdadeiros) -> None:
+    calculo = casos_de_calculo(fatos)
+    assert [caso.id for caso in calculo] == [f"calculo-{n:02d}" for n in range(1, 5)]
+    assert all(caso.categoria is Categoria.CALCULO for caso in calculo)
+    assert all(caso.perfil == "Vendas" for caso in calculo)
+    assert all(caso.situacao.ativo for caso in calculo)
+    assert [caso.grupo for caso in calculo] == [
+        "desenvolvimento",
+        "desenvolvimento",
+        "desenvolvimento",
+        "reservado",
+    ]
+    for caso in calculo:
+        assert "cite a fonte" in caso.pedido.lower(), caso.id
+        assert CitaFontes(fontes=[CAMINHO_PEDIDOS]) in caso.gabarito, caso.id
+    validar_conjunto(calculo)
+
+    ids_calculo = {caso.id for caso in calculo}
+    assert not ids_calculo & {caso.id for caso in casos_ativos(fatos)}
+    assert not ids_calculo & {caso.id for caso in conjunto_completo(fatos)}
+
+
+def test_casos_de_calculo_corretor(fatos: FatosVerdadeiros) -> None:
+    calculo = {caso.id: caso for caso in casos_de_calculo(fatos)}
+    fonte = [CAMINHO_PEDIDOS]
+
+    assert corrigir(
+        calculo["calculo-01"], f"R$ {_n(fatos.mediana_validos)}", fonte
+    ).aprovado
+    assert not corrigir(
+        calculo["calculo-01"], f"R$ {_n(fatos.mediana_validos + Decimal('10'))}", fonte
+    ).aprovado
+
+    assert corrigir(calculo["calculo-02"], fatos.regiao_maior_mediana, fonte).aprovado
+    assert not corrigir(calculo["calculo-02"], "Centro-Oeste", fonte).aprovado
+
+    assert corrigir(
+        calculo["calculo-03"], f"R$ {_n(fatos.desvio_padrao_validos)}", fonte
+    ).aprovado
+    assert not corrigir(
+        calculo["calculo-03"], f"R$ {_n(fatos.desvio_padrao_validos)}", [CAMINHO_CONTAS]
+    ).aprovado
+
+    assert corrigir(
+        calculo["calculo-04"], str(fatos.clientes_com_3_pedidos_altos), fonte
+    ).aprovado
+    assert not corrigir(
+        calculo["calculo-04"], str(fatos.clientes_com_3_pedidos_altos + 1), fonte
+    ).aprovado
