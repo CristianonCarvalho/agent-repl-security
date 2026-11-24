@@ -49,6 +49,7 @@ class Categoria(Enum):
     ALTERACAO = "alteracao"
     PERMISSAO = "permissao"
     INJECAO = "injecao"
+    CALCULO = "calculo"
 
 
 _NOMES_DE_PERFIL: Final = frozenset(perfil.nome for perfil in PERFIS)

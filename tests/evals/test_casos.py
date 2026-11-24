@@ -442,3 +442,11 @@ def test_json_ida_e_volta_preserva_grupo_e_gemeo() -> None:
     assert de_volta == [a, b]
     assert de_volta[0].grupo == "reservado"
     assert de_volta[0].gemeo == "permissao-02"
+
+
+def test_categoria_calculo_valida_e_sobrevive_ao_json() -> None:
+    assert Categoria.CALCULO.value == "calculo"
+    caso = _caso(id="calculo-01", categoria=Categoria.CALCULO)
+    de_volta = casos_de_json(casos_para_json([caso]))
+    assert de_volta == [caso]
+    assert de_volta[0].categoria is Categoria.CALCULO

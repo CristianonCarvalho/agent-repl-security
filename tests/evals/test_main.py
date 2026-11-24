@@ -159,6 +159,25 @@ def test_categoria_inexistente_sai_com_dois_sem_executar(tmp_path: Path) -> None
 
     assert codigo == CODIGO_USO
     assert "categoria desconhecida" in fala.getvalue()
+    assert "calculo" in fala.getvalue()
+    assert chamadas == []
+
+
+def test_categoria_calculo_aceita_na_cli(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    fala = io.StringIO()
+    chamadas: list[dict[str, Any]] = []
+
+    codigo = main(
+        _argumentos(tmp_path / "saida", "--categoria", "calculo"),
+        saida=fala,
+        executar=_executor_falso(_relatorio(), chamadas),
+        fabrica_modelo=_modelo_proibido,
+    )
+
+    assert codigo == 0
     assert chamadas == []
 
 
