@@ -43,6 +43,10 @@ essa chamada, com a mesma contabilidade. Métricas de contexto, nas duas variant
 eventos: `tokens_entrada_por_turno` e `pico_contexto` (de `turno_modelo`) e
 `caracteres_observacao` (soma do texto das observações enviadas ao modelo; ver
 `_ColetorDeContexto`). Só contam as rodadas que o orquestrador chegou a iniciar.
+
+T18c-a (escala): `ConfigExecucao.escala` vai para `gerar_dados`, e o relatório registra `escala`
+e `linhas_pedidos`. A escala não muda nada além dos dados: os casos são os mesmos, e os valores
+esperados vêm dos fatos da geração com a escala escolhida.
 """
 
 import contextlib
@@ -58,7 +62,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from harness.evals.casos import Caso, validar_conjunto
 from harness.evals.correcao import corrigir_resultado
-from harness.evals.dados import FatosVerdadeiros, gerar_dados
+from harness.evals.dados import ESCALA_MAXIMA, FatosVerdadeiros, gerar_dados
 from harness.evals.ferramentas_json import nome_do_conjunto, perfil_json, registro_json
 from harness.evals.relatorio import Classificacao, Relatorio, RodadaCaso, agregar
 from harness.host.perfil import montagens_do_perfil, perfil_por_nome
@@ -136,6 +140,8 @@ class ConfigExecucao(BaseModel):
     pausa_s: float = Field(default=0.0, ge=0, allow_inf_nan=False)
     # Agente da execução: REPL (Code Mode, com sandbox) ou uma das variantes JSON (T18a).
     variante: Literal["repl", "json", "json-agregacao"] = "repl"
+    # Escala dos dados (T18c-a): 1 é o conjunto congelado; de 2 a ESCALA_MAXIMA, mais pedidos.
+    escala: int = Field(default=1, ge=1, le=ESCALA_MAXIMA)
 
     @field_validator("teto_usd")
     @classmethod
@@ -537,6 +543,7 @@ def _executar_casos(
     aoprogresso: Callable[[str, int, Classificacao], None] | None,
     fabrica_telemetria: Callable[[], TelemetriaDeRodada | None] | None = None,
     dormir: Callable[[float], None] = time.sleep,
+    linhas_pedidos: int | None = None,
 ) -> Relatorio:
     rodadas: dict[str, list[RodadaCaso]] = {}
     vistos = _Vistos()
@@ -594,6 +601,8 @@ def _executar_casos(
         orcamento=orcamento_usado(config),
         ferramentas_json=nome_do_conjunto(config.variante) if variante_json else None,
         hash_ferramentas=_hash_das_ferramentas(config.variante, raiz) if variante_json else None,
+        escala=config.escala,
+        linhas_pedidos=linhas_pedidos,
     )
 
 
@@ -625,7 +634,7 @@ def executar_avaliacao(
     """
     with tempfile.TemporaryDirectory(prefix="avaliacao-") as temporaria:
         raiz = Path(temporaria) / "dados"
-        fatos = gerar_dados(raiz, config.semente)
+        fatos = gerar_dados(raiz, config.semente, escala=config.escala)
         lista = list(casos(fatos))
         validar_conjunto(lista)
 
@@ -643,4 +652,5 @@ def executar_avaliacao(
             aoprogresso,
             fabrica_telemetria,
             dormir,
+            linhas_pedidos=fatos.numero_pedidos,
         )

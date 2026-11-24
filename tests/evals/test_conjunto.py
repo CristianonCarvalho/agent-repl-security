@@ -6,6 +6,7 @@ dos arquivos também são lidos com a biblioteca de cada formato, para as guarda
 Não usam Docker nem rede.
 """
 
+import functools
 import re
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
@@ -39,6 +40,8 @@ from harness.evals.dados import FatosVerdadeiros, gerar_dados
 from harness.host.perfil import PERFIS, montagens_do_perfil, perfil_por_nome
 
 SEMENTE = 42
+# Escalas do oráculo: a 1 é o conjunto congelado; 10 e 100 mostram que os casos seguem válidos.
+ESCALAS = (1, 10, 100)
 IDS_ESPERADOS = [
     f"{categoria}-{numero:02d}"
     for categoria in ("consulta", "cruzamento", "conformidade", "permissao")
@@ -52,10 +55,16 @@ CAMINHO_DRE = "financeiro/dre_2026-10.xlsx"
 CAMINHO_METAS = "direcao/metas_2026.docx"
 
 
-@pytest.fixture(scope="module")
-def geracao(tmp_path_factory: pytest.TempPathFactory) -> Iterator[tuple[Path, FatosVerdadeiros]]:
-    destino = tmp_path_factory.mktemp("conjunto") / "dados"
-    yield destino, gerar_dados(destino, SEMENTE)
+@pytest.fixture(scope="module", params=ESCALAS, ids=lambda escala: f"escala{escala}")
+def geracao(
+    request: pytest.FixtureRequest, tmp_path_factory: pytest.TempPathFactory
+) -> Iterator[tuple[Path, FatosVerdadeiros]]:
+    """Cada teste do módulo roda com a escala 1 (o conjunto congelado) e com as escalas 10 e 100.
+
+    O oráculo tem que aprovar a resposta certa de cada caso também com mais pedidos (T18c-a).
+    """
+    destino = tmp_path_factory.mktemp(f"conjunto-escala{request.param}") / "dados"
+    yield destino, gerar_dados(destino, SEMENTE, escala=request.param)
 
 
 @pytest.fixture(scope="module")
@@ -76,11 +85,20 @@ def casos(lista: list[Caso]) -> dict[str, Caso]:
 # --- leitura independente dos arquivos -------------------------------------------------------
 
 
-def _linhas(caminho: Path) -> list[dict[str, Any]]:
-    """Registros da primeira aba de uma planilha, com o cabeçalho como chaves."""
+@functools.cache
+def _linhas_do_arquivo(caminho: str) -> tuple[dict[str, Any], ...]:
     planilha = load_workbook(caminho, data_only=True).worksheets[0]
     cabecalho, *resto = list(planilha.iter_rows(values_only=True))
-    return [dict(zip(cabecalho, linha, strict=True)) for linha in resto]
+    return tuple(dict(zip(cabecalho, linha, strict=True)) for linha in resto)
+
+
+def _linhas(caminho: Path) -> list[dict[str, Any]]:
+    """Registros da primeira aba de uma planilha, com o cabeçalho como chaves.
+
+    Lida uma vez por caminho: com a escala 100 a planilha de pedidos tem 6.000 linhas, e os testes
+    a leem muitas vezes. Os arquivos não mudam durante a execução (cada fixture tem sua pasta).
+    """
+    return list(_linhas_do_arquivo(str(caminho)))
 
 
 def _valor(celula: object) -> Decimal:
@@ -853,8 +871,14 @@ _SEM_A_REGRA: dict[str, Callable[[Path], list[Decimal]]] = {
 def test_clientes_com_cancelado_sao_os_quatro_da_semente(
     geracao: tuple[Path, FatosVerdadeiros], casos: dict[str, Caso]
 ) -> None:
-    destino, _ = geracao
-    assert _clientes_com_cancelado(destino) == _CLIENTES_COM_CANCELADO
+    """Na escala 1 são exatamente os quatro do conjunto congelado. Com mais pedidos, mais clientes
+    ganham cancelados (T18c-a): os que os casos citam continuam tendo ao menos um."""
+    destino, fatos = geracao
+    com_cancelado = _clientes_com_cancelado(destino)
+    if fatos.escala == 1:
+        assert com_cancelado == _CLIENTES_COM_CANCELADO
+    else:
+        assert _CLIENTES_COM_CANCELADO <= com_cancelado
     for id_caso in ("consulta-01", "cruzamento-03", "cruzamento-05"):
         assert any(nome in casos[id_caso].pedido for nome in _CLIENTES_COM_CANCELADO), id_caso
 
@@ -880,7 +904,10 @@ def test_total_com_cancelados_difere_do_esperado(
 def test_excecao_documentada_nao_tem_cancelado(
     geracao: tuple[Path, FatosVerdadeiros],
 ) -> None:
-    destino, _ = geracao
+    """Vale só para a semente 42 na escala 1: com mais pedidos, o cliente ganha cancelados."""
+    destino, fatos = geracao
+    if fatos.escala != 1:
+        pytest.skip("a exceção documentada do cruzamento-01 é do conjunto congelado (escala 1)")
     for id_caso in _EXCECOES_DE_OVERLAP:
         assert set(_SEM_A_REGRA[id_caso](destino)) == set(_ORACULO[id_caso](destino).numeros)
     assert CLIENTE_COM_DUAS_GRAFIAS not in _clientes_com_cancelado(destino)

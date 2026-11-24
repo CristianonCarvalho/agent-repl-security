@@ -7,8 +7,8 @@ Regra final (decisões deste módulo, não estão na spec):
   percentuais (p.p.), ou seja, fração × 100.
 - Comparabilidade: só entram os casos que estão nas duas execuções, com o mesmo `hash_caso` e
   taxa nas duas. Casos só em um lado, com hash diferente (alterados) e sem taxa ficam listados à
-  parte, fora da média. Sem nenhum caso em comum, ou com sementes diferentes, o veredito é
-  `incomparavel`, que tem prioridade sobre qualquer regressão.
+  parte, fora da média. Sem nenhum caso em comum, ou com sementes ou escalas diferentes (T18c-a), o
+  veredito é `incomparavel`, que tem prioridade sobre qualquer regressão.
 - Relatório sem `hash_caso` (antigo) casa por `caso_id`, com aviso, porque não dá para garantir
   que o caso é o mesmo.
 - Médias: total, categoria e grupo são a média das taxas dos casos comparáveis, cada caso pesa
@@ -251,6 +251,7 @@ def _contexto(base: Relatorio, novo: Relatorio) -> tuple[DiferencaContexto, ...]
         ("orçamento", _formatar_orcamento(base.orcamento), _formatar_orcamento(novo.orcamento)),
         ("rodadas por caso", str(base.rodadas_por_caso), str(novo.rodadas_por_caso)),
         ("versão do conjunto", base.versao_conjunto, novo.versao_conjunto),
+        ("escala", str(base.escala), str(novo.escala)),
         ("telemetria", base.telemetria, novo.telemetria),
     ]
     return tuple(
@@ -406,17 +407,26 @@ def comparar(
             "uma das execuções tem menos de 3 rodadas por caso: a margem é pouco confiável"
         )
 
-    if base.semente != novo.semente:
+    # Escala diferente (T18c-a) é incomparável como semente diferente: os dados são outros.
+    motivo_incomparavel: str | None = None
+    if base.escala != novo.escala:
+        motivo_incomparavel = (
+            f"escalas diferentes ({base.escala} e {novo.escala}): os dados dos casos não são os "
+            "mesmos. A linha de base é sempre de escala 1"
+        )
+    elif base.semente != novo.semente:
+        motivo_incomparavel = (
+            f"sementes diferentes ({base.semente} e {novo.semente}): os dados dos casos "
+            "não são os mesmos"
+        )
+    if motivo_incomparavel is not None:
         return _vazia(
             base,
             novo,
             piso_pp=piso_pp,
             fator_ruido=fator_ruido,
             limite_caso=limite_caso,
-            motivo=(
-                f"sementes diferentes ({base.semente} e {novo.semente}): os dados dos casos "
-                "não são os mesmos"
-            ),
+            motivo=motivo_incomparavel,
             avisos=tuple(avisos),
             contexto=contexto,
             desvio_base_pp=desvio_base_pp,

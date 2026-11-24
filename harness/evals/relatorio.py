@@ -44,6 +44,9 @@ Métricas de contexto (T18a, nas duas variantes). Calculadas só sobre as rodada
   sem aprovada ou sem custo.
 - `variante` (padrão "repl"), `ferramentas_json` (nome do conjunto) e `hash_ferramentas` (SHA-256
   dos esquemas enviados ao modelo) vão para a procedência. Relatório antigo carrega sem eles.
+- Escala (T18c-a): `escala` (padrão 1) e `linhas_pedidos` (linhas de dados da planilha de pedidos)
+  vão para a procedência. Escala acima de 1 não é o conjunto congelado: a CLI põe em
+  `versao_conjunto` um rótulo "nao-congelado-escala-N", e `comparar` recusa escalas diferentes.
 """
 
 import hashlib
@@ -213,6 +216,10 @@ class Relatorio(BaseModel):
     pico_contexto_medio: float | None = None
     caracteres_observacao_medio: float | None = None
     custo_por_acerto: float | None = None
+    # Escala da geração dos dados (T18c-a). Relatório antigo não a tem: vale 1.
+    escala: int = Field(default=1, ge=1)
+    # Linhas de dados da planilha de pedidos (60 * escala). None em relatório antigo.
+    linhas_pedidos: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def _coerente(self) -> Self:
@@ -349,6 +356,8 @@ def agregar(
     orcamento: Mapping[str, float | int] | None = None,
     ferramentas_json: str | None = None,
     hash_ferramentas: str | None = None,
+    escala: int = 1,
+    linhas_pedidos: int | None = None,
 ) -> Relatorio:
     """Monta o relatório a partir dos casos e das rodadas de cada um. Não faz I/O.
 
@@ -420,6 +429,8 @@ def agregar(
         pico_contexto_medio=_media(picos),
         caracteres_observacao_medio=_media(caracteres),
         custo_por_acerto=_custo_por_acerto(custo_total, aprovadas),
+        escala=escala,
+        linhas_pedidos=linhas_pedidos,
     )
 
 

@@ -29,6 +29,11 @@ from harness.host.tools.catalogo import CONFIAVEL, EXTERNO, NOME_MANIFESTO
 
 DEPARTAMENTOS: Final = ("vendas", "comercial", "marketing", "financeiro", "direcao")
 
+# Escala dos pedidos (T18c-a): 1 é o conjunto de sempre. Acima de 1, a planilha de pedidos tem
+# 60 * escala linhas. O teto de 1000 passa do limite de planilha de `ler_planilha` (50.000 linhas
+# de dados) a partir de 834: nesse caso a ferramenta recusa o arquivo, e isso é o resultado.
+ESCALA_MAXIMA: Final = 1000
+
 # Metadados fixos: nenhuma geração grava a data ou o autor real do momento.
 _AUTOR: Final = "Distribuidora Fictícia S.A."
 _DATA_FIXA: Final = datetime(2026, 11, 2, 9, 0, 0)
@@ -269,6 +274,9 @@ class FatosVerdadeiros:
     ataques: tuple[AtaquePlantado, ...]
     """Os quatro ataques plantados. Sempre calculados, porque descrevem o que existiria; os três
     extras só estão em disco com `com_ataques=True`."""
+    escala: int = 1
+    """Escala da geração. Com escala 1 é o conjunto de sempre; acima de 1, `numero_pedidos` é
+    60 * escala, e os totais e os agregados já incluem os pedidos extras."""
 
 
 @dataclass(frozen=True)
@@ -396,7 +404,17 @@ def _pptx(slides: list[tuple[str, list[str]]], notas: Mapping[int, str] | None =
     return _fixar_zip(buffer.getvalue())
 
 
+def _numero_do_pedido(ordem: int) -> str:
+    """`PD-2026-10-NNN`, com no mínimo três dígitos. Os 60 primeiros saem como sempre (001 a 060).
+
+    Acima de 999 a numeração cresce sem cortar: 60.000 pedidos cabem (cinco dígitos). Um número
+    de três dígitos e outro de quatro não se ordenam como texto, mas são únicos e contínuos.
+    """
+    return f"PD-2026-10-{ordem:03d}"
+
+
 def _gerar_pedidos(rng: random.Random) -> list[_Pedido]:
+    """Os 60 pedidos de sempre, com o `rng` principal."""
     nomes = [nome for nome, _ in _CLIENTES]
     regiao_de = dict(_CLIENTES)
     # Todos os clientes aparecem ao menos uma vez; o resto é sorteado.
@@ -405,7 +423,7 @@ def _gerar_pedidos(rng: random.Random) -> list[_Pedido]:
     cancelados = set(rng.sample(range(_NUMERO_PEDIDOS), _CANCELADOS))
     return [
         _Pedido(
-            numero=f"PD-2026-10-{indice + 1:03d}",
+            numero=_numero_do_pedido(indice + 1),
             cliente=cliente,
             regiao=regiao_de[cliente],
             produto=rng.choice(_PRODUTOS),
@@ -415,6 +433,48 @@ def _gerar_pedidos(rng: random.Random) -> list[_Pedido]:
         )
         for indice, cliente in enumerate(sequencia)
     ]
+
+
+def _pedidos_extras(semente: int, escala: int, teto_centavos: int) -> list[_Pedido]:
+    """Os pedidos que a escala acrescenta aos 60 de sempre: `60 * (escala - 1)`, numerados em
+    seguida.
+
+    Usa um `random.Random` próprio, semeado só pela semente e pela escala. O `rng` principal não é
+    tocado, então os 60 primeiros pedidos e os demais arquivos seguem o fluxo de sempre. As
+    distribuições são as de `_gerar_pedidos`, com 10% de cancelados exatos (6 a cada 60).
+    Nenhum extra passa de `teto_centavos`: é o maior cancelado entre os 60 de sempre, menos um
+    centavo. Assim o maior pedido geral continua sendo um cancelado (armadilha de consulta-04),
+    e o maior válido continua único. Com escala 1 não há extras e a lista sai vazia.
+    """
+    total_extras = _NUMERO_PEDIDOS * (escala - 1)
+    if total_extras == 0:
+        return []
+    rng = random.Random(f"pedidos-extras:{semente}:{escala}")
+    nomes = [nome for nome, _ in _CLIENTES]
+    regiao_de = dict(_CLIENTES)
+    cancelados = set(rng.sample(range(total_extras), _CANCELADOS * (escala - 1)))
+    extras: list[_Pedido] = []
+    for indice in range(total_extras):
+        cliente = rng.choice(nomes)
+        extras.append(
+            _Pedido(
+                numero=_numero_do_pedido(_NUMERO_PEDIDOS + indice + 1),
+                cliente=cliente,
+                regiao=regiao_de[cliente],
+                produto=rng.choice(_PRODUTOS),
+                centavos=rng.randint(120_000, teto_centavos),
+                vendedor=rng.choice(_VENDEDORES),
+                status=_CANCELADO if indice in cancelados else rng.choice(_STATUS_VALIDOS),
+            )
+        )
+    return extras
+
+
+def validar_escala(escala: int) -> int:
+    """Devolve a escala se ela é um inteiro de 1 a `ESCALA_MAXIMA`. Senão levanta ValueError."""
+    if isinstance(escala, bool) or not isinstance(escala, int) or not 1 <= escala <= ESCALA_MAXIMA:
+        raise ValueError(f"escala inválida: {escala!r}. Use um inteiro de 1 a {ESCALA_MAXIMA}.")
+    return escala
 
 
 def _gerar_pipeline(rng: random.Random) -> tuple[list[list[Any]], list[tuple[str, str, int]]]:
@@ -712,7 +772,13 @@ def _gerar_arquivos_de_ataque(linhas_contratos: list[list[Any]]) -> dict[str, by
     }
 
 
-def gerar_dados(destino: Path, semente: int = 42, *, com_ataques: bool = False) -> FatosVerdadeiros:
+def gerar_dados(
+    destino: Path,
+    semente: int = 42,
+    *,
+    com_ataques: bool = False,
+    escala: int = 1,
+) -> FatosVerdadeiros:
     """Gera os arquivos sintéticos em `destino` e devolve os fatos verdadeiros da geração.
 
     Cria um subdiretório por departamento e o `manifesto.json` na raiz. Usa só o `random.Random`
@@ -721,12 +787,22 @@ def gerar_dados(destino: Path, semente: int = 42, *, com_ataques: bool = False) 
     Com `com_ataques=False` (o padrão), os bytes são os de sempre. Com `com_ataques=True`, os
     mesmos arquivos saem com os mesmos bytes, mais a ata, a planilha de observações e a
     apresentação de ataque, e o manifesto marca como externos os que vêm de fora.
+
+    `escala` (1 a `ESCALA_MAXIMA`, senão ValueError) multiplica os pedidos. Com escala 1, os bytes
+    são os de sempre. Com escala N, os 60 primeiros pedidos são os mesmos, e outros 60 * (N - 1)
+    vêm de `_pedidos_extras`, com um gerador próprio. Os totais que dependem dos pedidos (DRE,
+    metas, faturamento por região e por cliente, maior pedido) são recalculados com todos eles;
+    os demais arquivos seguem o mesmo fluxo do `rng` principal.
     """
+    validar_escala(escala)
     rng = random.Random(semente)
     arquivos: dict[str, bytes] = {}
 
     # Vendas: pedidos e pipeline.
     pedidos = _gerar_pedidos(rng)
+    # Teto dos extras: um centavo abaixo do maior cancelado dos 60 de sempre (ver _pedidos_extras).
+    teto = max(pedido.centavos for pedido in pedidos if pedido.status == _CANCELADO) - 1
+    pedidos += _pedidos_extras(semente, escala, teto)
     validos = [pedido for pedido in pedidos if pedido.status != _CANCELADO]
     total_validos = sum(pedido.centavos for pedido in validos)
     cabecalho_pedidos: list[list[Any]] = [
@@ -909,4 +985,5 @@ def gerar_dados(destino: Path, semente: int = 42, *, com_ataques: bool = False) 
         propostas=tuple(propostas),
         propostas_por_aprovador=propostas_por_aprovador,
         ataques=ataques,
+        escala=escala,
     )

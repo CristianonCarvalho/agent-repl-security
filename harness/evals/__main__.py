@@ -31,6 +31,10 @@ Decisões deste módulo (não estão na spec):
   para o mesmo provedor.
 - `--pausa-s SEGUNDOS` (padrão 0) espera entre uma rodada executada e a próxima. Não conta no
   tempo da rodada, e não há pausa antes da primeira nem depois da última.
+- `--escala N` (T18c-a, padrão 1) multiplica os pedidos: a planilha tem 60 * N linhas. Com escala
+  diferente de 1, o conjunto congelado v1 não vale: `versao_conjunto` do relatório vira
+  "nao-congelado-escala-N" e `--salvar-linha-de-base` é recusado antes de qualquer rodada. O
+  relatório registra `escala` e `linhas_pedidos`, e `comparar` recusa escalas diferentes.
 
 Subcomandos (T17c), reconhecidos só quando são o primeiro argumento exato: `comparar BASE NOVO`
 (0 ok, 1 regressão provável, 2 incomparável ou erro) e `congelar --versao vN` (cria o conjunto em
@@ -68,7 +72,7 @@ from harness.evals.comparacao import (
 )
 from harness.evals.congelamento import ErroDeCongelamento, congelar
 from harness.evals.conjunto import VERSAO_CONJUNTO, conjunto_completo
-from harness.evals.dados import FatosVerdadeiros, gerar_dados
+from harness.evals.dados import ESCALA_MAXIMA, FatosVerdadeiros, gerar_dados
 from harness.evals.executor import (
     VARIANTES,
     ConfigExecucao,
@@ -135,6 +139,22 @@ def _inteiro_positivo(texto: str) -> int:
     if valor < 1:
         raise argparse.ArgumentTypeError("deve ser pelo menos 1")
     return valor
+
+
+def _escala_argumento(texto: str) -> int:
+    try:
+        valor = int(texto)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"esperado um inteiro, recebido {texto!r}") from None
+    if not 1 <= valor <= ESCALA_MAXIMA:
+        raise argparse.ArgumentTypeError(f"deve estar entre 1 e {ESCALA_MAXIMA}")
+    return valor
+
+
+def _versao_do_conjunto(escala: int) -> str:
+    """`VERSAO_CONJUNTO` na escala 1. Em outra escala o conjunto não é o congelado, e o rótulo
+    diz isso, para que `comparar` não confunda o relatório com a linha de base."""
+    return VERSAO_CONJUNTO if escala == 1 else f"nao-congelado-escala-{escala}"
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -213,6 +233,14 @@ def _parser() -> argparse.ArgumentParser:
         help="espera entre uma rodada e a próxima, em segundos (padrão: 0)",
     )
     parser.add_argument(
+        "--escala",
+        type=_escala_argumento,
+        default=1,
+        metavar="N",
+        help=f"multiplica os pedidos: a planilha tem 60 * N linhas, de 1 a {ESCALA_MAXIMA} "
+        "(padrão: 1, o conjunto congelado; com N diferente de 1, não há linha de base)",
+    )
+    parser.add_argument(
         "--variante",
         choices=VARIANTES,
         default="repl",
@@ -267,6 +295,7 @@ def _config(args: argparse.Namespace) -> ConfigExecucao:
             orcamento=orcamento,
             pausa_s=args.pausa_s,
             variante=args.variante,
+            escala=args.escala,
         )
     except ValidationError as erro:
         campos = "; ".join(
@@ -340,13 +369,15 @@ def _selecionar(
     return selecionar
 
 
-def _selecao_sem_modelo(categorias: frozenset[Categoria], grupo: str, semente: int) -> list[Caso]:
+def _selecao_sem_modelo(
+    categorias: frozenset[Categoria], grupo: str, semente: int, escala: int = 1
+) -> list[Caso]:
     """A seleção inteira, para decidir antes de qualquer configuração se há caso ativo.
 
     Gera os dados numa pasta temporária que some no fim. Não toca no modelo nem no `.env`.
     """
     with tempfile.TemporaryDirectory(prefix="selecao-") as temporaria:
-        fatos = gerar_dados(Path(temporaria) / "dados", semente)
+        fatos = gerar_dados(Path(temporaria) / "dados", semente, escala=escala)
         return _selecionar(categorias, grupo)(fatos)
 
 
@@ -422,6 +453,11 @@ def _resumo(saida: TextIO, relatorio: Relatorio, caminho: Path | None) -> None:
         )
     if relatorio.custo_por_acerto is not None:
         linhas.append(f"Custo por acerto: US$ {_br(relatorio.custo_por_acerto)}")
+    if relatorio.escala != 1:
+        linhas.append(
+            f"Escala dos dados: {relatorio.escala} (planilha de pedidos com "
+            f"{relatorio.linhas_pedidos} linhas; não é o conjunto congelado)"
+        )
     linhas.append(f"Erros de infraestrutura: {relatorio.erros_infra}")
     linhas.append(f"Rodadas não executadas: {relatorio.nao_executadas}")
     if relatorio.pendentes:
@@ -621,6 +657,11 @@ def _validar_linha_de_base(
         validar_nome_da_linha(nome)
     except ErroDeLinhaDeBase as erro:
         raise ErroDeUso(str(erro)) from None
+    if args.escala != 1:
+        raise ErroDeUso(
+            f"linha de base exige a escala 1 (o conjunto congelado), e a escala pedida é "
+            f"{args.escala}. Use --escala 1 ou não use --salvar-linha-de-base."
+        )
     if categorias or args.grupo != "todos":
         raise ErroDeUso("linha de base exige o conjunto completo: não use --categoria nem --grupo")
     if args.rodadas < 3:
@@ -697,7 +738,7 @@ def main(
 
     # Sem caso ativo na seleção, nada roda: não lê o `.env`, não confere a chave e não chama o
     # modelo. Só lista os pendentes, cada um com o que o destrava, e sai com zero.
-    selecao = _selecao_sem_modelo(categorias, args.grupo, args.semente)
+    selecao = _selecao_sem_modelo(categorias, args.grupo, args.semente, args.escala)
     if not any(caso.situacao.ativo for caso in selecao):
         _sem_casos_ativos(saida, selecao, categorias, args.grupo)
         return CODIGO_OK
@@ -748,7 +789,8 @@ def main(
         )
     relatorio = relatorio.model_copy(
         update={
-            "versao_conjunto": VERSAO_CONJUNTO,
+            "versao_conjunto": _versao_do_conjunto(config.escala),
+            "escala": config.escala,
             "commit": commit,
             "commit_sujo": sujo,
             "iniciado_em": iniciado,
