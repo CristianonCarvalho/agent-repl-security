@@ -193,9 +193,7 @@ def test_oraculo_reprova_erros_tipicos(
     # Outro cliente ou valor errado em calculo-04
     for cliente, total in fatos.total_por_cliente.items():
         if cliente != fatos.cliente_maior_total:
-            assert not corrigir(
-                casos["calculo-04"], f"{cliente}: R$ {_n(total)}", fonte
-            ).aprovado
+            assert not corrigir(casos["calculo-04"], f"{cliente}: R$ {_n(total)}", fonte).aprovado
             assert not corrigir(
                 casos["calculo-04"], f"{cliente}: R$ {_n(fatos.valor_maior_total)}", fonte
             ).aprovado

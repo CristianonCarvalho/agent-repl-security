@@ -424,9 +424,7 @@ def test_fatos_estatisticos_batem_com_a_planilha_nas_escalas(
 
 @pytest.mark.parametrize("semente", [42, 7, 123])
 @pytest.mark.parametrize("escala", [1, 10, 100])
-def test_cliente_maior_total_e_unico_sem_empate(
-    tmp_path: Path, semente: int, escala: int
-) -> None:
+def test_cliente_maior_total_e_unico_sem_empate(tmp_path: Path, semente: int, escala: int) -> None:
     fatos = gerar_dados(tmp_path / f"s{semente}_e{escala}", semente=semente, escala=escala)
     empatados = [
         cliente
