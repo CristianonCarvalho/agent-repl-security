@@ -22,7 +22,9 @@ from harness.evals.graficos import (
     NOMES_ARQUIVOS,
     NOMES_ESCALA,
     PALETA,
+    SECAO_COMPARACAO,
     SECAO_ESCALA_PAINEIS,
+    SECOES,
     DadosEvolucao,
     Execucao,
     dados_de_relatorios,
@@ -410,20 +412,24 @@ def test_gerar_todos_e_pagina_incluem_escala_apenas_quando_ativa(tmp_path: Path)
     pasta_b = tmp_path / "com"
     caminhos_b = gerar_todos(com_escala, pasta_b)
     assert [c.name for c in caminhos_b] == [
-        *NOMES_ARQUIVOS,
-        NOME_COMPARACAO,
         *NOMES_ESCALA,
         NOME_ESCALA_PAINEIS,
         NOME_PAGINA,
     ]
     for nome in (*NOMES_ESCALA, NOME_ESCALA_PAINEIS):
         _raiz((pasta_b / nome).read_text(encoding="utf-8"))
+    for nome in (*NOMES_ARQUIVOS, NOME_COMPARACAO):
+        assert not (pasta_b / nome).exists()
 
     pagina = gerar_pagina_html(com_escala)
-    assert SECAO_ESCALA_PAINEIS[0] in pagina
+    assert f"<h2>{SECAO_ESCALA_PAINEIS[0]}</h2>" in pagina
+    assert f"<h2>{SECAO_COMPARACAO[0]}</h2>" not in pagina
+    for _, titulo, _ in SECOES:
+        assert f"<h2>{titulo}</h2>" not in pagina
     ids = re.findall(r'\sid="([^"]+)"', pagina)
     assert len(ids) == len(set(ids))
     assert "tep" in ids and "te1" in ids and "te4" in ids
+    assert "tc" not in ids and "t1" not in ids
 
 
 def test_cli_de_relatorios_gera_graficos_de_escala(tmp_path: Path) -> None:
@@ -461,9 +467,11 @@ def test_cli_de_relatorios_gera_graficos_de_escala(tmp_path: Path) -> None:
     assert codigo == CODIGO_OK
     for nome in (*NOMES_ESCALA, NOME_ESCALA_PAINEIS):
         assert (tmp_path / "saida" / nome).exists()
-    # 6 padrão + 1 comparação + 4 escala + 1 painéis escala + 1 html = 13 arquivos
+    for nome in (*NOMES_ARQUIVOS, NOME_COMPARACAO):
+        assert not (tmp_path / "saida" / nome).exists()
+    # 4 escala + 1 painéis escala + 1 html = 6 arquivos
     linhas = [x for x in buf.getvalue().splitlines() if x.startswith("Gráfico gerado:")]
-    assert len(linhas) == 13
+    assert len(linhas) == 6
 
 
 def test_escala_e_paineis_sinalizam_execucao_incompleta() -> None:
