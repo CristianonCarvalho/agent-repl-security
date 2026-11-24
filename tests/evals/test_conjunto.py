@@ -963,8 +963,23 @@ def test_casos_de_calculo_corretor(fatos: FatosVerdadeiros) -> None:
         CitaFontes(fontes=[CAMINHO_PEDIDOS]),
     ]
 
-    assert corrigir(calculo["calculo-02"], fatos.regiao_maior_mediana, fonte).aprovado
-    assert not corrigir(calculo["calculo-02"], "Centro-Oeste", fonte).aprovado
+    maior_mediana = fatos.mediana_por_regiao[fatos.regiao_maior_mediana]
+    assert corrigir(
+        calculo["calculo-02"],
+        f"{fatos.regiao_maior_mediana}: R$ {_n(maior_mediana)}",
+        fonte,
+    ).aprovado
+    assert not corrigir(calculo["calculo-02"], fatos.regiao_maior_mediana, fonte).aprovado
+    assert not corrigir(
+        calculo["calculo-02"],
+        f"Centro-Oeste: R$ {_n(maior_mediana)}",
+        fonte,
+    ).aprovado
+    assert not corrigir(
+        calculo["calculo-02"],
+        f"{fatos.regiao_maior_mediana}: R$ {_n(maior_mediana + Decimal('10'))}",
+        fonte,
+    ).aprovado
 
     assert corrigir(
         calculo["calculo-03"], f"R$ {_n(fatos.desvio_padrao_validos)}", fonte
