@@ -1886,17 +1886,16 @@ def _com_identificador(svg: str, sufixo: str) -> str:
 
 
 def gerar_pagina_html(dados: DadosEvolucao) -> str:
-    """Página HTML5 autônoma com os seis gráficos inline e tooltips. Sem recurso externo."""
-    svgs = _todos_os_svgs(dados)
+    """Página HTML5 autônoma com os gráficos inline e tooltips. Sem recurso externo.
+
+    No modo escala (`tem_modo_escala(dados)`), inclui apenas os gráficos de escala (painéis e
+    os quatro individuais). Os gráficos por execução (`taxa-total`, `taxa-por-categoria`,
+    `iteracoes-por-pedido`, `custo-por-rodada`), o painel de barras da comparação
+    (`comparacao-de-variantes`), a dispersão (`dispersao-iteracoes-tokens`) e a curva de
+    contexto (`curva-de-contexto`) são omitidos porque misturam execuções de escalas diferentes
+    sem distinguir a escala.
+    """
     secoes: list[str] = []
-    comparacao = _comparacao_se_houver(dados)
-    if comparacao is not None:
-        titulo_comparacao, leitura_comparacao = SECAO_COMPARACAO
-        secoes.append(
-            f"<section>\n<h2>{_esc(titulo_comparacao)}</h2>\n"
-            f'<p class="leitura">{_esc(leitura_comparacao)}</p>\n'
-            f"{_com_identificador(comparacao, 'c')}</section>"
-        )
     if tem_modo_escala(dados):
         titulo_ep, leitura_ep = SECAO_ESCALA_PAINEIS
         secoes.append(
@@ -1912,12 +1911,22 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
                 f'<p class="leitura">{_esc(leitura_e)}</p>\n'
                 f"{_com_identificador(svg_e, f'e{indice}')}</section>"
             )
-    for indice, ((_, titulo, leitura), svg) in enumerate(zip(SECOES, svgs, strict=True), 1):
-        secoes.append(
-            f"<section>\n<h2>{_esc(titulo)}</h2>\n"
-            f'<p class="leitura">{_esc(leitura)}</p>\n'
-            f"{_com_identificador(svg, str(indice))}</section>"
-        )
+    else:
+        svgs = _todos_os_svgs(dados)
+        comparacao = _comparacao_se_houver(dados)
+        if comparacao is not None:
+            titulo_comparacao, leitura_comparacao = SECAO_COMPARACAO
+            secoes.append(
+                f"<section>\n<h2>{_esc(titulo_comparacao)}</h2>\n"
+                f'<p class="leitura">{_esc(leitura_comparacao)}</p>\n'
+                f"{_com_identificador(comparacao, 'c')}</section>"
+            )
+        for indice, ((_, titulo, leitura), svg) in enumerate(zip(SECOES, svgs, strict=True), 1):
+            secoes.append(
+                f"<section>\n<h2>{_esc(titulo)}</h2>\n"
+                f'<p class="leitura">{_esc(leitura)}</p>\n'
+                f"{_com_identificador(svg, str(indice))}</section>"
+            )
     intro = dados.descricao or "Métricas por execução real da avaliação."
     linhas = [
         "<!doctype html>",
@@ -1944,20 +1953,27 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
 
 
 def gerar_todos(dados: DadosEvolucao, pasta: Path) -> list[Path]:
-    """Grava os seis SVG e a página `graficos.html`, com nomes fixos. Sobrescreve.
+    """Grava os SVG e a página `graficos.html`, com nomes fixos. Sobrescreve.
 
-    Com duas ou mais variantes, grava também `comparacao-de-variantes.svg`, depois dos seis. A
-    pasta é criada se preciso. Devolve os caminhos: os SVG na ordem de `NOMES_ARQUIVOS` (e a
-    comparação, se houver), e depois a página.
+    Fora do modo escala, grava os seis SVG em `NOMES_ARQUIVOS` (e `comparacao-de-variantes.svg`
+    quando há duas ou mais variantes) e depois a página.
+
+    No modo escala (`tem_modo_escala(dados)`), grava apenas os quatro SVG de escala
+    (`NOMES_ESCALA`), o painel combinado (`NOME_ESCALA_PAINEIS`) e a página: os gráficos de linha
+    por execução (`taxa-total`, `taxa-por-categoria`, `iteracoes-por-pedido`, `custo-por-rodada`),
+    o painel de barras da comparação (`comparacao-de-variantes`), a dispersão
+    (`dispersao-iteracoes-tokens`) e a curva de contexto (`curva-de-contexto`) são omitidos porque
+    misturam execuções de escalas diferentes sem distinguir a escala.
     """
-    svgs = _todos_os_svgs(dados)
-    comparacao = _comparacao_se_houver(dados)
-    arquivos = list(zip(NOMES_ARQUIVOS, svgs, strict=True))
-    if comparacao is not None:
-        arquivos.append((NOME_COMPARACAO, comparacao))
     if tem_modo_escala(dados):
-        arquivos.extend(zip(NOMES_ESCALA, _svgs_escala(dados), strict=True))
+        arquivos = list(zip(NOMES_ESCALA, _svgs_escala(dados), strict=True))
         arquivos.append((NOME_ESCALA_PAINEIS, grafico_escala_paineis(dados)))
+    else:
+        svgs = _todos_os_svgs(dados)
+        comparacao = _comparacao_se_houver(dados)
+        arquivos = list(zip(NOMES_ARQUIVOS, svgs, strict=True))
+        if comparacao is not None:
+            arquivos.append((NOME_COMPARACAO, comparacao))
     pagina = gerar_pagina_html(dados)
     caminhos: list[Path] = []
     try:
