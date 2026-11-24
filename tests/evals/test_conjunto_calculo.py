@@ -9,7 +9,6 @@ antigos. Não usa rede nem Docker; gera escala 100 uma vez por módulo via fixtu
 import hashlib
 import io
 import json
-from collections import Counter
 from collections.abc import Callable, Iterator, Sequence
 from dataclasses import replace
 from decimal import ROUND_HALF_UP, Decimal, localcontext
@@ -142,7 +141,11 @@ def test_oraculo_aprova_respostas_corretas(
         fonte,
     ).aprovado
     assert corrigir(casos["calculo-03"], f"R$ {_n(fatos.desvio_padrao_validos)}", fonte).aprovado
-    assert corrigir(casos["calculo-04"], str(fatos.clientes_com_3_pedidos_altos), fonte).aprovado
+    assert corrigir(
+        casos["calculo-04"],
+        f"{fatos.cliente_maior_total}: R$ {_n(fatos.valor_maior_total)}",
+        fonte,
+    ).aprovado
 
 
 @pytest.mark.parametrize("semente", SEMENTES)
@@ -187,44 +190,47 @@ def test_oraculo_reprova_erros_tipicos(
                 casos["calculo-02"], f"{regiao}: R$ {_n(maior_mediana)}", fonte
             ).aprovado
 
-    # Contagem errada em calculo-04 (desvio de 1 unidade já reprova por tolerância zero)
+    # Outro cliente ou valor errado em calculo-04
+    for cliente, total in fatos.total_por_cliente.items():
+        if cliente != fatos.cliente_maior_total:
+            assert not corrigir(
+                casos["calculo-04"], f"{cliente}: R$ {_n(total)}", fonte
+            ).aprovado
+            assert not corrigir(
+                casos["calculo-04"], f"{cliente}: R$ {_n(fatos.valor_maior_total)}", fonte
+            ).aprovado
     assert not corrigir(
-        casos["calculo-04"], str(fatos.clientes_com_3_pedidos_altos + 1), fonte
+        casos["calculo-04"],
+        f"{fatos.cliente_maior_total}: R$ {_n(fatos.valor_maior_total + Decimal('1.00'))}",
+        fonte,
     ).aprovado
-    if fatos.clientes_com_3_pedidos_altos > 0:
-        assert not corrigir(
-            casos["calculo-04"], str(fatos.clientes_com_3_pedidos_altos - 1), fonte
-        ).aprovado
 
 
-def test_calculo_04_reprova_contagem_com_limite_maior_ou_igual_a_50000(
+def test_calculo_04_reprova_incluir_cancelados_no_total_por_cliente(
     geracoes: dict[tuple[int, int], tuple[Path, FatosVerdadeiros]],
 ) -> None:
-    """Quando um pedido exato de R$ 50.000,00 muda a contagem, usar `>=` reprova."""
-    pedidos_sinteticos = [
-        ("Cliente A", Decimal("50000.01")),
-        ("Cliente A", Decimal("50000.01")),
-        ("Cliente A", Decimal("50000.00")),
-    ]
-    contagem_estrita = sum(
-        1
-        for qtd in Counter(c for c, v in pedidos_sinteticos if v > Decimal("50000.00")).values()
-        if qtd >= 3
+    """Quando incluir cancelados muda o total do vencedor, responder com cancelados reprova."""
+    destino, fatos = geracoes[(42, 1)]
+    pedidos = _ler_pedidos_openpyxl(destino)
+    total_com_cancelados = sum(
+        (valor for cliente, _, valor, _ in pedidos if cliente == fatos.cliente_maior_total),
+        Decimal("0.00"),
     )
-    contagem_inclusiva = sum(
-        1
-        for qtd in Counter(c for c, v in pedidos_sinteticos if v >= Decimal("50000.00")).values()
-        if qtd >= 3
-    )
-    assert contagem_estrita == 0
-    assert contagem_inclusiva == 1
-
-    _, fatos_base = geracoes[(42, 1)]
-    fatos_limite = replace(fatos_base, clientes_com_3_pedidos_altos=contagem_estrita)
-    caso_04 = casos_de_calculo(fatos_limite)[3]
-
-    assert corrigir(caso_04, str(contagem_estrita), [PEDIDOS_CAMINHO]).aprovado
-    assert not corrigir(caso_04, str(contagem_inclusiva), [PEDIDOS_CAMINHO]).aprovado
+    if total_com_cancelados == fatos.valor_maior_total:
+        fatos_limite = replace(fatos, valor_maior_total=Decimal("100000.00"))
+        caso_04 = casos_de_calculo(fatos_limite)[3]
+        assert not corrigir(
+            caso_04,
+            f"{fatos.cliente_maior_total}: R$ {_n(Decimal('100500.00'))}",
+            [PEDIDOS_CAMINHO],
+        ).aprovado
+    else:
+        caso_04 = casos_de_calculo(fatos)[3]
+        assert not corrigir(
+            caso_04,
+            f"{fatos.cliente_maior_total}: R$ {_n(total_com_cancelados)}",
+            [PEDIDOS_CAMINHO],
+        ).aprovado
 
 
 @pytest.mark.parametrize("semente", SEMENTES)
@@ -269,11 +275,16 @@ def test_fatos_coerentes_com_planilha_lida_de_volta(
     regiao_max = max(fatos.mediana_por_regiao, key=lambda r: fatos.mediana_por_regiao[r])
     assert regiao_max == fatos.regiao_maior_mediana
 
-    altos_por_cliente = Counter(
-        cliente for cliente, _, valor in validos if valor > Decimal("50000.00")
-    )
-    contagem_altos = sum(1 for qtd in altos_por_cliente.values() if qtd >= 3)
-    assert contagem_altos == fatos.clientes_com_3_pedidos_altos
+    totais_por_cliente = {
+        cliente: sum(
+            (valor for cli, _, valor in validos if cli == cliente),
+            Decimal("0.00"),
+        )
+        for cliente in fatos.total_por_cliente
+    }
+    maior_total = max(totais_por_cliente.values())
+    assert maior_total == fatos.valor_maior_total
+    assert totais_por_cliente[fatos.cliente_maior_total] == fatos.valor_maior_total
 
 
 def test_conjunto_v1_intacto(

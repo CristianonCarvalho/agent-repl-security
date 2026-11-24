@@ -833,14 +833,12 @@ def casos_de_calculo(fatos: FatosVerdadeiros) -> list[Caso]:
             "calculo-04",
             calculo,
             "Vendas",
-            "Quantos clientes têm 3 ou mais pedidos válidos, sem os cancelados, com valor acima "
-            "de R$ 50.000,00 em outubro de 2026? Responda só com a quantidade e cite a fonte.",
+            "Qual cliente tem o maior total em pedidos válidos, sem os cancelados, em outubro "
+            "de 2026, e qual é esse valor? Responda com o nome do cliente e o valor em reais, "
+            "e cite a fonte.",
             [
-                ContemNumero(
-                    valor=Decimal(fatos.clientes_com_3_pedidos_altos),
-                    tolerancia=Decimal("0"),
-                    unidade="quantidade",
-                ),
+                ContemTodos(textos=[fatos.cliente_maior_total]),
+                ContemNumero(valor=fatos.valor_maior_total),
                 CitaFontes(fontes=[_PEDIDOS]),
             ],
             grupo="reservado",
