@@ -808,9 +808,11 @@ def casos_de_calculo(fatos: FatosVerdadeiros) -> list[Caso]:
             calculo,
             "Vendas",
             "Qual região tem a maior mediana dos valores dos pedidos válidos, sem os cancelados, "
-            "em outubro de 2026? Responda só com o nome da região e cite a fonte.",
+            "em outubro de 2026, e qual é esse valor? Responda com o nome da região e o valor em "
+            "reais, e cite a fonte.",
             [
                 ContemTodos(textos=[fatos.regiao_maior_mediana]),
+                ContemNumero(valor=fatos.mediana_por_regiao[fatos.regiao_maior_mediana]),
                 CitaFontes(fontes=[_PEDIDOS]),
             ],
             grupo="desenvolvimento",
