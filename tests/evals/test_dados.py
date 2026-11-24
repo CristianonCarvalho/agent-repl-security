@@ -9,8 +9,9 @@ import csv
 import hashlib
 import json
 import re
+from collections import Counter
 from collections.abc import Iterator
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +28,9 @@ from harness.evals.dados import (
     INSTRUCAO_ATA,
     INSTRUCAO_CONTRATO,
     FatosVerdadeiros,
+    _desvio_padrao_reais,
+    _mediana_reais,
+    _regiao_maior_mediana,
     gerar_dados,
 )
 from harness.host.perfil import perfil_por_nome
@@ -555,3 +559,61 @@ def test_dominios_dos_ataques_sao_de_exemplo_invalid(
     assert enderecos
     assert all(endereco.endswith(".invalid") for endereco in enderecos)
     assert "http" not in texto
+
+
+def test_fatos_estatisticos_batem_com_a_planilha(geracao: tuple[Path, FatosVerdadeiros]) -> None:
+    destino, fatos = geracao
+    pedidos = _registros(destino / "vendas/pedidos_2026-10.xlsx")
+    validos = [p for p in pedidos if p["status"] != "cancelado"]
+    valores = sorted(_dec(p["valor"]) for p in validos)
+    n = len(valores)
+    meio = n // 2
+    if n % 2 == 1:
+        mediana_esperada = valores[meio]
+    else:
+        mediana_esperada = ((valores[meio - 1] + valores[meio]) / Decimal(2)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+    assert fatos.mediana_validos == mediana_esperada
+
+    for regiao, mediana in fatos.mediana_por_regiao.items():
+        vals_reg = sorted(_dec(p["valor"]) for p in validos if p["regiao"] == regiao)
+        m_reg = len(vals_reg) // 2
+        if len(vals_reg) % 2 == 1:
+            esperada = vals_reg[m_reg]
+        else:
+            esperada = ((vals_reg[m_reg - 1] + vals_reg[m_reg]) / Decimal(2)).quantize(
+                Decimal("0.01"), rounding=ROUND_HALF_UP
+            )
+        assert mediana == esperada, regiao
+
+    maior_mediana = max(fatos.mediana_por_regiao.values())
+    assert sum(1 for v in fatos.mediana_por_regiao.values() if v == maior_mediana) == 1
+    assert fatos.mediana_por_regiao[fatos.regiao_maior_mediana] == maior_mediana
+
+    with localcontext() as ctx:
+        ctx.prec = 50
+        media = sum(valores) / Decimal(n)
+        variancia = sum((v - media) ** 2 for v in valores) / Decimal(n)
+        desvio_esperado = variancia.sqrt().quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    assert fatos.desvio_padrao_validos == desvio_esperado
+
+    altos = Counter(p["cliente"] for p in validos if _dec(p["valor"]) > Decimal("50000.00"))
+    assert fatos.clientes_com_3_pedidos_altos == sum(1 for qtd in altos.values() if qtd >= 3)
+
+
+def test_mediana_desvio_e_desempate_regiao_deterministico() -> None:
+    # Número ímpar de elementos
+    assert _mediana_reais([10_00, 30_00, 20_00]) == Decimal("20.00")
+    # Número par com meia-centavo: 100.01 e 100.02 -> 100.015 -> ROUND_HALF_UP -> 100.02
+    assert _mediana_reais([10_001, 10_002]) == Decimal("100.02")
+    # Desvio padrão populacional exato: [10.00, 20.00] -> média 15.00, desvio 5.00
+    assert _desvio_padrao_reais([1_000, 2_000]) == Decimal("5.00")
+    # Desempate explícito por ordem alfabética crescente do nome da região
+    empate = {
+        "Sudeste": Decimal("500.00"),
+        "Sul": Decimal("400.00"),
+        "Nordeste": Decimal("500.00"),
+        "Centro-Oeste": Decimal("300.00"),
+    }
+    assert _regiao_maior_mediana(empate) == "Nordeste"
