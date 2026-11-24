@@ -285,6 +285,20 @@ class ErroDeGraficos(Exception):
     """Dados ausentes ou inválidos para os gráficos. A mensagem diz o problema, sem o conteúdo."""
 
 
+class CasoDetalhe(BaseModel):
+    """Resumo de um caso dentro de uma execução, com contagens e médias das rodadas válidas."""
+
+    model_config = ConfigDict(frozen=True)
+
+    id: str
+    categoria: str
+    aprovadas: int = Field(default=0, ge=0)
+    reprovadas: int = Field(default=0, ge=0)
+    erro_infra: int = Field(default=0, ge=0)
+    iteracoes_media: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    tokens_entrada_medio: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+
+
 class Execucao(BaseModel):
     """Métricas de uma execução real da avaliação. Campos opcionais têm valor padrão."""
 
@@ -297,13 +311,18 @@ class Execucao(BaseModel):
     rodadas: int = Field(default=0, ge=0)
     rodadas_validas: int = Field(default=0, ge=0)
     aprovadas: int = Field(default=0, ge=0)
+    reprovadas: int = Field(default=0, ge=0)
+    erro_infra: int = Field(default=0, ge=0)
+    nao_executadas: int = Field(default=0, ge=0)
     taxa_pct: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     erro_infra_pct: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     iteracoes_media: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     tokens_entrada_por_rodada: int | None = Field(default=None, ge=0)
     tokens_saida_por_rodada: int | None = Field(default=None, ge=0)
     custo_por_rodada_usd: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    duracao_total_s: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     categorias_pct: dict[str, float | None] = Field(default_factory=dict)
+    casos_detalhe: tuple[CasoDetalhe, ...] = ()
     prompt: str = ""
     ponto_fraco: bool = False
     nota: str = ""
@@ -433,6 +452,35 @@ def _motivo_incompleta(relatorio: Relatorio) -> str:
 _LINHAS_PEDIDOS_PADRAO: Final = 60  # escala 1x do conjunto padrão de pedidos (dados.py)
 
 
+def _detalhes_casos(relatorio: Relatorio) -> tuple[CasoDetalhe, ...]:
+    """Monta os resumos por caso para os casos que possuem rodadas."""
+    detalhes: list[CasoDetalhe] = []
+    for caso in relatorio.casos:
+        if not caso.rodadas:
+            continue
+        validas_caso = [
+            r
+            for r in caso.rodadas
+            if r.classificacao in (Classificacao.APROVADA, Classificacao.REPROVADA)
+        ]
+        detalhes.append(
+            CasoDetalhe(
+                id=caso.caso_id,
+                categoria=caso.categoria.value,
+                aprovadas=sum(1 for r in validas_caso if r.classificacao is Classificacao.APROVADA),
+                reprovadas=sum(
+                    1 for r in validas_caso if r.classificacao is Classificacao.REPROVADA
+                ),
+                erro_infra=sum(
+                    1 for r in caso.rodadas if r.classificacao is Classificacao.ERRO_INFRA
+                ),
+                iteracoes_media=_media_de([float(r.iteracoes) for r in validas_caso]),
+                tokens_entrada_medio=_media_de([float(r.tokens_entrada) for r in validas_caso]),
+            )
+        )
+    return tuple(detalhes)
+
+
 def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Execucao:
     """Uma execução a partir de um relatório. Médias são sobre as rodadas válidas."""
     todas = [rodada for caso in relatorio.casos for rodada in caso.rodadas]
@@ -440,7 +488,11 @@ def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Exec
         r for r in todas if r.classificacao in (Classificacao.APROVADA, Classificacao.REPROVADA)
     ]
     aprovadas = sum(1 for r in validas if r.classificacao is Classificacao.APROVADA)
+    reprovadas = sum(1 for r in validas if r.classificacao is Classificacao.REPROVADA)
     erros = sum(1 for r in todas if r.classificacao is Classificacao.ERRO_INFRA)
+    nao_executadas = sum(1 for r in todas if r.classificacao is Classificacao.NAO_EXECUTADA)
+    duracao_soma = sum(r.duracao_s for r in todas)
+    duracao_total_s = duracao_soma if duracao_soma > 0 else None
     total = len(todas)
     base_legivel = relatorio.linha_de_base or nome
     # Por categoria: só casos com rodadas entram, e cada um conta as suas rodadas válidas.
@@ -480,13 +532,18 @@ def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Exec
         rodadas=total,
         rodadas_validas=len(validas),
         aprovadas=aprovadas,
+        reprovadas=reprovadas,
+        erro_infra=erros,
+        nao_executadas=nao_executadas,
         taxa_pct=_taxa_pct(aprovadas, len(validas)),
         erro_infra_pct=erros / total * 100 if total else None,
         iteracoes_media=_media_de([float(r.iteracoes) for r in validas]),
         tokens_entrada_por_rodada=_inteiro_ou_none([r.tokens_entrada for r in validas]),
         tokens_saida_por_rodada=_inteiro_ou_none([r.tokens_saida for r in validas]),
         custo_por_rodada_usd=_media_de(custos),
+        duracao_total_s=duracao_total_s,
         categorias_pct=categorias_pct,
+        casos_detalhe=_detalhes_casos(relatorio),
         prompt=(
             f"prompt {relatorio.hash_prompt[:8]}"
             if relatorio.hash_prompt
