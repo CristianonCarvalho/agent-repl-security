@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t d" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t">Taxa de acerto por execução</title>
+<desc id="d">Taxa de acerto por execução, em porcentagem. REPL (Code Mode): execução 1 98,0%; Tool calling em JSON: execução 1 98,0%; Tool calling em JSON, com agregação: execução 1 98,0%.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Taxa de acerto por execução</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<line x1="168" y1="54" x2="184" y2="54" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="176" cy="54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">Tool calling em JSON</text>
+<line x1="338" y1="54" x2="354" y2="54" stroke="#2bb5c8" stroke-width="2" stroke-linecap="round"/>
+<circle cx="346" cy="54" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2"/>
+<text x="360" y="58" font-size="12" fill="#52514e">Tool calling em JSON, com agregação</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="301.62" x2="696" y2="301.62" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="305.62" text-anchor="end" font-size="11" fill="#898781">20</text>
+<line x1="72" y1="253.24" x2="696" y2="253.24" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="257.24" text-anchor="end" font-size="11" fill="#898781">40</text>
+<line x1="72" y1="204.86" x2="696" y2="204.86" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="208.86" text-anchor="end" font-size="11" fill="#898781">60</text>
+<line x1="72" y1="156.48" x2="696" y2="156.48" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="160.48" text-anchor="end" font-size="11" fill="#898781">80</text>
+<line x1="72" y1="108.1" x2="696" y2="108.1" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="112.1" text-anchor="end" font-size="11" fill="#898781">100</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="384" y="366" text-anchor="middle" font-size="11" fill="#898781">1</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Rodadas aprovadas (%)</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Execução</text>
+<circle cx="384" cy="112.93" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (REPL (Code Mode)): 98,0% de acerto (98 de 100 rodadas)</title></circle>
+<circle cx="384" cy="112.93" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (Tool calling em JSON): 98,0% de acerto (98 de 100 rodadas)</title></circle>
+<circle cx="384" cy="112.93" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (Tool calling em JSON, com agregação): 98,0% de acerto (98 de 100 rodadas)</title></circle>
+</svg>

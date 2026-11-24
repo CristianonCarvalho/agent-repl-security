@@ -1,0 +1,515 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'">
+<title>Avaliações do agente: gráficos</title>
+<style>
+:root { color-scheme: light; }
+body { margin: 0; background: #f4f4f1; color: #0b0b0b;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding: 24px 16px 48px; }
+h1 { font-size: 22px; font-weight: 600; margin: 0 0 8px; }
+h2 { font-size: 17px; font-weight: 600; margin: 32px 0 4px; }
+.intro, .leitura { color: #52514e; font-size: 14px; line-height: 1.5; margin: 4px 0 12px; }
+section svg { display: block; width: 100%; max-width: 100%; height: auto; }
+.dica { position: absolute; z-index: 10; max-width: 280px; padding: 6px 8px; border-radius: 6px;
+  background: #0b0b0b; color: #ffffff; font-size: 12px; line-height: 1.4; pointer-events: none; }
+.dica[hidden] { display: none; }
+</style>
+</head>
+<body>
+<main>
+<h1>Avaliações do agente: gráficos das execuções</h1>
+<p class="intro">Comparação a partir de relatórios de avaliação, uma execução por arquivo. Passe o mouse, toque ou use o Tab sobre um ponto para ver o valor.</p>
+<section>
+<h2>Comparação entre variantes</h2>
+<p class="leitura">Cada barra é a execução mais recente de uma variante. Os seis painéis têm escala própria: leia o valor escrito sobre cada barra.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="600" viewBox="0 0 720 600" role="img" aria-labelledby="tc dc" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="tc">Comparação entre variantes</title>
+<desc id="dc">Comparação entre variantes, na execução mais recente de cada uma. Taxa de acerto (%): REPL (Code Mode) 98,0%, Tool calling em JSON 98,0%, Tool calling em JSON, com agregação 98,0%. Iterações por pedido: REPL (Code Mode) 5,45, Tool calling em JSON 3,83, Tool calling em JSON, com agregação 4,20. Tokens de entrada por rodada (mil): REPL (Code Mode) 16.935, Tool calling em JSON 16.107, Tool calling em JSON, com agregação 18.400. Pico de contexto médio (tokens): REPL (Code Mode) 4.090, Tool calling em JSON 5.969, Tool calling em JSON, com agregação 5.699. Caracteres de observação por rodada (mil): REPL (Code Mode) 4.928, Tool calling em JSON 9.488, Tool calling em JSON, com agregação 6.511. Custo por acerto (milésimos de US$): REPL (Code Mode) 0,742, Tool calling em JSON 0,718, Tool calling em JSON, com agregação 0,708.</desc>
+<rect x="0.5" y="0.5" width="719" height="599" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Comparação entre variantes</text>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<circle cx="176" cy="54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">Tool calling em JSON</text>
+<circle cx="346" cy="54" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2"/>
+<text x="360" y="58" font-size="12" fill="#52514e">Tool calling em JSON, com agregação</text>
+<text x="24" y="114" font-size="13" font-weight="500" fill="#0b0b0b">Taxa de acerto (%)</text>
+<text x="62" y="224" text-anchor="end" font-size="10" fill="#898781">0</text>
+<line x1="68" y1="203.62" x2="336" y2="203.62" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="207.62" text-anchor="end" font-size="10" fill="#898781">20</text>
+<line x1="68" y1="187.24" x2="336" y2="187.24" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="191.24" text-anchor="end" font-size="10" fill="#898781">40</text>
+<line x1="68" y1="170.86" x2="336" y2="170.86" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="174.86" text-anchor="end" font-size="10" fill="#898781">60</text>
+<line x1="68" y1="154.48" x2="336" y2="154.48" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="158.48" text-anchor="end" font-size="10" fill="#898781">80</text>
+<line x1="68" y1="138.1" x2="336" y2="138.1" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="142.1" text-anchor="end" font-size="10" fill="#898781">100</text>
+<line x1="68" y1="220" x2="336" y2="220" stroke="#c3c2b7" stroke-width="1"/>
+<path d="M90.67 220 V143.73 Q90.67 139.73 94.67 139.73 H130.67 Q134.67 139.73 134.67 143.73 V220 Z" fill="#2a78d6" tabindex="0"><title>REPL (Code Mode): 98,0% de acerto</title></path>
+<text x="112.67" y="133.73" text-anchor="middle" font-size="11" fill="#0b0b0b">98,0%</text>
+<path d="M180 220 V143.73 Q180 139.73 184 139.73 H220 Q224 139.73 224 143.73 V220 Z" fill="#eb6834" tabindex="0"><title>Tool calling em JSON: 98,0% de acerto</title></path>
+<text x="202" y="133.73" text-anchor="middle" font-size="11" fill="#0b0b0b">98,0%</text>
+<path d="M269.33 220 V143.73 Q269.33 139.73 273.33 139.73 H309.33 Q313.33 139.73 313.33 143.73 V220 Z" fill="#2bb5c8" tabindex="0"><title>Tool calling em JSON, com agregação: 98,0% de acerto</title></path>
+<text x="291.33" y="133.73" text-anchor="middle" font-size="11" fill="#0b0b0b">98,0%</text>
+<text x="112.67" y="236" text-anchor="middle" font-size="11" fill="#52514e">REPL</text>
+<text x="202" y="236" text-anchor="middle" font-size="11" fill="#52514e">JSON</text>
+<text x="291.33" y="236" text-anchor="middle" font-size="11" fill="#52514e">JSON agreg.</text>
+<text x="372" y="114" font-size="13" font-weight="500" fill="#0b0b0b">Iterações por pedido</text>
+<text x="410" y="224" text-anchor="end" font-size="10" fill="#898781">0</text>
+<line x1="416" y1="205.67" x2="684" y2="205.67" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="209.67" text-anchor="end" font-size="10" fill="#898781">1</text>
+<line x1="416" y1="191.33" x2="684" y2="191.33" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="195.33" text-anchor="end" font-size="10" fill="#898781">2</text>
+<line x1="416" y1="177" x2="684" y2="177" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="181" text-anchor="end" font-size="10" fill="#898781">3</text>
+<line x1="416" y1="162.67" x2="684" y2="162.67" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="166.67" text-anchor="end" font-size="10" fill="#898781">4</text>
+<line x1="416" y1="148.33" x2="684" y2="148.33" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="152.33" text-anchor="end" font-size="10" fill="#898781">5</text>
+<line x1="416" y1="134" x2="684" y2="134" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="138" text-anchor="end" font-size="10" fill="#898781">6</text>
+<line x1="416" y1="220" x2="684" y2="220" stroke="#c3c2b7" stroke-width="1"/>
+<path d="M438.67 220 V145.88 Q438.67 141.88 442.67 141.88 H478.67 Q482.67 141.88 482.67 145.88 V220 Z" fill="#2a78d6" tabindex="0"><title>REPL (Code Mode): 5,45 iterações por pedido</title></path>
+<text x="460.67" y="135.88" text-anchor="middle" font-size="11" fill="#0b0b0b">5,45</text>
+<path d="M528 220 V169.1 Q528 165.1 532 165.1 H568 Q572 165.1 572 169.1 V220 Z" fill="#eb6834" tabindex="0"><title>Tool calling em JSON: 3,83 iterações por pedido</title></path>
+<text x="550" y="159.1" text-anchor="middle" font-size="11" fill="#0b0b0b">3,83</text>
+<path d="M617.33 220 V163.8 Q617.33 159.8 621.33 159.8 H657.33 Q661.33 159.8 661.33 163.8 V220 Z" fill="#2bb5c8" tabindex="0"><title>Tool calling em JSON, com agregação: 4,20 iterações por pedido</title></path>
+<text x="639.33" y="153.8" text-anchor="middle" font-size="11" fill="#0b0b0b">4,20</text>
+<text x="460.67" y="236" text-anchor="middle" font-size="11" fill="#52514e">REPL</text>
+<text x="550" y="236" text-anchor="middle" font-size="11" fill="#52514e">JSON</text>
+<text x="639.33" y="236" text-anchor="middle" font-size="11" fill="#52514e">JSON agreg.</text>
+<text x="24" y="284" font-size="13" font-weight="500" fill="#0b0b0b">Tokens de entrada por rodada (mil)</text>
+<text x="62" y="394" text-anchor="end" font-size="10" fill="#898781">0</text>
+<line x1="68" y1="372.8" x2="336" y2="372.8" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="376.8" text-anchor="end" font-size="10" fill="#898781">5</text>
+<line x1="68" y1="355.6" x2="336" y2="355.6" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="359.6" text-anchor="end" font-size="10" fill="#898781">10</text>
+<line x1="68" y1="338.4" x2="336" y2="338.4" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="342.4" text-anchor="end" font-size="10" fill="#898781">15</text>
+<line x1="68" y1="321.2" x2="336" y2="321.2" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="325.2" text-anchor="end" font-size="10" fill="#898781">20</text>
+<line x1="68" y1="304" x2="336" y2="304" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="308" text-anchor="end" font-size="10" fill="#898781">25</text>
+<line x1="68" y1="390" x2="336" y2="390" stroke="#c3c2b7" stroke-width="1"/>
+<path d="M90.67 390 V335.74 Q90.67 331.74 94.67 331.74 H130.67 Q134.67 331.74 134.67 335.74 V390 Z" fill="#2a78d6" tabindex="0"><title>REPL (Code Mode): 16.935 tokens de entrada por rodada</title></path>
+<text x="112.67" y="325.74" text-anchor="middle" font-size="11" fill="#0b0b0b">16.935</text>
+<path d="M180 390 V338.59 Q180 334.59 184 334.59 H220 Q224 334.59 224 338.59 V390 Z" fill="#eb6834" tabindex="0"><title>Tool calling em JSON: 16.107 tokens de entrada por rodada</title></path>
+<text x="202" y="328.59" text-anchor="middle" font-size="11" fill="#0b0b0b">16.107</text>
+<path d="M269.33 390 V330.7 Q269.33 326.7 273.33 326.7 H309.33 Q313.33 326.7 313.33 330.7 V390 Z" fill="#2bb5c8" tabindex="0"><title>Tool calling em JSON, com agregação: 18.400 tokens de entrada por rodada</title></path>
+<text x="291.33" y="320.7" text-anchor="middle" font-size="11" fill="#0b0b0b">18.400</text>
+<text x="112.67" y="406" text-anchor="middle" font-size="11" fill="#52514e">REPL</text>
+<text x="202" y="406" text-anchor="middle" font-size="11" fill="#52514e">JSON</text>
+<text x="291.33" y="406" text-anchor="middle" font-size="11" fill="#52514e">JSON agreg.</text>
+<text x="372" y="284" font-size="13" font-weight="500" fill="#0b0b0b">Pico de contexto médio (tokens)</text>
+<text x="410" y="394" text-anchor="end" font-size="10" fill="#898781">0</text>
+<line x1="416" y1="368.5" x2="684" y2="368.5" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="372.5" text-anchor="end" font-size="10" fill="#898781">2.000</text>
+<line x1="416" y1="347" x2="684" y2="347" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="351" text-anchor="end" font-size="10" fill="#898781">4.000</text>
+<line x1="416" y1="325.5" x2="684" y2="325.5" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="329.5" text-anchor="end" font-size="10" fill="#898781">6.000</text>
+<line x1="416" y1="304" x2="684" y2="304" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="308" text-anchor="end" font-size="10" fill="#898781">8.000</text>
+<line x1="416" y1="390" x2="684" y2="390" stroke="#c3c2b7" stroke-width="1"/>
+<path d="M438.67 390 V350.03 Q438.67 346.03 442.67 346.03 H478.67 Q482.67 346.03 482.67 350.03 V390 Z" fill="#2a78d6" tabindex="0"><title>REPL (Code Mode): 4.090 tokens de pico de contexto</title></path>
+<text x="460.67" y="340.03" text-anchor="middle" font-size="11" fill="#0b0b0b">4.090</text>
+<path d="M528 390 V329.84 Q528 325.84 532 325.84 H568 Q572 325.84 572 329.84 V390 Z" fill="#eb6834" tabindex="0"><title>Tool calling em JSON: 5.969 tokens de pico de contexto</title></path>
+<text x="550" y="319.84" text-anchor="middle" font-size="11" fill="#0b0b0b">5.969</text>
+<path d="M617.33 390 V332.74 Q617.33 328.74 621.33 328.74 H657.33 Q661.33 328.74 661.33 332.74 V390 Z" fill="#2bb5c8" tabindex="0"><title>Tool calling em JSON, com agregação: 5.699 tokens de pico de contexto</title></path>
+<text x="639.33" y="322.74" text-anchor="middle" font-size="11" fill="#0b0b0b">5.699</text>
+<text x="460.67" y="406" text-anchor="middle" font-size="11" fill="#52514e">REPL</text>
+<text x="550" y="406" text-anchor="middle" font-size="11" fill="#52514e">JSON</text>
+<text x="639.33" y="406" text-anchor="middle" font-size="11" fill="#52514e">JSON agreg.</text>
+<text x="24" y="454" font-size="13" font-weight="500" fill="#0b0b0b">Caracteres de observação por rodada (mil)</text>
+<text x="62" y="564" text-anchor="end" font-size="10" fill="#898781">0</text>
+<line x1="68" y1="545.67" x2="336" y2="545.67" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="549.67" text-anchor="end" font-size="10" fill="#898781">2</text>
+<line x1="68" y1="531.33" x2="336" y2="531.33" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="535.33" text-anchor="end" font-size="10" fill="#898781">4</text>
+<line x1="68" y1="517" x2="336" y2="517" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="521" text-anchor="end" font-size="10" fill="#898781">6</text>
+<line x1="68" y1="502.67" x2="336" y2="502.67" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="506.67" text-anchor="end" font-size="10" fill="#898781">8</text>
+<line x1="68" y1="488.33" x2="336" y2="488.33" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="492.33" text-anchor="end" font-size="10" fill="#898781">10</text>
+<line x1="68" y1="474" x2="336" y2="474" stroke="#e1e0d9" stroke-width="1"/>
+<text x="62" y="478" text-anchor="end" font-size="10" fill="#898781">12</text>
+<line x1="68" y1="560" x2="336" y2="560" stroke="#c3c2b7" stroke-width="1"/>
+<path d="M90.67 560 V528.68 Q90.67 524.68 94.67 524.68 H130.67 Q134.67 524.68 134.67 528.68 V560 Z" fill="#2a78d6" tabindex="0"><title>REPL (Code Mode): 4.928 caracteres de observação por rodada</title></path>
+<text x="112.67" y="518.68" text-anchor="middle" font-size="11" fill="#0b0b0b">4.928</text>
+<path d="M180 560 V496 Q180 492 184 492 H220 Q224 492 224 496 V560 Z" fill="#eb6834" tabindex="0"><title>Tool calling em JSON: 9.488 caracteres de observação por rodada</title></path>
+<text x="202" y="486" text-anchor="middle" font-size="11" fill="#0b0b0b">9.488</text>
+<path d="M269.33 560 V517.34 Q269.33 513.34 273.33 513.34 H309.33 Q313.33 513.34 313.33 517.34 V560 Z" fill="#2bb5c8" tabindex="0"><title>Tool calling em JSON, com agregação: 6.511 caracteres de observação por rodada</title></path>
+<text x="291.33" y="507.34" text-anchor="middle" font-size="11" fill="#0b0b0b">6.511</text>
+<text x="112.67" y="576" text-anchor="middle" font-size="11" fill="#52514e">REPL</text>
+<text x="202" y="576" text-anchor="middle" font-size="11" fill="#52514e">JSON</text>
+<text x="291.33" y="576" text-anchor="middle" font-size="11" fill="#52514e">JSON agreg.</text>
+<text x="372" y="454" font-size="13" font-weight="500" fill="#0b0b0b">Custo por acerto (milésimos de US$)</text>
+<text x="410" y="564" text-anchor="end" font-size="10" fill="#898781">0,0</text>
+<line x1="416" y1="542.8" x2="684" y2="542.8" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="546.8" text-anchor="end" font-size="10" fill="#898781">0,2</text>
+<line x1="416" y1="525.6" x2="684" y2="525.6" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="529.6" text-anchor="end" font-size="10" fill="#898781">0,4</text>
+<line x1="416" y1="508.4" x2="684" y2="508.4" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="512.4" text-anchor="end" font-size="10" fill="#898781">0,6</text>
+<line x1="416" y1="491.2" x2="684" y2="491.2" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="495.2" text-anchor="end" font-size="10" fill="#898781">0,8</text>
+<line x1="416" y1="474" x2="684" y2="474" stroke="#e1e0d9" stroke-width="1"/>
+<text x="410" y="478" text-anchor="end" font-size="10" fill="#898781">1,0</text>
+<line x1="416" y1="560" x2="684" y2="560" stroke="#c3c2b7" stroke-width="1"/>
+<path d="M438.67 560 V500.21 Q438.67 496.21 442.67 496.21 H478.67 Q482.67 496.21 482.67 500.21 V560 Z" fill="#2a78d6" tabindex="0"><title>REPL (Code Mode): 0,742 milésimos de US$ por acerto</title></path>
+<text x="460.67" y="490.21" text-anchor="middle" font-size="11" fill="#0b0b0b">0,742</text>
+<path d="M528 560 V502.22 Q528 498.22 532 498.22 H568 Q572 498.22 572 502.22 V560 Z" fill="#eb6834" tabindex="0"><title>Tool calling em JSON: 0,718 milésimos de US$ por acerto</title></path>
+<text x="550" y="492.22" text-anchor="middle" font-size="11" fill="#0b0b0b">0,718</text>
+<path d="M617.33 560 V503.12 Q617.33 499.12 621.33 499.12 H657.33 Q661.33 499.12 661.33 503.12 V560 Z" fill="#2bb5c8" tabindex="0"><title>Tool calling em JSON, com agregação: 0,708 milésimos de US$ por acerto</title></path>
+<text x="639.33" y="493.12" text-anchor="middle" font-size="11" fill="#0b0b0b">0,708</text>
+<text x="460.67" y="576" text-anchor="middle" font-size="11" fill="#52514e">REPL</text>
+<text x="550" y="576" text-anchor="middle" font-size="11" fill="#52514e">JSON</text>
+<text x="639.33" y="576" text-anchor="middle" font-size="11" fill="#52514e">JSON agreg.</text>
+</svg>
+</section>
+<section>
+<h2>Taxa de acerto por execução</h2>
+<p class="leitura">Cada ponto é uma execução real. Quanto mais alto, mais rodadas aprovadas. Cada variante tem a sua linha.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t1 d1" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t1">Taxa de acerto por execução</title>
+<desc id="d1">Taxa de acerto por execução, em porcentagem. REPL (Code Mode): execução 1 98,0%; Tool calling em JSON: execução 1 98,0%; Tool calling em JSON, com agregação: execução 1 98,0%.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Taxa de acerto por execução</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<line x1="168" y1="54" x2="184" y2="54" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="176" cy="54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">Tool calling em JSON</text>
+<line x1="338" y1="54" x2="354" y2="54" stroke="#2bb5c8" stroke-width="2" stroke-linecap="round"/>
+<circle cx="346" cy="54" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2"/>
+<text x="360" y="58" font-size="12" fill="#52514e">Tool calling em JSON, com agregação</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="301.62" x2="696" y2="301.62" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="305.62" text-anchor="end" font-size="11" fill="#898781">20</text>
+<line x1="72" y1="253.24" x2="696" y2="253.24" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="257.24" text-anchor="end" font-size="11" fill="#898781">40</text>
+<line x1="72" y1="204.86" x2="696" y2="204.86" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="208.86" text-anchor="end" font-size="11" fill="#898781">60</text>
+<line x1="72" y1="156.48" x2="696" y2="156.48" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="160.48" text-anchor="end" font-size="11" fill="#898781">80</text>
+<line x1="72" y1="108.1" x2="696" y2="108.1" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="112.1" text-anchor="end" font-size="11" fill="#898781">100</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="384" y="366" text-anchor="middle" font-size="11" fill="#898781">1</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Rodadas aprovadas (%)</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Execução</text>
+<circle cx="384" cy="112.93" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (REPL (Code Mode)): 98,0% de acerto (98 de 100 rodadas)</title></circle>
+<circle cx="384" cy="112.93" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (Tool calling em JSON): 98,0% de acerto (98 de 100 rodadas)</title></circle>
+<circle cx="384" cy="112.93" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (Tool calling em JSON, com agregação): 98,0% de acerto (98 de 100 rodadas)</title></circle>
+</svg>
+</section>
+<section>
+<h2>Taxa de acerto por categoria</h2>
+<p class="leitura">Uma linha por categoria, nas mesmas execuções da variante REPL.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t2 d2" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t2">Taxa de acerto por categoria: REPL (Code Mode)</title>
+<desc id="d2">Taxa de acerto por categoria, em porcentagem (REPL (Code Mode)). Conformidade: execução 1 100,0%; Consulta: execução 1 100,0%; Cruzamento: execução 1 96,0%; Permissao: execução 1 96,0%.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Taxa de acerto por categoria: REPL (Code Mode)</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">Conformidade</text>
+<line x1="142" y1="54" x2="158" y2="54" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<polygon points="150,49 154.5,57.5 145.5,57.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="164" y="58" font-size="12" fill="#52514e">Consulta</text>
+<line x1="234" y1="54" x2="250" y2="54" stroke="#6250d6" stroke-width="2" stroke-linecap="round"/>
+<rect x="238" y="50" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2"/>
+<text x="256" y="58" font-size="12" fill="#52514e">Cruzamento</text>
+<line x1="339" y1="54" x2="355" y2="54" stroke="#1baf7a" stroke-width="2" stroke-linecap="round"/>
+<polygon points="347,49 352,54 347,59 342,54" fill="#1baf7a" stroke="#ffffff" stroke-width="2"/>
+<text x="361" y="58" font-size="12" fill="#52514e">Permissao</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="301.62" x2="696" y2="301.62" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="305.62" text-anchor="end" font-size="11" fill="#898781">20</text>
+<line x1="72" y1="253.24" x2="696" y2="253.24" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="257.24" text-anchor="end" font-size="11" fill="#898781">40</text>
+<line x1="72" y1="204.86" x2="696" y2="204.86" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="208.86" text-anchor="end" font-size="11" fill="#898781">60</text>
+<line x1="72" y1="156.48" x2="696" y2="156.48" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="160.48" text-anchor="end" font-size="11" fill="#898781">80</text>
+<line x1="72" y1="108.1" x2="696" y2="108.1" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="112.1" text-anchor="end" font-size="11" fill="#898781">100</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="384" y="366" text-anchor="middle" font-size="11" fill="#898781">1</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Rodadas aprovadas (%)</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Execução</text>
+<circle cx="384" cy="108.1" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1, Conformidade: 100,0% de acerto</title></circle>
+<polygon points="384,103.1 388.5,111.6 379.5,111.6" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1, Consulta: 100,0% de acerto</title></polygon>
+<rect x="380" y="113.77" width="8" height="8" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1, Cruzamento: 96,0% de acerto</title></rect>
+<polygon points="384,112.77 389,117.77 384,122.77 379,117.77" fill="#1baf7a" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1, Permissao: 96,0% de acerto</title></polygon>
+</svg>
+</section>
+<section>
+<h2>Iterações por pedido</h2>
+<p class="leitura">Quantas chamadas ao modelo cada pedido levou, em média. Menos iterações custam menos.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t3 d3" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t3">Iterações por pedido, por execução</title>
+<desc id="d3">Iterações médias por pedido, por execução. REPL (Code Mode): execução 1 5,45; Tool calling em JSON: execução 1 3,83; Tool calling em JSON, com agregação: execução 1 4,20.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Iterações por pedido, por execução</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<line x1="168" y1="54" x2="184" y2="54" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="176" cy="54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">Tool calling em JSON</text>
+<line x1="338" y1="54" x2="354" y2="54" stroke="#2bb5c8" stroke-width="2" stroke-linecap="round"/>
+<circle cx="346" cy="54" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2"/>
+<text x="360" y="58" font-size="12" fill="#52514e">Tool calling em JSON, com agregação</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="307.67" x2="696" y2="307.67" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="311.67" text-anchor="end" font-size="11" fill="#898781">1</text>
+<line x1="72" y1="265.33" x2="696" y2="265.33" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="269.33" text-anchor="end" font-size="11" fill="#898781">2</text>
+<line x1="72" y1="223" x2="696" y2="223" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="227" text-anchor="end" font-size="11" fill="#898781">3</text>
+<line x1="72" y1="180.67" x2="696" y2="180.67" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="184.67" text-anchor="end" font-size="11" fill="#898781">4</text>
+<line x1="72" y1="138.33" x2="696" y2="138.33" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="142.33" text-anchor="end" font-size="11" fill="#898781">5</text>
+<line x1="72" y1="96" x2="696" y2="96" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="100" text-anchor="end" font-size="11" fill="#898781">6</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="384" y="366" text-anchor="middle" font-size="11" fill="#898781">1</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Iterações por pedido</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Execução</text>
+<circle cx="384" cy="119.28" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (REPL (Code Mode)): 5,5 iterações por pedido</title></circle>
+<circle cx="384" cy="187.86" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (Tool calling em JSON): 3,8 iterações por pedido</title></circle>
+<circle cx="384" cy="172.2" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (Tool calling em JSON, com agregação): 4,2 iterações por pedido</title></circle>
+</svg>
+</section>
+<section>
+<h2>Iterações contra tokens de entrada</h2>
+<p class="leitura">Cada ponto é uma execução: mais à direita, mais iterações; mais alto, mais tokens por rodada.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t4 d4" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t4">Iterações por pedido contra tokens de entrada</title>
+<desc id="d4">Iterações médias por pedido (horizontal) contra tokens de entrada por rodada (vertical), uma marca por execução com o número ao lado. execução 1 (REPL (Code Mode)): 5,45 iterações e 16,9 mil tokens de entrada; execução 1 (Tool calling em JSON): 3,83 iterações e 16,1 mil tokens de entrada; execução 1 (Tool calling em JSON, com agregação): 4,20 iterações e 18,4 mil tokens de entrada.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Iterações por pedido contra tokens de entrada</text>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<circle cx="176" cy="54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">Tool calling em JSON</text>
+<circle cx="346" cy="54" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2"/>
+<text x="360" y="58" font-size="12" fill="#52514e">Tool calling em JSON, com agregação</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="299.2" x2="696" y2="299.2" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="303.2" text-anchor="end" font-size="11" fill="#898781">5</text>
+<line x1="72" y1="248.4" x2="696" y2="248.4" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="252.4" text-anchor="end" font-size="11" fill="#898781">10</text>
+<line x1="72" y1="197.6" x2="696" y2="197.6" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="201.6" text-anchor="end" font-size="11" fill="#898781">15</text>
+<line x1="72" y1="146.8" x2="696" y2="146.8" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="150.8" text-anchor="end" font-size="11" fill="#898781">20</text>
+<line x1="72" y1="96" x2="696" y2="96" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="100" text-anchor="end" font-size="11" fill="#898781">25</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="72" y="366" text-anchor="middle" font-size="11" fill="#898781">0</text>
+<text x="176" y="366" text-anchor="middle" font-size="11" fill="#898781">1</text>
+<text x="280" y="366" text-anchor="middle" font-size="11" fill="#898781">2</text>
+<text x="384" y="366" text-anchor="middle" font-size="11" fill="#898781">3</text>
+<text x="488" y="366" text-anchor="middle" font-size="11" fill="#898781">4</text>
+<text x="592" y="366" text-anchor="middle" font-size="11" fill="#898781">5</text>
+<text x="696" y="366" text-anchor="middle" font-size="11" fill="#898781">6</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Tokens de entrada por rodada (mil)</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Iterações por pedido</text>
+<circle cx="638.8" cy="177.94" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (REPL (Code Mode)): 5,5 iterações, 16,9 mil tokens de entrada</title></circle>
+<circle cx="470.32" cy="186.35" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (Tool calling em JSON): 3,8 iterações, 16,1 mil tokens de entrada</title></circle>
+<circle cx="508.8" cy="163.06" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (Tool calling em JSON, com agregação): 4,2 iterações, 18,4 mil tokens de entrada</title></circle>
+<text x="645.8" y="181.94" font-size="11" fill="#52514e">1</text>
+<text x="477.32" y="190.35" font-size="11" fill="#52514e">1</text>
+<text x="515.8" y="167.06" font-size="11" fill="#52514e">1</text>
+</svg>
+</section>
+<section>
+<h2>Contexto ao longo dos turnos</h2>
+<p class="leitura">Quanto cresce o contexto enviado ao modelo a cada turno do agente.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t5 d5" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t5">Tokens de entrada por turno do agente</title>
+<desc id="d5">Tokens de entrada no turno, por turno do agente, uma linha por curva. REPL (Code Mode): turno 1 1.414, turno 2 2.862, turno 3 3.101, turno 4 3.462, turno 5 3.834, turno 6 4.063, turno 7 4.339, turno 8 4.409; Tool calling em JSON: turno 1 2.012, turno 2 3.286, turno 3 5.190, turno 4 6.524, turno 5 8.010; Tool calling em JSON, com agregação: turno 1 2.679, turno 2 3.953, turno 3 4.848, turno 4 5.595, turno 5 5.858.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Tokens de entrada por turno do agente</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<line x1="168" y1="54" x2="184" y2="54" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="176" cy="54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">Tool calling em JSON</text>
+<line x1="338" y1="54" x2="354" y2="54" stroke="#6250d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="346" cy="54" r="4.5" fill="#6250d6" stroke="#ffffff" stroke-width="2"/>
+<text x="360" y="58" font-size="12" fill="#52514e">Tool calling em JSON, com agregação</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="299.2" x2="696" y2="299.2" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="303.2" text-anchor="end" font-size="11" fill="#898781">2.000</text>
+<line x1="72" y1="248.4" x2="696" y2="248.4" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="252.4" text-anchor="end" font-size="11" fill="#898781">4.000</text>
+<line x1="72" y1="197.6" x2="696" y2="197.6" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="201.6" text-anchor="end" font-size="11" fill="#898781">6.000</text>
+<line x1="72" y1="146.8" x2="696" y2="146.8" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="150.8" text-anchor="end" font-size="11" fill="#898781">8.000</text>
+<line x1="72" y1="96" x2="696" y2="96" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="100" text-anchor="end" font-size="11" fill="#898781">10.000</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="72" y="366" text-anchor="middle" font-size="11" fill="#898781">0</text>
+<text x="196.8" y="366" text-anchor="middle" font-size="11" fill="#898781">2</text>
+<text x="321.6" y="366" text-anchor="middle" font-size="11" fill="#898781">4</text>
+<text x="446.4" y="366" text-anchor="middle" font-size="11" fill="#898781">6</text>
+<text x="571.2" y="366" text-anchor="middle" font-size="11" fill="#898781">8</text>
+<text x="696" y="366" text-anchor="middle" font-size="11" fill="#898781">10</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Tokens de entrada no turno</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Turno do agente</text>
+<path d="M134.4 314.08 L196.8 277.31 L259.2 271.23 L321.6 262.07 L384 252.62 L446.4 246.8 L508.8 239.79 L571.2 238.01" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M134.4 298.9 L196.8 266.54 L259.2 218.17 L321.6 184.29 L384 146.55" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M134.4 281.95 L196.8 249.59 L259.2 226.86 L321.6 207.89 L384 201.21" fill="none" stroke="#6250d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="134.4" cy="314.08" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 1 (REPL (Code Mode)): 1.414 tokens de entrada</title></circle>
+<circle cx="196.8" cy="277.31" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 2 (REPL (Code Mode)): 2.862 tokens de entrada</title></circle>
+<circle cx="259.2" cy="271.23" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 3 (REPL (Code Mode)): 3.101 tokens de entrada</title></circle>
+<circle cx="321.6" cy="262.07" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 4 (REPL (Code Mode)): 3.462 tokens de entrada</title></circle>
+<circle cx="384" cy="252.62" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 5 (REPL (Code Mode)): 3.834 tokens de entrada</title></circle>
+<circle cx="446.4" cy="246.8" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 6 (REPL (Code Mode)): 4.063 tokens de entrada</title></circle>
+<circle cx="508.8" cy="239.79" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 7 (REPL (Code Mode)): 4.339 tokens de entrada</title></circle>
+<circle cx="571.2" cy="238.01" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 8 (REPL (Code Mode)): 4.409 tokens de entrada</title></circle>
+<circle cx="134.4" cy="298.9" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 1 (Tool calling em JSON): 2.012 tokens de entrada</title></circle>
+<circle cx="196.8" cy="266.54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 2 (Tool calling em JSON): 3.286 tokens de entrada</title></circle>
+<circle cx="259.2" cy="218.17" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 3 (Tool calling em JSON): 5.190 tokens de entrada</title></circle>
+<circle cx="321.6" cy="184.29" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 4 (Tool calling em JSON): 6.524 tokens de entrada</title></circle>
+<circle cx="384" cy="146.55" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 5 (Tool calling em JSON): 8.010 tokens de entrada</title></circle>
+<circle cx="134.4" cy="281.95" r="4.5" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 1 (Tool calling em JSON, com agregação): 2.679 tokens de entrada</title></circle>
+<circle cx="196.8" cy="249.59" r="4.5" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 2 (Tool calling em JSON, com agregação): 3.953 tokens de entrada</title></circle>
+<circle cx="259.2" cy="226.86" r="4.5" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 3 (Tool calling em JSON, com agregação): 4.848 tokens de entrada</title></circle>
+<circle cx="321.6" cy="207.89" r="4.5" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 4 (Tool calling em JSON, com agregação): 5.595 tokens de entrada</title></circle>
+<circle cx="384" cy="201.21" r="4.5" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 5 (Tool calling em JSON, com agregação): 5.858 tokens de entrada</title></circle>
+</svg>
+</section>
+<section>
+<h2>Custo por rodada</h2>
+<p class="leitura">Custo médio de uma rodada, em milésimos de dólar, por execução.</p>
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t6 d6" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t6">Custo por rodada</title>
+<desc id="d6">Custo por rodada, em milésimos de dólar. REPL (Code Mode): execução 1 0,727; Tool calling em JSON: execução 1 0,704; Tool calling em JSON, com agregação: execução 1 0,694.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Custo por rodada</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<line x1="168" y1="54" x2="184" y2="54" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="176" cy="54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">Tool calling em JSON</text>
+<line x1="338" y1="54" x2="354" y2="54" stroke="#2bb5c8" stroke-width="2" stroke-linecap="round"/>
+<circle cx="346" cy="54" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2"/>
+<text x="360" y="58" font-size="12" fill="#52514e">Tool calling em JSON, com agregação</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0,0</text>
+<line x1="72" y1="286.5" x2="696" y2="286.5" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="290.5" text-anchor="end" font-size="11" fill="#898781">0,2</text>
+<line x1="72" y1="223" x2="696" y2="223" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="227" text-anchor="end" font-size="11" fill="#898781">0,4</text>
+<line x1="72" y1="159.5" x2="696" y2="159.5" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="163.5" text-anchor="end" font-size="11" fill="#898781">0,6</text>
+<line x1="72" y1="96" x2="696" y2="96" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="100" text-anchor="end" font-size="11" fill="#898781">0,8</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="384" y="366" text-anchor="middle" font-size="11" fill="#898781">1</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Custo por rodada (milésimos de US$)</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Execução</text>
+<circle cx="384" cy="119.21" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (REPL (Code Mode)): US$ 0,73 por mil rodadas</title></circle>
+<circle cx="384" cy="126.5" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (Tool calling em JSON): US$ 0,70 por mil rodadas</title></circle>
+<circle cx="384" cy="129.74" r="4.5" fill="#2bb5c8" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Execução 1 (Tool calling em JSON, com agregação): US$ 0,69 por mil rodadas</title></circle>
+</svg>
+</section>
+</main>
+<script>
+(function () {
+  'use strict';
+  var balao = document.createElement('div');
+  balao.className = 'dica';
+  balao.setAttribute('role', 'tooltip');
+  balao.hidden = true;
+  document.body.appendChild(balao);
+  var ativo = null;
+
+  function achar(alvo) {
+    var n = alvo;
+    while (n && n.nodeType === 1 && n.localName !== 'svg') {
+      for (var i = 0; i < n.children.length; i++) {
+        if (n.children[i].localName === 'title') {
+          return { titulo: n.children[i] };
+        }
+      }
+      n = n.parentNode;
+    }
+    return null;
+  }
+
+  function posicionar(x, y) {
+    var w = balao.offsetWidth;
+    var h = balao.offsetHeight;
+    var esquerda = x + 14;
+    var topo = y + 14;
+    if (esquerda + w > window.innerWidth - 8) esquerda = Math.max(8, x - w - 14);
+    if (topo + h > window.innerHeight - 8) topo = Math.max(8, y - h - 14);
+    balao.style.left = (esquerda + window.scrollX) + 'px';
+    balao.style.top = (topo + window.scrollY) + 'px';
+  }
+
+  function esconder() {
+    if (!ativo) return;
+    ativo.titulo.textContent = ativo.texto;
+    ativo = null;
+    balao.hidden = true;
+  }
+
+  function mostrar(achado, x, y) {
+    if (ativo && ativo.titulo === achado.titulo) {
+      posicionar(x, y);
+      return;
+    }
+    esconder();
+    ativo = { titulo: achado.titulo, texto: achado.titulo.textContent };
+    achado.titulo.textContent = '';
+    balao.textContent = ativo.texto;
+    balao.hidden = false;
+    posicionar(x, y);
+  }
+
+  document.addEventListener('pointerover', function (e) {
+    if (e.pointerType !== 'mouse') return;
+    var achado = achar(e.target);
+    if (achado) mostrar(achado, e.clientX, e.clientY); else esconder();
+  });
+  document.addEventListener('pointermove', function (e) {
+    if (e.pointerType === 'mouse' && ativo) posicionar(e.clientX, e.clientY);
+  });
+  document.addEventListener('pointerout', function (e) {
+    if (e.pointerType === 'mouse' && !e.relatedTarget) esconder();
+  });
+  document.addEventListener('pointerdown', function (e) {
+    if (e.pointerType !== 'touch') return;
+    var achado = achar(e.target);
+    if (achado) mostrar(achado, e.clientX, e.clientY); else esconder();
+  });
+  document.addEventListener('focusin', function (e) {
+    var achado = achar(e.target);
+    if (!achado || !e.target.getBoundingClientRect) return;
+    var r = e.target.getBoundingClientRect();
+    mostrar(achado, r.left + r.width / 2, r.top);
+  });
+  document.addEventListener('focusout', esconder);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') esconder();
+  });
+})();
+</script>
+</body>
+</html>

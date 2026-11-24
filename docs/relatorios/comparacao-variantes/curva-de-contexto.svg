@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="400" viewBox="0 0 720 400" role="img" aria-labelledby="t d" font-family="Helvetica Neue, Helvetica, Arial, sans-serif">
+<title id="t">Tokens de entrada por turno do agente</title>
+<desc id="d">Tokens de entrada no turno, por turno do agente, uma linha por curva. REPL (Code Mode): turno 1 1.414, turno 2 2.862, turno 3 3.101, turno 4 3.462, turno 5 3.834, turno 6 4.063, turno 7 4.339, turno 8 4.409; Tool calling em JSON: turno 1 2.012, turno 2 3.286, turno 3 5.190, turno 4 6.524, turno 5 8.010; Tool calling em JSON, com agregação: turno 1 2.679, turno 2 3.953, turno 3 4.848, turno 4 5.595, turno 5 5.858.</desc>
+<rect x="0.5" y="0.5" width="719" height="399" rx="8" fill="#ffffff" stroke="#e1e0d9" stroke-width="1"/>
+<text x="24" y="34" font-size="16" font-weight="500" fill="#0b0b0b">Tokens de entrada por turno do agente</text>
+<line x1="24" y1="54" x2="40" y2="54" stroke="#2a78d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="32" cy="54" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2"/>
+<text x="46" y="58" font-size="12" fill="#52514e">REPL (Code Mode)</text>
+<line x1="168" y1="54" x2="184" y2="54" stroke="#eb6834" stroke-width="2" stroke-linecap="round"/>
+<circle cx="176" cy="54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2"/>
+<text x="190" y="58" font-size="12" fill="#52514e">Tool calling em JSON</text>
+<line x1="338" y1="54" x2="354" y2="54" stroke="#6250d6" stroke-width="2" stroke-linecap="round"/>
+<circle cx="346" cy="54" r="4.5" fill="#6250d6" stroke="#ffffff" stroke-width="2"/>
+<text x="360" y="58" font-size="12" fill="#52514e">Tool calling em JSON, com agregação</text>
+<text x="64" y="354" text-anchor="end" font-size="11" fill="#898781">0</text>
+<line x1="72" y1="299.2" x2="696" y2="299.2" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="303.2" text-anchor="end" font-size="11" fill="#898781">2.000</text>
+<line x1="72" y1="248.4" x2="696" y2="248.4" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="252.4" text-anchor="end" font-size="11" fill="#898781">4.000</text>
+<line x1="72" y1="197.6" x2="696" y2="197.6" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="201.6" text-anchor="end" font-size="11" fill="#898781">6.000</text>
+<line x1="72" y1="146.8" x2="696" y2="146.8" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="150.8" text-anchor="end" font-size="11" fill="#898781">8.000</text>
+<line x1="72" y1="96" x2="696" y2="96" stroke="#e1e0d9" stroke-width="1"/>
+<text x="64" y="100" text-anchor="end" font-size="11" fill="#898781">10.000</text>
+<line x1="72" y1="350" x2="696" y2="350" stroke="#c3c2b7" stroke-width="1"/>
+<text x="72" y="366" text-anchor="middle" font-size="11" fill="#898781">0</text>
+<text x="196.8" y="366" text-anchor="middle" font-size="11" fill="#898781">2</text>
+<text x="321.6" y="366" text-anchor="middle" font-size="11" fill="#898781">4</text>
+<text x="446.4" y="366" text-anchor="middle" font-size="11" fill="#898781">6</text>
+<text x="571.2" y="366" text-anchor="middle" font-size="11" fill="#898781">8</text>
+<text x="696" y="366" text-anchor="middle" font-size="11" fill="#898781">10</text>
+<text x="22" y="223" transform="rotate(-90 22 223)" text-anchor="middle" font-size="11" fill="#52514e">Tokens de entrada no turno</text>
+<text x="384" y="386" text-anchor="middle" font-size="11" fill="#52514e">Turno do agente</text>
+<path d="M134.4 314.08 L196.8 277.31 L259.2 271.23 L321.6 262.07 L384 252.62 L446.4 246.8 L508.8 239.79 L571.2 238.01" fill="none" stroke="#2a78d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M134.4 298.9 L196.8 266.54 L259.2 218.17 L321.6 184.29 L384 146.55" fill="none" stroke="#eb6834" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<path d="M134.4 281.95 L196.8 249.59 L259.2 226.86 L321.6 207.89 L384 201.21" fill="none" stroke="#6250d6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="134.4" cy="314.08" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 1 (REPL (Code Mode)): 1.414 tokens de entrada</title></circle>
+<circle cx="196.8" cy="277.31" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 2 (REPL (Code Mode)): 2.862 tokens de entrada</title></circle>
+<circle cx="259.2" cy="271.23" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 3 (REPL (Code Mode)): 3.101 tokens de entrada</title></circle>
+<circle cx="321.6" cy="262.07" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 4 (REPL (Code Mode)): 3.462 tokens de entrada</title></circle>
+<circle cx="384" cy="252.62" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 5 (REPL (Code Mode)): 3.834 tokens de entrada</title></circle>
+<circle cx="446.4" cy="246.8" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 6 (REPL (Code Mode)): 4.063 tokens de entrada</title></circle>
+<circle cx="508.8" cy="239.79" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 7 (REPL (Code Mode)): 4.339 tokens de entrada</title></circle>
+<circle cx="571.2" cy="238.01" r="4.5" fill="#2a78d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 8 (REPL (Code Mode)): 4.409 tokens de entrada</title></circle>
+<circle cx="134.4" cy="298.9" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 1 (Tool calling em JSON): 2.012 tokens de entrada</title></circle>
+<circle cx="196.8" cy="266.54" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 2 (Tool calling em JSON): 3.286 tokens de entrada</title></circle>
+<circle cx="259.2" cy="218.17" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 3 (Tool calling em JSON): 5.190 tokens de entrada</title></circle>
+<circle cx="321.6" cy="184.29" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 4 (Tool calling em JSON): 6.524 tokens de entrada</title></circle>
+<circle cx="384" cy="146.55" r="4.5" fill="#eb6834" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 5 (Tool calling em JSON): 8.010 tokens de entrada</title></circle>
+<circle cx="134.4" cy="281.95" r="4.5" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 1 (Tool calling em JSON, com agregação): 2.679 tokens de entrada</title></circle>
+<circle cx="196.8" cy="249.59" r="4.5" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 2 (Tool calling em JSON, com agregação): 3.953 tokens de entrada</title></circle>
+<circle cx="259.2" cy="226.86" r="4.5" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 3 (Tool calling em JSON, com agregação): 4.848 tokens de entrada</title></circle>
+<circle cx="321.6" cy="207.89" r="4.5" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 4 (Tool calling em JSON, com agregação): 5.595 tokens de entrada</title></circle>
+<circle cx="384" cy="201.21" r="4.5" fill="#6250d6" stroke="#ffffff" stroke-width="2" tabindex="0"><title>Turno 5 (Tool calling em JSON, com agregação): 5.858 tokens de entrada</title></circle>
+</svg>
