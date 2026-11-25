@@ -2039,7 +2039,14 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
 .painel-cartao-valor { font-size: 18px; font-weight: 600; color: #0b0b0b; line-height: 1.2; }
 .painel-cartao-meta { font-size: 11.5px; color: #52514e; margin-top: 3px; line-height: 1.4; }
 .painel-grafico { position: relative; }
-.painel-grafico svg:focus { outline: 2px solid #0b0b0b; outline-offset: 2px; border-radius: 6px; }
+.painel-btn:focus-visible,
+.painel-btn[role="tab"]:focus-visible,
+.painel-var:has(input:focus-visible),
+.painel-var input:focus-visible,
+.painel-tabela th[aria-sort]:focus-visible,
+.painel-grafico svg:focus-visible,
+.painel-grafico [tabindex]:focus-visible { outline: 2px solid #0b0b0b; outline-offset: 2px; }
+.painel-grafico svg:focus-visible { border-radius: 6px; }
 .painel-balao { position: absolute; top: 10px; z-index: 5; min-width: 220px; max-width: 310px;
   padding: 8px 10px; border-radius: 6px; background: rgba(11, 11, 11, 0.94); color: #ffffff;
   font-size: 11.5px; line-height: 1.45; pointer-events: none;
@@ -2074,6 +2081,15 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
 .painel-ressalvas p:last-child { margin-bottom: 0; }
 .painel-ressalvas ul { margin: 6px 0 0; padding-left: 18px; color: #0b0b0b; }
 .painel-ressalvas li { margin: 2px 0; }
+@media (prefers-reduced-motion: reduce) {
+  #painel-interativo,
+  #painel-interativo *,
+  #painel-interativo *::before,
+  #painel-interativo *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
 """
 
 _SCRIPT_PAINEL: Final = """\
