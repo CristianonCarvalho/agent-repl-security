@@ -3256,6 +3256,8 @@ def _painel_interativo_html(dados: DadosEvolucao) -> str:
         '<p class="leitura">Filtre variantes, alterne métricas e clique em um ponto ou linha '
         "da tabela para inspecionar a execução.</p>",
         '<div id="painel-raiz"></div>',
+        '<noscript><p class="leitura">O painel interativo precisa de JavaScript. '
+        "Os gráficos estáticos abaixo continuam disponíveis.</p></noscript>",
         _caixa_ressalvas_html(dados),
         f'<script type="application/json" id="dados-painel">{json_dados}</script>',
         f"<script>\n{_SCRIPT_PAINEL}</script>",
