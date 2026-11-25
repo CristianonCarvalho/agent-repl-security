@@ -3,6 +3,7 @@ eixo X logarítmico, os quatro SVGs de escala, o SVG combinado de quatro painéi
 """
 
 import io
+import json
 import re
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
@@ -27,8 +28,10 @@ from harness.evals.graficos import (
     SECAO_ESCALA,
     SECAO_ESCALA_PAINEIS,
     SECOES,
+    CasoDetalhe,
     DadosEvolucao,
     Execucao,
+    _painel_interativo_html,
     carregar_dados,
     dados_de_relatorios,
     gerar_pagina_html,
@@ -457,7 +460,11 @@ def test_gerar_todos_e_pagina_incluem_escala_apenas_quando_ativa(tmp_path: Path)
         assert not (pasta_b / nome).exists()
 
     pagina = gerar_pagina_html(com_escala)
-    assert pagina.count("<section>") == 1
+    assert pagina.count("<section") == 2
+    pos_painel = pagina.index("<h2>Painel interativo</h2>")
+    pos_escala = pagina.index(f"<h2>{SECAO_ESCALA[0]}</h2>")
+    assert pos_painel < pos_escala
+    assert 'id="dados-painel"' in pagina
     assert f"<h2>{SECAO_ESCALA[0]}</h2>" in pagina
     assert "<h2>Escala dos dados</h2>" in pagina
     assert f"<h3>{SECAO_ESCALA_PAINEIS[0]}</h3>" in pagina
@@ -666,7 +673,8 @@ def test_modo_escala_com_relatorios_sinteticos_tres_escalas_e_tres_variantes(
     validador.feed(html)
     assert validador.pilha == []
     assert validador.svgs == 5
-    assert validador.scripts == 1
+    # 1: <script type="application/json" id="dados-painel">, 2: script do painel, 3: tooltips
+    assert validador.scripts == 3
     assert validador.estilos == 1
     assert validador.csp == [
         "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
@@ -719,3 +727,50 @@ def test_evolucao_execucoes_real_continua_gerando_seis_graficos(tmp_path: Path) 
     assert not tem_modo_escala(dados)
     gerados = gerar_todos(dados, tmp_path)
     assert [c.name for c in gerados] == [*NOMES_ARQUIVOS, NOME_PAGINA]
+
+
+def test_painel_interativo_escape_determinismo_e_fora_do_modo_escala() -> None:
+    caso_b = CasoDetalhe(id="caso-b", categoria="b", aprovadas=1)
+    caso_a = CasoDetalhe(id="caso-a", categoria="a", aprovadas=2)
+    exec_a = _exec(
+        1,
+        'var</script><!--x-->&"1"',
+        60,
+        nota="nota </script><!--comentario-->",
+        casos_detalhe=(caso_b, caso_a),
+    )
+    exec_b = _exec(
+        2,
+        'var</script><!--x-->&"1"',
+        600,
+        incompleta=True,
+        motivo_incompleta="motivo </script><!--fim-->",
+    )
+    dados_1 = DadosEvolucao(versao=1, execucoes=(exec_a, exec_b))
+    dados_2 = DadosEvolucao(versao=1, execucoes=(exec_b, exec_a))
+
+    painel_1 = _painel_interativo_html(dados_1)
+    painel_2 = _painel_interativo_html(dados_2)
+    assert painel_1 == painel_2
+    assert painel_1 == _painel_interativo_html(dados_1)
+
+    m = re.search(
+        r'<script type="application/json" id="dados-painel">(.*?)</script>',
+        painel_1,
+        flags=re.DOTALL,
+    )
+    assert m is not None
+    bruto_json = m.group(1)
+    assert "</" not in bruto_json
+    assert "<!--" not in bruto_json
+    carregado = json.loads(bruto_json)
+    assert carregado["escalas"] == [60, 600]
+    assert carregado["execucoes"][0]["nota"] == "nota </script><!--comentario-->"
+    assert [c["id"] for c in carregado["execucoes"][0]["casos_detalhe"]] == ["caso-a", "caso-b"]
+    assert carregado["execucoes"][1]["motivo_incompleta"] == "motivo </script><!--fim-->"
+
+    # Fora do modo escala, o painel interativo não entra na página.
+    sem_escala = DadosEvolucao(versao=1, execucoes=(_exec(1, "repl", 60),))
+    pagina_sem = gerar_pagina_html(sem_escala)
+    assert "Painel interativo" not in pagina_sem
+    assert 'id="dados-painel"' not in pagina_sem

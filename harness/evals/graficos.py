@@ -1996,21 +1996,508 @@ def _com_identificador(svg: str, sufixo: str) -> str:
     )
 
 
+_CSS_PAINEL: Final = """\
+h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
+.painel-caixa { background: #ffffff; border: 1px solid #e1e0d9; border-radius: 8px; padding: 14px; }
+.painel-controles { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
+  margin-bottom: 12px; }
+.painel-grupo { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.painel-btn { border: 1px solid #c3c2b7; background: #f4f4f1; color: #0b0b0b; border-radius: 6px;
+  padding: 5px 10px; font-size: 12px; cursor: pointer; }
+.painel-btn[aria-pressed="true"] { background: #0b0b0b; color: #ffffff; border-color: #0b0b0b; }
+.painel-var { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+  padding: 4px 8px; border: 1px solid #e1e0d9; border-radius: 6px; background: #fafaf8;
+  cursor: pointer; }
+.painel-cor { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
+.painel-tabela { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12px; }
+.painel-tabela th, .painel-tabela td { text-align: left; padding: 6px 8px;
+  border-bottom: 1px solid #e1e0d9; }
+.painel-tabela th { color: #52514e; font-weight: 600; }
+.painel-tabela tbody tr { cursor: pointer; }
+.painel-tabela tbody tr:hover, .painel-tabela tbody tr[data-ativo="1"] { background: #f4f4f1; }
+.painel-detalhe { margin-top: 14px; padding: 12px; border: 1px solid #e1e0d9; border-radius: 6px;
+  background: #fafaf8; font-size: 12px; line-height: 1.5; }
+.painel-detalhe h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+.painel-vazio { color: #52514e; font-size: 13px; padding: 16px 0; text-align: center; }
+"""
+
+_SCRIPT_PAINEL: Final = """\
+(function () {
+  'use strict';
+  var elDados = document.getElementById('dados-painel');
+  var raiz = document.getElementById('painel-raiz');
+  if (!elDados || !raiz) return;
+  var dados = JSON.parse(elDados.textContent || '{}');
+  var metricas = dados.metricas || [];
+  var variantes = dados.variantes || [];
+  var escalas = dados.escalas || [];
+  var execucoes = dados.execucoes || [];
+  if (!metricas.length || !execucoes.length) return;
+
+  var NS = 'http://www.w3.org/2000/svg';
+  var metricaAtiva = metricas[0].id;
+  var escalaLog = true;
+  var ativas = {};
+  variantes.forEach(function (v) { ativas[v.id] = true; });
+  var selecionada = execucoes[0];
+
+  function el(tag, cls, texto) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (texto !== undefined && texto !== null) n.textContent = String(texto);
+    return n;
+  }
+
+  function svgEl(tag, attrs) {
+    var n = document.createElementNS(NS, tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function (k) { n.setAttribute(k, String(attrs[k])); });
+    }
+    return n;
+  }
+
+  function fmt(valor, casas) {
+    if (valor === null || valor === undefined) return 'sem dado';
+    return Number(valor).toLocaleString('pt-BR', {
+      minimumFractionDigits: casas,
+      maximumFractionDigits: casas
+    });
+  }
+
+  function fmtInt(valor) {
+    return Number(valor).toLocaleString('pt-BR');
+  }
+
+  function metricaAtual() {
+    for (var i = 0; i < metricas.length; i++) {
+      if (metricas[i].id === metricaAtiva) return metricas[i];
+    }
+    return metricas[0];
+  }
+
+  function corVariante(id) {
+    for (var i = 0; i < variantes.length; i++) {
+      if (variantes[i].id === id) return variantes[i].cor;
+    }
+    return '#2a78d6';
+  }
+
+  var caixa = el('div', 'painel-caixa');
+  var controles = el('div', 'painel-controles');
+  var grupoMetricas = el('div', 'painel-grupo');
+  var grupoEscalaX = el('div', 'painel-grupo');
+  var grupoVars = el('div', 'painel-grupo');
+  var areaSvg = el('div');
+  var areaTabela = el('div');
+  var areaDetalhe = el('div', 'painel-detalhe');
+
+  var btnsMetrica = [];
+  metricas.forEach(function (m) {
+    var b = el('button', 'painel-btn', m.titulo);
+    b.type = 'button';
+    b.setAttribute('aria-pressed', m.id === metricaAtiva ? 'true' : 'false');
+    b.addEventListener('click', function () {
+      metricaAtiva = m.id;
+      btnsMetrica.forEach(function (item) {
+        item.btn.setAttribute('aria-pressed', item.id === metricaAtiva ? 'true' : 'false');
+      });
+      render();
+    });
+    btnsMetrica.push({ id: m.id, btn: b });
+    grupoMetricas.appendChild(b);
+  });
+
+  var btnLog = el('button', 'painel-btn', 'Eixo X logar\u00edtmico');
+  btnLog.type = 'button';
+  btnLog.setAttribute('aria-pressed', 'true');
+  btnLog.addEventListener('click', function () {
+    escalaLog = !escalaLog;
+    btnLog.setAttribute('aria-pressed', escalaLog ? 'true' : 'false');
+    btnLog.textContent = escalaLog ? 'Eixo X logar\u00edtmico' : 'Eixo X linear';
+    render();
+  });
+  grupoEscalaX.appendChild(btnLog);
+
+  variantes.forEach(function (v) {
+    var lbl = el('label', 'painel-var');
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = true;
+    cb.addEventListener('change', function () {
+      ativas[v.id] = cb.checked;
+      render();
+    });
+    var dot = el('span', 'painel-cor');
+    dot.style.background = v.cor;
+    lbl.appendChild(cb);
+    lbl.appendChild(dot);
+    lbl.appendChild(document.createTextNode(v.rotulo));
+    grupoVars.appendChild(lbl);
+  });
+
+  controles.appendChild(grupoMetricas);
+  controles.appendChild(grupoEscalaX);
+  controles.appendChild(grupoVars);
+  caixa.appendChild(controles);
+  caixa.appendChild(areaSvg);
+  caixa.appendChild(areaTabela);
+  caixa.appendChild(areaDetalhe);
+  raiz.appendChild(caixa);
+
+  function renderSvg(met, filtradas) {
+    areaSvg.textContent = '';
+    var pontosValidos = filtradas.filter(function (e) {
+      var val = e.valores ? e.valores[met.id] : null;
+      return val !== null && val !== undefined;
+    });
+    if (!pontosValidos.length) {
+      areaSvg.appendChild(el('p', 'painel-vazio', 'Nenhum dado para os filtros selecionados.'));
+      return;
+    }
+
+    var W = 720, H = 300, L = 68, R = 696, T = 24, B = 254;
+    var svg = svgEl('svg', {
+      viewBox: '0 0 ' + W + ' ' + H,
+      role: 'img',
+      'aria-label': met.titulo
+    });
+    svg.appendChild(svgEl('rect', {
+      x: 0.5, y: 0.5, width: W - 1, height: H - 1, rx: 6,
+      fill: '#ffffff', stroke: '#e1e0d9'
+    }));
+
+    var xs = escalas.map(function (s) { return escalaLog ? Math.log10(s) : s; });
+    var xMin = Math.min.apply(null, xs);
+    var xMax = Math.max.apply(null, xs);
+    var xSpan = xMax - xMin;
+    var xLo = xMin - (xSpan > 0 ? xSpan * 0.08 : 0.5);
+    var xHi = xMax + (xSpan > 0 ? xSpan * 0.08 : 0.5);
+
+    var ys = pontosValidos.map(function (e) { return e.valores[met.id]; });
+    var yMaxRaw = Math.max.apply(null, ys);
+    var yHi = met.teto !== null && met.teto !== undefined
+      ? met.teto
+      : (yMaxRaw > 0 ? yMaxRaw * 1.1 : 1);
+
+    function pxX(escala) {
+      var xVal = escalaLog ? Math.log10(escala) : escala;
+      return L + ((xVal - xLo) / (xHi - xLo)) * (R - L);
+    }
+    function pxY(val) {
+      return B - (val / yHi) * (B - T);
+    }
+
+    for (var g = 0; g <= 4; g++) {
+      var vTick = (yHi / 4) * g;
+      var gy = pxY(vTick);
+      svg.appendChild(svgEl('line', {
+        x1: L, y1: gy.toFixed(2), x2: R, y2: gy.toFixed(2),
+        stroke: g === 0 ? '#c3c2b7' : '#e1e0d9', 'stroke-width': 1
+      }));
+      var yt = svgEl('text', {
+        x: L - 8, y: (gy + 4).toFixed(2), 'text-anchor': 'end',
+        'font-size': 11, fill: '#52514e'
+      });
+      yt.textContent = fmt(vTick, met.casas);
+      svg.appendChild(yt);
+    }
+
+    escalas.forEach(function (esc) {
+      var gx = pxX(esc);
+      svg.appendChild(svgEl('line', {
+        x1: gx.toFixed(2), y1: B, x2: gx.toFixed(2), y2: B + 4,
+        stroke: '#898781', 'stroke-width': 1
+      }));
+      var xt = svgEl('text', {
+        x: gx.toFixed(2), y: B + 18, 'text-anchor': 'middle',
+        'font-size': 11, fill: '#52514e'
+      });
+      xt.textContent = fmtInt(esc);
+      svg.appendChild(xt);
+    });
+
+    variantes.forEach(function (v) {
+      if (!ativas[v.id]) return;
+      var serie = filtradas.filter(function (e) {
+        return e.variante === v.id && e.valores &&
+          e.valores[met.id] !== null && e.valores[met.id] !== undefined;
+      });
+      if (!serie.length) return;
+      if (serie.length >= 2) {
+        var pts = serie.map(function (e) {
+          return pxX(e.escala).toFixed(2) + ',' + pxY(e.valores[met.id]).toFixed(2);
+        }).join(' ');
+        svg.appendChild(svgEl('polyline', {
+          fill: 'none', stroke: v.cor, 'stroke-width': 2.2, points: pts
+        }));
+      }
+      serie.forEach(function (e) {
+        var cx = pxX(e.escala);
+        var cy = pxY(e.valores[met.id]);
+        var oco = e.incompleta || e.ponto_fraco;
+        var ativo = selecionada &&
+          selecionada.variante === e.variante && selecionada.escala === e.escala;
+        var circ = svgEl('circle', {
+          cx: cx.toFixed(2), cy: cy.toFixed(2), r: ativo ? 6.5 : 4.5,
+          fill: oco ? '#ffffff' : v.cor, stroke: v.cor, 'stroke-width': ativo ? 2.5 : 2,
+          tabindex: 0, style: 'cursor:pointer'
+        });
+        var dica = v.rotulo + ', ' + fmtInt(e.escala) + ' linhas: ' +
+          fmt(e.valores[met.id], met.casas) + ' ' + met.unidade;
+        if (e.incompleta && e.motivo_incompleta) dica += ' (' + e.motivo_incompleta + ')';
+        var title = svgEl('title');
+        title.textContent = dica;
+        circ.appendChild(title);
+        circ.addEventListener('click', function () { selecionada = e; render(); });
+        circ.addEventListener('keydown', function (ev) {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            selecionada = e;
+            render();
+          }
+        });
+        svg.appendChild(circ);
+      });
+    });
+
+    areaSvg.appendChild(svg);
+  }
+
+  function renderTabela(met, filtradas) {
+    areaTabela.textContent = '';
+    if (!filtradas.length) return;
+    var tbl = el('table', 'painel-tabela');
+    var thead = el('thead');
+    var hr = el('tr');
+    ['Variante', 'Linhas', met.titulo, 'Rodadas v\u00e1lidas', 'Estado'].forEach(function (h) {
+      hr.appendChild(el('th', null, h));
+    });
+    thead.appendChild(hr);
+    tbl.appendChild(thead);
+
+    var tbody = el('tbody');
+    filtradas.forEach(function (e) {
+      var tr = el('tr');
+      if (selecionada && selecionada.variante === e.variante && selecionada.escala === e.escala) {
+        tr.setAttribute('data-ativo', '1');
+      }
+      var tdVar = el('td');
+      var dot = el('span', 'painel-cor');
+      dot.style.background = corVariante(e.variante);
+      dot.style.marginRight = '6px';
+      tdVar.appendChild(dot);
+      tdVar.appendChild(document.createTextNode(e.rotulo));
+      tr.appendChild(tdVar);
+      tr.appendChild(el('td', null, fmtInt(e.escala)));
+      var val = e.valores ? e.valores[met.id] : null;
+      tr.appendChild(el('td', null, fmt(val, met.casas)));
+      tr.appendChild(el('td', null, e.rodadas_validas + '/' + e.rodadas));
+      var estado = e.incompleta ? 'Incompleta' : (e.ponto_fraco ? 'Ponto fraco' : 'Completa');
+      tr.appendChild(el('td', null, estado));
+      tr.addEventListener('click', function () {
+        selecionada = e;
+        render();
+      });
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);
+    areaTabela.appendChild(tbl);
+  }
+
+  function renderDetalhe() {
+    areaDetalhe.textContent = '';
+    if (!selecionada) return;
+    var e = selecionada;
+    areaDetalhe.appendChild(el('h4', null,
+      e.rotulo + ' \u2014 ' + fmtInt(e.escala) + ' linhas (execu\u00e7\u00e3o ' + e.numero + ')'
+    ));
+    var resumo = 'Casos: ' + e.casos + ' | Aprovadas: ' + e.aprovadas +
+      ' | Reprovadas: ' + e.reprovadas + ' | Erro infra: ' + e.erro_infra +
+      ' | N\u00e3o executadas: ' + e.nao_executadas;
+    if (e.iteracoes_media !== null && e.iteracoes_media !== undefined) {
+      resumo += ' | Itera\u00e7\u00f5es m\u00e9dias: ' + fmt(e.iteracoes_media, 1);
+    }
+    areaDetalhe.appendChild(el('div', null, resumo));
+    if (e.motivo_incompleta) {
+      areaDetalhe.appendChild(el('div', null, 'Motivo: ' + e.motivo_incompleta));
+    } else if (e.nota) {
+      areaDetalhe.appendChild(el('div', null, 'Nota: ' + e.nota));
+    }
+    if (e.casos_detalhe && e.casos_detalhe.length) {
+      var tbl = el('table', 'painel-tabela');
+      var thead = el('thead');
+      var hr = el('tr');
+      ['Caso', 'Categoria', 'Aprov.', 'Reprov.', 'Infra', 'Iter. m\u00e9dia'].forEach(function (h) {
+        hr.appendChild(el('th', null, h));
+      });
+      thead.appendChild(hr);
+      tbl.appendChild(thead);
+      var tbody = el('tbody');
+      e.casos_detalhe.forEach(function (c) {
+        var tr = el('tr');
+        tr.appendChild(el('td', null, c.id));
+        tr.appendChild(el('td', null, c.categoria));
+        tr.appendChild(el('td', null, c.aprovadas));
+        tr.appendChild(el('td', null, c.reprovadas));
+        tr.appendChild(el('td', null, c.erro_infra));
+        tr.appendChild(el('td', null, fmt(c.iteracoes_media, 1)));
+        tbody.appendChild(tr);
+      });
+      tbl.appendChild(tbody);
+      areaDetalhe.appendChild(tbl);
+    }
+  }
+
+  function render() {
+    var met = metricaAtual();
+    var filtradas = execucoes.filter(function (e) { return !!ativas[e.variante]; });
+    if (filtradas.length && (!selecionada || !ativas[selecionada.variante])) {
+      selecionada = filtradas[0];
+    } else if (!filtradas.length) {
+      selecionada = null;
+    }
+    renderSvg(met, filtradas);
+    renderTabela(met, filtradas);
+    renderDetalhe();
+  }
+
+  render();
+})();
+"""
+
+
+def _json_seguro_html(objeto: object) -> str:
+    """Serializa JSON de forma determinística e segura para embutir em `<script>` HTML."""
+    texto = json.dumps(objeto, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return texto.replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026")
+
+
+def _dados_painel_escala(dados: DadosEvolucao) -> dict[str, object]:
+    """Extrai o payload determinístico do painel interativo para o modo escala."""
+    variantes, escalas, ultimas = _ultimas_por_escala(dados.execucoes)
+    cores = _cores_variantes(variantes)
+    execucoes_payload: list[dict[str, object]] = []
+    for variante in variantes:
+        for escala in escalas:
+            execucao = ultimas.get((variante, escala))
+            if execucao is None:
+                continue
+            execucoes_payload.append(
+                {
+                    "aprovadas": execucao.aprovadas,
+                    "casos": execucao.casos,
+                    "casos_detalhe": [
+                        {
+                            "aprovadas": caso.aprovadas,
+                            "categoria": caso.categoria,
+                            "erro_infra": caso.erro_infra,
+                            "id": caso.id,
+                            "iteracoes_media": caso.iteracoes_media,
+                            "reprovadas": caso.reprovadas,
+                            "tokens_entrada_medio": caso.tokens_entrada_medio,
+                        }
+                        for caso in sorted(execucao.casos_detalhe, key=lambda c: c.id)
+                    ],
+                    "categorias_pct": dict(sorted(execucao.categorias_pct.items())),
+                    "erro_infra": execucao.erro_infra,
+                    "escala": escala,
+                    "incompleta": execucao.incompleta,
+                    "iniciado_em": execucao.iniciado_em,
+                    "iteracoes_media": execucao.iteracoes_media,
+                    "motivo_incompleta": execucao.motivo_incompleta,
+                    "nao_executadas": execucao.nao_executadas,
+                    "nota": execucao.nota,
+                    "numero": execucao.numero,
+                    "ponto_fraco": execucao.ponto_fraco,
+                    "reprovadas": execucao.reprovadas,
+                    "rodadas": execucao.rodadas,
+                    "rodadas_validas": execucao.rodadas_validas,
+                    "rotulo": _rotulo_variante(variante),
+                    "valores": {
+                        "custo": _custo_escala_milesimos(execucao),
+                        "pico": execucao.pico_contexto_medio,
+                        "taxa": execucao.taxa_pct,
+                        "tokens": _tokens_escala_mil(execucao),
+                    },
+                    "variante": variante,
+                }
+            )
+    return {
+        "escalas": escalas,
+        "execucoes": execucoes_payload,
+        "metricas": [
+            {
+                "casas": 1,
+                "id": "tokens",
+                "teto": None,
+                "titulo": "Tokens de entrada por rodada (mil)",
+                "unidade": "mil tokens",
+            },
+            {
+                "casas": 2,
+                "id": "custo",
+                "teto": None,
+                "titulo": "Custo por rodada (milésimos de US$)",
+                "unidade": "milésimos de US$",
+            },
+            {
+                "casas": 0,
+                "id": "pico",
+                "teto": None,
+                "titulo": "Pico de contexto médio (tokens)",
+                "unidade": "tokens",
+            },
+            {
+                "casas": 1,
+                "id": "taxa",
+                "teto": 100.0,
+                "titulo": "Taxa de acerto (%)",
+                "unidade": "%",
+            },
+        ],
+        "variantes": [
+            {
+                "cor": cores[variante],
+                "id": variante,
+                "rotulo": _rotulo_variante(variante),
+            }
+            for variante in variantes
+        ],
+    }
+
+
+def _painel_interativo_html(dados: DadosEvolucao) -> str:
+    """Seção HTML do painel interativo no modo escala, com JSON embutido e JS puro."""
+    json_dados = _json_seguro_html(_dados_painel_escala(dados))
+    partes = [
+        '<section id="painel-interativo">',
+        "<h2>Painel interativo</h2>",
+        '<p class="leitura">Filtre variantes, alterne métricas e clique em um ponto ou linha '
+        "da tabela para inspecionar a execução.</p>",
+        '<div id="painel-raiz"></div>',
+        f'<script type="application/json" id="dados-painel">{json_dados}</script>',
+        f"<script>\n{_SCRIPT_PAINEL}</script>",
+        "</section>",
+    ]
+    return "\n".join(partes)
+
+
 def gerar_pagina_html(dados: DadosEvolucao) -> str:
     """Página HTML5 autônoma com os gráficos inline e tooltips. Sem recurso externo.
 
-    No modo escala (`tem_modo_escala(dados)`), inclui apenas os gráficos de escala (painéis e
-    os quatro individuais). Os gráficos por execução (`taxa-total`, `taxa-por-categoria`,
-    `iteracoes-por-pedido`, `custo-por-rodada`), o painel de barras da comparação
-    (`comparacao-de-variantes`), a dispersão (`dispersao-iteracoes-tokens`) e a curva de
-    contexto (`curva-de-contexto`) são omitidos porque misturam execuções de escalas diferentes
-    sem distinguir a escala.
+    No modo escala (`tem_modo_escala(dados)`), inclui a seção "Painel interativo" antes dos
+    gráficos estáticos de escala (painéis e os quatro individuais). Os gráficos por execução
+    (`taxa-total`, `taxa-por-categoria`, `iteracoes-por-pedido`, `custo-por-rodada`), o painel
+    de barras da comparação (`comparacao-de-variantes`), a dispersão
+    (`dispersao-iteracoes-tokens`) e a curva de contexto (`curva-de-contexto`) são omitidos porque
+    misturam execuções de escalas diferentes sem distinguir a escala.
 
     Fora do modo escala, os gráficos de linha por execução só entram quando alguma variante tem
     duas ou mais execuções.
     """
     secoes: list[str] = []
     if tem_modo_escala(dados):
+        secoes.append(_painel_interativo_html(dados))
         titulo_escala, leitura_escala = SECAO_ESCALA
         titulo_ep, leitura_ep = SECAO_ESCALA_PAINEIS
         partes_escala = [
@@ -2047,11 +2534,7 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
                 f"{_com_identificador(fn(dados), str(indice))}</section>"
             )
     intro = dados.descricao or "Métricas por execução real da avaliação."
-    css = (
-        f"{_CSS}h3 {{ font-size: 15px; font-weight: 600; margin: 24px 0 4px; }}\n"
-        if tem_modo_escala(dados)
-        else _CSS
-    )
+    css = f"{_CSS}{_CSS_PAINEL}" if tem_modo_escala(dados) else _CSS
     linhas = [
         "<!doctype html>",
         '<html lang="pt-BR">',
