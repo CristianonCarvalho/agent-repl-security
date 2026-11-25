@@ -2056,6 +2056,23 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
 .painel-balao-item { margin-top: 5px; }
 .painel-balao-var { display: flex; align-items: center; gap: 6px; font-weight: 600; }
 .painel-balao-meta { color: #e1e0d9; padding-left: 16px; }
+.painel-matriz { margin-top: 16px; }
+.painel-matriz h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+.painel-matriz-legenda { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 11.5px;
+  color: #52514e; margin-bottom: 8px; align-items: center; }
+.painel-matriz-item { display: inline-flex; align-items: center; gap: 5px; }
+.painel-matriz-amostra { display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+  border: 1px solid transparent; }
+.painel-matriz-tabela th, .painel-matriz-tabela td { text-align: center;
+  font-variant-numeric: tabular-nums; }
+.painel-matriz-tabela th:first-child, .painel-matriz-tabela td:first-child { text-align: left; }
+.painel-cel-aprovada { background: #e6f4ea; color: #137333; border-color: #a8dab5;
+  font-weight: 600; }
+.painel-cel-mista { background: #fef7e0; color: #b06000; border-color: #fdd663; font-weight: 600; }
+.painel-cel-reprovada { background: #fce8e6; color: #c5221f; border-color: #f6aea9;
+  font-weight: 600; }
+.painel-cel-infra { background: #f1f3f4; color: #52514e; border-color: #d2d5d9; font-weight: 600; }
+.painel-cel-vazia { color: #898781; }
 """
 
 _SCRIPT_PAINEL: Final = """\
@@ -2142,6 +2159,7 @@ _SCRIPT_PAINEL: Final = """\
   var areaSvg = el('div', 'painel-grafico');
   var areaTabela = el('div', 'painel-tabela-wrap');
   var areaDetalhe = el('div', 'painel-detalhe');
+  var areaMatriz = el('div', 'painel-matriz');
 
   var btnsMetrica = [];
   function selecionarMetrica(idx, focar) {
@@ -2236,6 +2254,7 @@ _SCRIPT_PAINEL: Final = """\
   caixa.appendChild(areaSvg);
   caixa.appendChild(areaTabela);
   caixa.appendChild(areaDetalhe);
+  caixa.appendChild(areaMatriz);
   raiz.appendChild(caixa);
 
   function renderResumo(filtradas) {
@@ -2898,6 +2917,147 @@ _SCRIPT_PAINEL: Final = """\
     }
   }
 
+  function estadoCelulaCaso(c) {
+    var a = c.aprovadas || 0;
+    var r = c.reprovadas || 0;
+    var i = c.erro_infra || 0;
+    if (a > 0 && r === 0 && i === 0) {
+      return { id: 'aprovada', cls: 'painel-cel-aprovada', rotulo: 'Todas aprovadas' };
+    }
+    if (a === 0 && r === 0) {
+      return { id: 'infra', cls: 'painel-cel-infra', rotulo: 'S\u00f3 infra' };
+    }
+    if (a === 0 && r > 0) {
+      return { id: 'reprovada', cls: 'painel-cel-reprovada', rotulo: 'Nenhuma aprovada' };
+    }
+    return { id: 'mista', cls: 'painel-cel-mista', rotulo: 'Mistas' };
+  }
+
+  function renderMatriz(filtradas) {
+    areaMatriz.textContent = '';
+    if (!filtradas.length) return;
+
+    var varsAtivas = variantes.filter(function (v) { return !!ativas[v.id]; });
+    var escalasAtivas = escalas.filter(function (esc) {
+      return filtradas.some(function (e) { return e.escala === esc; });
+    });
+    if (!varsAtivas.length || !escalasAtivas.length) return;
+
+    var mapaExec = {};
+    var casosMapa = {};
+    filtradas.forEach(function (e) {
+      var chaveExec = e.escala + '|' + e.variante;
+      var porCaso = {};
+      (e.casos_detalhe || []).forEach(function (c) {
+        porCaso[c.id] = c;
+        if (!casosMapa[c.id]) {
+          casosMapa[c.id] = c.categoria || '';
+        }
+      });
+      mapaExec[chaveExec] = porCaso;
+    });
+
+    var casosIds = Object.keys(casosMapa).sort();
+    if (!casosIds.length) return;
+
+    areaMatriz.appendChild(el('h4', null, 'Matriz por caso (aprovadas/reprovadas/infra)'));
+
+    var legenda = el('div', 'painel-matriz-legenda');
+    [
+      { cls: 'painel-cel-aprovada', txt: 'Todas aprovadas' },
+      { cls: 'painel-cel-mista', txt: 'Mistas' },
+      { cls: 'painel-cel-reprovada', txt: 'Nenhuma aprovada' },
+      { cls: 'painel-cel-infra', txt: 'S\u00f3 infra' }
+    ].forEach(function (item) {
+      var sp = el('span', 'painel-matriz-item');
+      sp.appendChild(el('span', 'painel-matriz-amostra ' + item.cls));
+      sp.appendChild(document.createTextNode(item.txt));
+      legenda.appendChild(sp);
+    });
+    areaMatriz.appendChild(legenda);
+
+    var wrap = el('div', 'painel-tabela-wrap');
+    var tbl = el('table', 'painel-tabela painel-matriz-tabela');
+    var thead = el('thead');
+    var trEsc = el('tr');
+    var thCaso = el('th', null, 'Caso');
+    thCaso.setAttribute('rowspan', '2');
+    thCaso.setAttribute('scope', 'col');
+    trEsc.appendChild(thCaso);
+
+    escalasAtivas.forEach(function (esc) {
+      var th = el('th', null, fmtRazao(esc / 60) + ' (' + fmtInt(esc) + ')');
+      th.setAttribute('colspan', String(varsAtivas.length));
+      th.setAttribute('scope', 'colgroup');
+      trEsc.appendChild(th);
+    });
+    thead.appendChild(trEsc);
+
+    var trVar = el('tr');
+    escalasAtivas.forEach(function () {
+      varsAtivas.forEach(function (v) {
+        var th = el('th');
+        th.setAttribute('scope', 'col');
+        var dot = el('span', 'painel-cor');
+        dot.style.background = v.cor;
+        dot.style.marginRight = '4px';
+        th.appendChild(dot);
+        th.appendChild(document.createTextNode(v.rotulo));
+        trVar.appendChild(th);
+      });
+    });
+    thead.appendChild(trVar);
+    tbl.appendChild(thead);
+
+    var tbody = el('tbody');
+    casosIds.forEach(function (casoId) {
+      var tr = el('tr');
+      var thRow = el('th', null, casoId);
+      thRow.setAttribute('scope', 'row');
+      if (casosMapa[casoId]) {
+        thRow.setAttribute('title', 'Categoria: ' + casosMapa[casoId]);
+      }
+      tr.appendChild(thRow);
+
+      escalasAtivas.forEach(function (esc) {
+        varsAtivas.forEach(function (v) {
+          var porCaso = mapaExec[esc + '|' + v.id] || {};
+          var c = porCaso[casoId];
+          if (!c) {
+            var tdVazio = el('td', 'painel-cel-vazia', '\u2014');
+            tdVazio.setAttribute(
+              'title',
+              casoId + ' \u2014 ' + v.rotulo + ' (' + fmtInt(esc) + ' linhas): sem dado'
+            );
+            tr.appendChild(tdVazio);
+            return;
+          }
+          var est = estadoCelulaCaso(c);
+          var texto = (c.aprovadas || 0) + '/' + (c.reprovadas || 0) + '/' + (c.erro_infra || 0);
+          var iterTxt = (c.iteracoes_media !== null && c.iteracoes_media !== undefined)
+            ? fmt(c.iteracoes_media, 1)
+            : 'sem dado';
+          var tokTxt = (c.tokens_entrada_medio !== null && c.tokens_entrada_medio !== undefined)
+            ? fmtInt(Math.round(c.tokens_entrada_medio))
+            : 'sem dado';
+          var dica = casoId + ' \u2014 ' + v.rotulo + ' (' + fmtInt(esc) + ' linhas): ' +
+            est.rotulo + ' (' + texto + ') | Itera\u00e7\u00f5es m\u00e9dias: ' + iterTxt +
+            ' | Tokens m\u00e9dios: ' + tokTxt;
+
+          var td = el('td', est.cls, texto);
+          td.setAttribute('data-estado', est.id);
+          td.setAttribute('title', dica);
+          td.setAttribute('aria-label', dica);
+          tr.appendChild(td);
+        });
+      });
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);
+    wrap.appendChild(tbl);
+    areaMatriz.appendChild(wrap);
+  }
+
   function render() {
     var met = metricaAtual();
     var filtradas = execucoes.filter(function (e) { return !!ativas[e.variante]; });
@@ -2910,6 +3070,7 @@ _SCRIPT_PAINEL: Final = """\
     renderSvg(met, filtradas);
     renderTabela(filtradas);
     renderDetalhe();
+    renderMatriz(filtradas);
   }
 
   render();
