@@ -538,7 +538,17 @@ Cuidados:
 - Se a telemetria estiver ligada no `.env`, os traces vão para o Langfuse, com o conteúdo das perguntas, do código e das respostas. Use dados sintéticos, ou `HARNESS_TELEMETRIA_CONTEUDO=numeros`.
 - Os relatórios de trabalho ficam em `avaliacoes/` e `traces/`, **fora do git**. Só a linha de base e os relatórios que escolhemos publicar sobem.
 
-**Gráficos de escala.** Quando alguma variante tem relatórios em duas ou mais escalas de dados (`linhas_pedidos`), o comando `uv run python -m harness.evals graficos --de-relatorios RELATORIO_1.json RELATORIO_2.json ... --saida PASTA` (ou `graficos DADOS.json`) entra automaticamente no modo de escala e gera quatro SVGs com o número de linhas de pedidos em escala logarítmica (`escala-tokens-por-rodada.svg`, `escala-custo-por-rodada.svg`, `escala-pico-contexto.svg` e `escala-taxa-acerto.svg`), o painel combinado (`escala-paineis.svg`) e o `graficos.html`.
+**Gráficos de escala.** Quando alguma variante tem relatórios em duas ou mais escalas de dados (`linhas_pedidos`), o comando `uv run python -m harness.evals graficos --de-relatorios RELATORIO_1.json RELATORIO_2.json ... --saida PASTA` (ou `graficos DADOS.json`) entra automaticamente no modo de escala e gera quatro SVGs com o número de linhas de pedidos em escala logarítmica (`escala-tokens-por-rodada.svg`, `escala-custo-por-rodada.svg`, `escala-pico-contexto.svg` e `escala-taxa-acerto.svg`), o painel combinado (`escala-paineis.svg`) e o `graficos.html`. Os SVGs ficam em disco, para os documentos `.md` usarem. A página `graficos.html` traz no lugar deles o **Painel interativo**, feito em HTML, CSS e JavaScript puros (sem bibliotecas), com:
+
+- **Seis métricas** em abas: tokens de entrada por rodada, custo por rodada, pico de contexto, taxa de acerto, iterações por pedido e custo por acerto. Dá para alternar o eixo X entre logarítmico e linear, e o Y entre "começar em zero" e escala própria.
+- **Legenda clicável**: liga e desliga cada variante, e o filtro vale também para a tabela.
+- **Balão ao passar o mouse, focar ou tocar**: uma linha guia na escala mais próxima lista todas as variantes, com o valor, as rodadas válidas e as aprovadas, reprovadas e com erro de infraestrutura.
+- **Cartões-resumo** na maior escala (taxa de acerto, custo por rodada e a razão entre a variante mais cara e a mais barata) e uma **tabela completa e ordenável** com os detalhes de cada execução.
+- **Matriz por caso** (casos contra escala e variante, com cor e texto "aprovadas/reprovadas/infra") e uma caixa de **ressalvas** com as execuções incompletas e o motivo.
+- **Marcadores vazados** para execução incompleta ou com poucas rodadas válidas, e o texto **"sem acertos"** (com um "×" no gráfico) quando o custo por acerto é indefinido por haver zero acertos.
+- Acessibilidade: abas e tabela navegáveis por teclado, foco visível, `prefers-reduced-motion` respeitado, e tabela e matriz em containers rolantes no celular. Sem JavaScript, a página só avisa que o painel precisa dele.
+
+O exemplo publicado, com o experimento de cálculos, está em [relatorios/calculo-fora-do-repertorio.md](relatorios/calculo-fora-do-repertorio.md).
 
 **Casos de cálculo (`--conjunto calculo`).** Para testar contas que ferramentas simples de soma e média não resolvem sem código (mediana dos pedidos válidos, região com maior mediana, desvio padrão populacional e cliente com o maior total em pedidos válidos), existem 4 casos (`calculo-01` a `calculo-04`) fora do conjunto congelado `v1`. Para rodá-los, use `uv run python -m harness.evals --conjunto calculo --rodadas 3` (combinável com `--variante` e `--escala N`; não aceita `--salvar-linha-de-base`, pois o conjunto é `calculo-nao-congelado`).
 
@@ -617,6 +627,7 @@ Termos que você vai encontrar em outras fontes e **não usamos** aqui: *LLM-as-
 - [diagramas-evals.md](diagramas-evals.md): a referência técnica, com 20 diagramas.
 - [relatorios/avaliacao-fase3-t17a.md](relatorios/avaliacao-fase3-t17a.md): o relatório de uma etapa, com a história das primeiras execuções.
 - [relatorios/graficos-evals.md](relatorios/graficos-evals.md): os gráficos das dez execuções, com a versão interativa.
+- [relatorios/comparacao-variantes.md](relatorios/comparacao-variantes.md), [relatorios/escala-de-dados.md](relatorios/escala-de-dados.md) e [relatorios/calculo-fora-do-repertorio.md](relatorios/calculo-fora-do-repertorio.md): a comparação entre REPL e JSON, o efeito do volume de dados e os cálculos fora do repertório da agregação, cada um com a página interativa.
 - [diagramas-fluxo-do-pedido.md](diagramas-fluxo-do-pedido.md): como o agente funciona por dentro.
 - [diagramas-seguranca.md](diagramas-seguranca.md): as defesas do sistema.
 - [adr/D13-gate-de-eval-com-repeticoes.md](adr/D13-gate-de-eval-com-repeticoes.md): a decisão de rodar várias vezes e comparar com margem.
