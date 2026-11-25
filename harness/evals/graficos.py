@@ -338,6 +338,7 @@ class Execucao(BaseModel):
         default=None, ge=0, allow_inf_nan=False
     )
     custo_por_rodada_executada_usd: float | None = Field(default=None, ge=0, allow_inf_nan=False)
+    custo_total_usd: float | None = Field(default=None, ge=0, allow_inf_nan=False)
     iniciado_em: str | None = None
 
 
@@ -565,6 +566,7 @@ def _execucao_de_relatorio(numero: int, nome: str, relatorio: Relatorio) -> Exec
         ),
         tokens_entrada_por_rodada_executada=tokens_executada,
         custo_por_rodada_executada_usd=custo_executada,
+        custo_total_usd=relatorio.custo_total,
         iniciado_em=relatorio.iniciado_em,
     )
 
@@ -2133,7 +2135,7 @@ _SCRIPT_PAINEL: Final = """\
   }
 
   function fmt(valor, casas) {
-    if (valor === null || valor === undefined) return 'sem dado';
+    if (valor === null || valor === undefined) return 'sem dados';
     return Number(valor).toLocaleString('pt-BR', {
       minimumFractionDigits: casas,
       maximumFractionDigits: casas
@@ -2150,6 +2152,27 @@ _SCRIPT_PAINEL: Final = """\
       return fmtInt(Math.round(arred)) + 'x';
     }
     return fmt(arred, 1) + 'x';
+  }
+
+  function valorNulo(valor) {
+    return valor === null || valor === undefined;
+  }
+
+  function semAcertos(e) {
+    return e.rodadas_validas > 0 && e.aprovadas === 0;
+  }
+
+  function custoAcertoIndefinido(e) {
+    return valorNulo(e.valores ? e.valores.custo_acerto : null) && semAcertos(e);
+  }
+
+  function textoSemAcertos(e) {
+    var gasto = valorNulo(e.custo_total_usd)
+      ? 'n\u00e3o registrado'
+      : ('US$ ' + fmt(e.custo_total_usd, 2));
+    return 'Sem acertos: 0 de ' + e.rodadas_validas +
+      ' rodadas v\u00e1lidas, ent\u00e3o o custo por acerto \u00e9 indefinido. Custo gasto: ' +
+      gasto + '.';
   }
 
   function metricaAtual() {
@@ -2311,10 +2334,10 @@ _SCRIPT_PAINEL: Final = """\
       var custo = exec && exec.valores ? exec.valores.custo : null;
       var taxa = exec && exec.valores ? exec.valores.taxa : null;
       var custoTxt = (custo === null || custo === undefined)
-        ? 'sem dado'
+        ? 'sem dados'
         : (fmt(custo, 2) + ' mil\u00e9simos de US$');
       var taxaTxt = (taxa === null || taxa === undefined)
-        ? 'sem dado'
+        ? 'sem dados'
         : (fmt(taxa, 1) + '%');
 
       cartao.appendChild(el('div', 'painel-cartao-valor', taxaTxt));
@@ -2354,7 +2377,8 @@ _SCRIPT_PAINEL: Final = """\
       var val = e.valores ? e.valores[met.id] : null;
       return val !== null && val !== undefined;
     });
-    if (!pontosValidos.length) {
+    var marcadores = met.id === 'custo_acerto' ? filtradas.filter(custoAcertoIndefinido) : [];
+    if (!pontosValidos.length && !marcadores.length) {
       areaSvg.appendChild(el('p', 'painel-vazio', 'Nenhum dado para os filtros selecionados.'));
       return;
     }
@@ -2379,8 +2403,8 @@ _SCRIPT_PAINEL: Final = """\
     var xHi = xMax + (xSpan > 0 ? xSpan * 0.08 : 0.5);
 
     var ys = pontosValidos.map(function (e) { return e.valores[met.id]; });
-    var yMinRaw = Math.min.apply(null, ys);
-    var yMaxRaw = Math.max.apply(null, ys);
+    var yMinRaw = ys.length ? Math.min.apply(null, ys) : 0;
+    var yMaxRaw = ys.length ? Math.max.apply(null, ys) : 0;
     var yLo = 0;
     var yHi = met.teto !== null && met.teto !== undefined
       ? met.teto
@@ -2484,7 +2508,47 @@ _SCRIPT_PAINEL: Final = """\
     });
 
     var escalasVisiveis = escalas.filter(function (esc) {
-      return pontosValidos.some(function (e) { return e.escala === esc; });
+      return pontosValidos.concat(marcadores).some(function (e) { return e.escala === esc; });
+    });
+
+    marcadores.forEach(function (e) {
+      var mx = pxX(e.escala);
+      var my = T - 8;
+      var d = 6;
+      var texto = textoSemAcertos(e);
+      var marca = svgEl('g', {
+        tabindex: 0,
+        role: 'img',
+        'data-escala': e.escala,
+        'data-marcador': 'sem-acertos',
+        style: 'cursor:pointer',
+        'aria-label': e.rotulo + ', ' + fmtInt(e.escala) + ' linhas: ' + texto
+      });
+      marca.appendChild(svgEl('circle', {
+        cx: mx.toFixed(2), cy: my.toFixed(2), r: 9, fill: 'transparent'
+      }));
+      marca.appendChild(svgEl('line', {
+        x1: (mx - d).toFixed(2), y1: (my - d).toFixed(2),
+        x2: (mx + d).toFixed(2), y2: (my + d).toFixed(2),
+        stroke: '#c5221f', 'stroke-width': 2.5, 'stroke-linecap': 'round'
+      }));
+      marca.appendChild(svgEl('line', {
+        x1: (mx + d).toFixed(2), y1: (my - d).toFixed(2),
+        x2: (mx - d).toFixed(2), y2: (my + d).toFixed(2),
+        stroke: '#c5221f', 'stroke-width': 2.5, 'stroke-linecap': 'round'
+      }));
+      var tituloMarca = svgEl('title');
+      tituloMarca.textContent = texto;
+      marca.appendChild(tituloMarca);
+      marca.addEventListener('click', function () { selecionada = e; render(); });
+      marca.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          selecionada = e;
+          render();
+        }
+      });
+      svg.appendChild(marca);
     });
 
     var linhaGuia = svgEl('line', {
@@ -2534,11 +2598,16 @@ _SCRIPT_PAINEL: Final = """\
         dot.style.background = v.cor;
         cab.appendChild(dot);
         var val = exec.valores ? exec.valores[met.id] : null;
-        var valTexto = (val === null || val === undefined)
-          ? 'sem dado'
+        var valTexto = valorNulo(val)
+          ? ((met.id === 'custo_acerto' && semAcertos(exec))
+            ? 'sem acertos (indefinido)'
+            : 'sem dados')
           : (fmt(val, met.casas) + ' ' + met.unidade);
         cab.appendChild(document.createTextNode(v.rotulo + ': ' + valTexto));
         item.appendChild(cab);
+        if (met.id === 'custo_acerto' && custoAcertoIndefinido(exec)) {
+          item.appendChild(el('div', 'painel-balao-meta', textoSemAcertos(exec)));
+        }
 
         var meta = el(
           'div',
@@ -2710,7 +2779,7 @@ _SCRIPT_PAINEL: Final = """\
       valor: function (e) { return e.valores ? e.valores.taxa : null; },
       texto: function (e) {
         var v = e.valores ? e.valores.taxa : null;
-        return (v === null || v === undefined) ? 'sem dado' : (fmt(v, 1) + '%');
+        return (v === null || v === undefined) ? 'sem dados' : (fmt(v, 1) + '%');
       }
     },
     {
@@ -2720,7 +2789,7 @@ _SCRIPT_PAINEL: Final = """\
       valor: function (e) { return e.valores ? e.valores.iteracoes : null; },
       texto: function (e) {
         var v = e.valores ? e.valores.iteracoes : null;
-        return (v === null || v === undefined) ? 'sem dado' : fmt(v, 2);
+        return (v === null || v === undefined) ? 'sem dados' : fmt(v, 2);
       }
     },
     {
@@ -2730,7 +2799,7 @@ _SCRIPT_PAINEL: Final = """\
       valor: function (e) { return e.tokens_entrada; },
       texto: function (e) {
         var v = e.tokens_entrada;
-        return (v === null || v === undefined) ? 'sem dado' : fmtInt(Math.round(v));
+        return (v === null || v === undefined) ? 'sem dados' : fmtInt(Math.round(v));
       }
     },
     {
@@ -2740,7 +2809,7 @@ _SCRIPT_PAINEL: Final = """\
       valor: function (e) { return e.tokens_saida; },
       texto: function (e) {
         var v = e.tokens_saida;
-        return (v === null || v === undefined) ? 'sem dado' : fmtInt(Math.round(v));
+        return (v === null || v === undefined) ? 'sem dados' : fmtInt(Math.round(v));
       }
     },
     {
@@ -2750,7 +2819,7 @@ _SCRIPT_PAINEL: Final = """\
       valor: function (e) { return e.valores ? e.valores.custo : null; },
       texto: function (e) {
         var v = e.valores ? e.valores.custo : null;
-        return (v === null || v === undefined) ? 'sem dado' : (fmt(v, 2) + ' mUS$');
+        return (v === null || v === undefined) ? 'sem dados' : (fmt(v, 2) + ' mUS$');
       }
     },
     {
@@ -2760,8 +2829,10 @@ _SCRIPT_PAINEL: Final = """\
       valor: function (e) { return e.valores ? e.valores.custo_acerto : null; },
       texto: function (e) {
         var v = e.valores ? e.valores.custo_acerto : null;
-        return (v === null || v === undefined) ? 'sem dado' : (fmt(v, 2) + ' mUS$');
-      }
+        if (valorNulo(v)) return semAcertos(e) ? 'sem acertos' : 'sem dados';
+        return fmt(v, 2) + ' mUS$';
+      },
+      dica: function (e) { return custoAcertoIndefinido(e) ? textoSemAcertos(e) : null; }
     },
     {
       id: 'pico',
@@ -2770,7 +2841,7 @@ _SCRIPT_PAINEL: Final = """\
       valor: function (e) { return e.valores ? e.valores.pico : null; },
       texto: function (e) {
         var v = e.valores ? e.valores.pico : null;
-        return (v === null || v === undefined) ? 'sem dado' : fmt(v, 0);
+        return (v === null || v === undefined) ? 'sem dados' : fmt(v, 0);
       }
     },
     {
@@ -2879,6 +2950,10 @@ _SCRIPT_PAINEL: Final = """\
           return;
         }
         var td = el('td', col.tipo === 'num' ? 'painel-num' : null, col.texto(e));
+        if (col.dica) {
+          var dica = col.dica(e);
+          if (dica) td.setAttribute('title', dica);
+        }
         if (col.id === 'estado' && e.incompleta && e.motivo_incompleta) {
           td.setAttribute('title', e.motivo_incompleta);
         }
@@ -3051,7 +3126,7 @@ _SCRIPT_PAINEL: Final = """\
             var tdVazio = el('td', 'painel-cel-vazia', '\u2014');
             tdVazio.setAttribute(
               'title',
-              casoId + ' \u2014 ' + v.rotulo + ' (' + fmtInt(esc) + ' linhas): sem dado'
+              casoId + ' \u2014 ' + v.rotulo + ' (' + fmtInt(esc) + ' linhas): sem dados'
             );
             tr.appendChild(tdVazio);
             return;
@@ -3060,10 +3135,10 @@ _SCRIPT_PAINEL: Final = """\
           var texto = (c.aprovadas || 0) + '/' + (c.reprovadas || 0) + '/' + (c.erro_infra || 0);
           var iterTxt = (c.iteracoes_media !== null && c.iteracoes_media !== undefined)
             ? fmt(c.iteracoes_media, 1)
-            : 'sem dado';
+            : 'sem dados';
           var tokTxt = (c.tokens_entrada_medio !== null && c.tokens_entrada_medio !== undefined)
             ? fmtInt(Math.round(c.tokens_entrada_medio))
-            : 'sem dado';
+            : 'sem dados';
           var dica = casoId + ' \u2014 ' + v.rotulo + ' (' + fmtInt(esc) + ' linhas): ' +
             est.rotulo + ' (' + texto + ') | Itera\u00e7\u00f5es m\u00e9dias: ' + iterTxt +
             ' | Tokens m\u00e9dios: ' + tokTxt;
@@ -3141,6 +3216,7 @@ def _dados_painel_escala(dados: DadosEvolucao) -> dict[str, object]:
                     ],
                     "categorias_pct": dict(sorted(execucao.categorias_pct.items())),
                     "custo_por_acerto_usd": execucao.custo_por_acerto_usd,
+                    "custo_total_usd": execucao.custo_total_usd,
                     "erro_infra": execucao.erro_infra,
                     "escala": escala,
                     "incompleta": execucao.incompleta,

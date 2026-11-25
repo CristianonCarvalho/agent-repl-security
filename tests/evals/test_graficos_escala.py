@@ -1901,7 +1901,7 @@ if (t.ths[12].getAttribute('aria-sort') !== 'ascending') {{
 if (t.ths[1].getAttribute('aria-sort') !== 'none') {{
   throw new Error('expected previous sort column reset to none');
 }}
-if (collectText(t.rows[3].children[12]) !== 'sem dado') {{
+if (collectText(t.rows[3].children[12]) !== 'sem dados') {{
   throw new Error('expected null custo_acerto sorted last');
 }}
 
@@ -2311,3 +2311,197 @@ def test_painel_tabela_e_matriz_sao_regioes_rolaveis_e_focaveis() -> None:
     assert "wrap.setAttribute('aria-label', 'Matriz por caso, role horizontalmente');" in html
     assert ".painel-tabela-wrap:focus-visible" in html
     assert "overflow-x: auto" in html
+
+
+_DOM_FALSO_JS = r"""
+function makeNode(tag, ns) {
+  const attrs = {};
+  const listeners = {};
+  let _text = '';
+  const node = {
+    tagName: tag.toUpperCase(),
+    namespaceURI: ns || null,
+    className: '',
+    get textContent() { return _text; },
+    set textContent(v) {
+      _text = String(v);
+      if (_text === '') this.children = [];
+    },
+    style: {},
+    children: [],
+    focused: false,
+    setAttribute(k, v) { attrs[k] = String(v); },
+    getAttribute(k) { return k in attrs ? attrs[k] : null; },
+    appendChild(c) { this.children.push(c); return c; },
+    addEventListener(ev, fn) { (listeners[ev] = listeners[ev] || []).push(fn); },
+    dispatchEvent(ev) { (listeners[ev.type] || []).forEach((fn) => fn(ev)); },
+    focus() { node.focused = true; },
+  };
+  return node;
+}
+const raiz = makeNode('div');
+const elDados = { textContent: jsonText };
+global.document = {
+  getElementById(id) {
+    if (id === 'dados-painel') return elDados;
+    if (id === 'painel-raiz') return raiz;
+    return null;
+  },
+  createElement(tag) { return makeNode(tag); },
+  createElementNS(ns, tag) { return makeNode(tag, ns); },
+  createTextNode(t) { return { nodeType: 3, textContent: String(t) }; },
+};
+"""
+
+_CORPO_CUSTO_ACERTO = r"""
+function coletarTexto(n) {
+  let s = n.textContent || '';
+  (n.children || []).forEach((c) => { s += ' ' + coletarTexto(c); });
+  return s;
+}
+const caixa = raiz.children[0];
+const controles = caixa.children[0];
+const areaSvg = caixa.children[2];
+const areaTabela = caixa.children[3];
+controles.children[0].children[5].dispatchEvent({ type: 'click' });
+const svg = areaSvg.children[0];
+const balao = areaSvg.children[1];
+const linhaGuia = svg.children.find((n) => n.getAttribute('data-guia') === '1');
+const marcas = svg.children.filter((n) => n.getAttribute('data-marcador') === 'sem-acertos');
+const linhasTabela = areaTabela.children[0].children[1].children;
+"""
+
+
+def _json_painel(html: str) -> dict[str, Any]:
+    m = re.search(r'<script type="application/json" id="dados-painel">(.*?)</script>', html, re.S)
+    assert m is not None
+    return json.loads(m.group(1))  # type: ignore[no-any-return]
+
+
+def _dados_sem_acertos(rodadas_validas: int) -> DadosEvolucao:
+    return DadosEvolucao(
+        versao=1,
+        execucoes=(
+            _exec(1, "repl", 60, aprovadas=4, custo_por_acerto_usd=0.0125, custo_total_usd=0.05),
+            _exec(
+                2,
+                "repl",
+                6000,
+                rodadas=13,
+                rodadas_validas=rodadas_validas,
+                aprovadas=0,
+                reprovadas=rodadas_validas,
+                erro_infra=13 - rodadas_validas,
+                taxa_pct=0.0 if rodadas_validas else None,
+                custo_por_acerto_usd=None,
+                custo_total_usd=0.026,
+            ),
+        ),
+    )
+
+
+def _rodar_painel_js(html: str, tmp_path: Path, corpo: str) -> None:
+    scripts = re.findall(r"<script(?![^>]*application/json)[^>]*>(.*?)</script>", html, re.S)
+    js = f"const jsonText = {json.dumps(_json_painel_texto(html))};\n"
+    js += _DOM_FALSO_JS + scripts[0] + corpo
+    caminho = tmp_path / "painel_custo_acerto.js"
+    caminho.write_text(js, encoding="utf-8")
+    proc = subprocess.run(["node", str(caminho)], capture_output=True, text=True, check=False)
+    assert proc.returncode == 0, f"Falha no teste do painel: {proc.stderr}"
+
+
+def _json_painel_texto(html: str) -> str:
+    m = re.search(r'<script type="application/json" id="dados-painel">(.*?)</script>', html, re.S)
+    assert m is not None
+    return m.group(1)
+
+
+def test_custo_acerto_sem_acertos_grava_custo_total_no_json() -> None:
+    html = gerar_pagina_html(_dados_sem_acertos(13))
+    painel = _json_painel(html)
+    (sem,) = [e for e in painel["execucoes"] if e["escala"] == 6000]
+    assert sem["custo_total_usd"] == pytest.approx(0.026)
+    assert sem["valores"]["custo_acerto"] is None
+    assert sem["aprovadas"] == 0
+    assert sem["rodadas_validas"] == 13
+    assert "sem acertos" in html
+    assert "sem dados" in html
+
+
+def test_custo_acerto_sem_rodadas_validas_continua_sem_dados() -> None:
+    html = gerar_pagina_html(_dados_sem_acertos(0))
+    painel = _json_painel(html)
+    (sem,) = [e for e in painel["execucoes"] if e["escala"] == 6000]
+    assert sem["rodadas_validas"] == 0
+    assert sem["valores"]["custo_acerto"] is None
+    assert sem["custo_total_usd"] == pytest.approx(0.026)
+    assert "sem dados" in html
+
+
+def test_custo_total_usd_vem_do_relatorio(tmp_path: Path) -> None:
+    rodadas = [_valida(n, aprovada=False, custo=0.002) for n in range(1, 4)]
+    relatorio = _relatorio(rodadas, linhas_pedidos=6000)
+    assert relatorio.custo_total is not None
+    caminho = _gravar(relatorio, tmp_path / "sem_acertos.json")
+    (execucao,) = dados_de_relatorios([caminho]).execucoes
+    assert execucao.custo_total_usd == pytest.approx(relatorio.custo_total)
+    assert execucao.aprovadas == 0
+    assert execucao.custo_por_acerto_usd is None
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node não disponível no PATH")
+def test_painel_marca_sem_acertos_com_x_balao_e_tabela(tmp_path: Path) -> None:
+    html = gerar_pagina_html(_dados_sem_acertos(13))
+    corpo = (
+        _CORPO_CUSTO_ACERTO
+        + """
+if (marcas.length !== 1) throw new Error('expected 1 marker, got ' + marcas.length);
+const marca = marcas[0];
+if (marca.getAttribute('tabindex') !== '0') throw new Error('marker not focusable');
+const titulo = marca.children.find((n) => n.tagName === 'TITLE');
+if (!titulo || !titulo.textContent.includes('0 de 13 rodadas')) {
+  throw new Error('marker title missing count: ' + (titulo && titulo.textContent));
+}
+if (!titulo.textContent.includes('US$ 0,03')) {
+  throw new Error('marker title missing cost: ' + titulo.textContent);
+}
+const xMarca = marca.children[0].getAttribute('cx');
+const polilinhas = svg.children.filter((n) => n.tagName === 'POLYLINE');
+if (polilinhas.some((p) => (p.getAttribute('points') || '').includes(xMarca + ','))) {
+  throw new Error('variant line must not connect to the marker');
+}
+svg.dispatchEvent({ type: 'focusin', target: marca });
+if (balao.hidden || linhaGuia.getAttribute('visibility') !== 'visible') {
+  throw new Error('focus on marker must show guide and balao');
+}
+const txtBalao = coletarTexto(balao);
+if (!txtBalao.includes('sem acertos (indefinido)')) {
+  throw new Error('balao missing sem acertos: ' + txtBalao);
+}
+if (!txtBalao.includes('0 de 13 rodadas')) {
+  throw new Error('balao missing explanation: ' + txtBalao);
+}
+const celulaSem = linhasTabela[1].children[12];
+const tituloCelula = celulaSem.getAttribute('title') || '';
+if (celulaSem.textContent !== 'sem acertos' || !tituloCelula.includes('Sem acertos')) {
+  throw new Error('table cell should read sem acertos with title: ' + celulaSem.textContent);
+}
+"""
+    )
+    _rodar_painel_js(html, tmp_path, corpo)
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node não disponível no PATH")
+def test_painel_sem_rodadas_validas_nao_marca_x(tmp_path: Path) -> None:
+    html = gerar_pagina_html(_dados_sem_acertos(0))
+    corpo = (
+        _CORPO_CUSTO_ACERTO
+        + """
+if (marcas.length !== 0) throw new Error('no marker expected without valid rounds');
+const celulaSem = linhasTabela[1].children[12];
+if (celulaSem.textContent !== 'sem dados' || celulaSem.getAttribute('title') !== null) {
+  throw new Error('expected plain sem dados, got: ' + celulaSem.textContent);
+}
+"""
+    )
+    _rodar_painel_js(html, tmp_path, corpo)
