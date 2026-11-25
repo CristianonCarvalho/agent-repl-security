@@ -198,11 +198,52 @@ def test_taxa_e_erro_de_infra_saem_das_rodadas_certas(tmp_path: Path) -> None:
     assert execucao.rodadas == 4
     assert execucao.rodadas_validas == 3
     assert execucao.aprovadas == 2
+    assert execucao.reprovadas == 1
+    assert execucao.erro_infra == 1
+    assert execucao.nao_executadas == 0
+    assert execucao.duracao_total_s is None
     assert execucao.taxa_pct == pytest.approx(200 / 3)
     assert execucao.erro_infra_pct == 25.0
     assert execucao.casos == 1
     assert execucao.prompt == f"prompt {HASH_PROMPT[:8]}"
     assert execucao.ponto_fraco is False
+
+
+def test_contagens_duracao_e_casos_detalhe_de_relatorio(tmp_path: Path) -> None:
+    r1 = _valida(1, iteracoes=2, entrada=1000).model_copy(update={"duracao_s": 1.5})
+    r2 = _valida(2, aprovada=False, iteracoes=4, entrada=2000).model_copy(update={"duracao_s": 2.5})
+    r3 = _erro(3).model_copy(update={"duracao_s": 0.5})
+    r4 = RodadaCaso(numero=1, classificacao=Classificacao.NAO_EXECUTADA, detalhe="teto")
+    relatorio = _relatorio(
+        {
+            "consulta-01": (Categoria.CONSULTA, [r1, r2, r3]),
+            "permissao-01": (Categoria.PERMISSAO, [r4]),
+        }
+    )
+    (execucao,) = dados_de_relatorios([_gravar(relatorio, tmp_path / "a.json")]).execucoes
+    assert execucao.aprovadas == 1
+    assert execucao.reprovadas == 1
+    assert execucao.erro_infra == 1
+    assert execucao.nao_executadas == 1
+    assert execucao.duracao_total_s == pytest.approx(4.5)
+    assert len(execucao.casos_detalhe) == 2
+
+    detalhe_consulta, detalhe_permissao = execucao.casos_detalhe
+    assert detalhe_consulta.id == "consulta-01"
+    assert detalhe_consulta.categoria == "consulta"
+    assert detalhe_consulta.aprovadas == 1
+    assert detalhe_consulta.reprovadas == 1
+    assert detalhe_consulta.erro_infra == 1
+    assert detalhe_consulta.iteracoes_media == pytest.approx(3.0)
+    assert detalhe_consulta.tokens_entrada_medio == pytest.approx(1500.0)
+
+    assert detalhe_permissao.id == "permissao-01"
+    assert detalhe_permissao.categoria == "permissao"
+    assert detalhe_permissao.aprovadas == 0
+    assert detalhe_permissao.reprovadas == 0
+    assert detalhe_permissao.erro_infra == 0
+    assert detalhe_permissao.iteracoes_media is None
+    assert detalhe_permissao.tokens_entrada_medio is None
 
 
 def test_medias_sao_sobre_as_validas_e_categorias_saem_por_caso(tmp_path: Path) -> None:
