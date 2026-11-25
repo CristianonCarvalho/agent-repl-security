@@ -18,27 +18,100 @@ section svg { display: block; width: 100%; max-width: 100%; height: auto; }
   background: #0b0b0b; color: #ffffff; font-size: 12px; line-height: 1.4; pointer-events: none; }
 .dica[hidden] { display: none; }
 h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
-.painel-caixa { background: #ffffff; border: 1px solid #e1e0d9; border-radius: 8px; padding: 14px; }
+.painel-caixa { background: #ffffff; border: 1px solid #e1e0d9; border-radius: 8px; padding: 14px;
+  box-sizing: border-box; max-width: 100%; }
 .painel-controles { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
   margin-bottom: 12px; }
 .painel-grupo { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .painel-btn { border: 1px solid #c3c2b7; background: #f4f4f1; color: #0b0b0b; border-radius: 6px;
   padding: 5px 10px; font-size: 12px; cursor: pointer; }
-.painel-btn[aria-pressed="true"] { background: #0b0b0b; color: #ffffff; border-color: #0b0b0b; }
+.painel-btn[aria-pressed="true"],
+.painel-btn[aria-selected="true"] { background: #0b0b0b; color: #ffffff; border-color: #0b0b0b; }
 .painel-var { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
   padding: 4px 8px; border: 1px solid #e1e0d9; border-radius: 6px; background: #fafaf8;
-  cursor: pointer; }
-.painel-cor { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
-.painel-tabela { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12px; }
+  cursor: pointer; transition: opacity 0.15s ease; }
+.painel-var[data-ativa="0"] { opacity: 0.48; }
+.painel-var input { margin: 0; cursor: pointer; }
+.painel-cor { width: 10px; height: 10px; border-radius: 999px; display: inline-block; flex: none; }
+.painel-tabela-wrap { width: 100%; max-width: 100%; overflow-x: auto;
+  -webkit-overflow-scrolling: touch; margin-top: 14px; }
+.painel-tabela { width: 100%; border-collapse: collapse; font-size: 12px; }
 .painel-tabela th, .painel-tabela td { text-align: left; padding: 6px 8px;
-  border-bottom: 1px solid #e1e0d9; }
+  border-bottom: 1px solid #e1e0d9; white-space: nowrap; }
 .painel-tabela th { color: #52514e; font-weight: 600; }
+.painel-tabela th[aria-sort] { cursor: pointer; user-select: none; }
+.painel-tabela th[aria-sort]:hover { color: #0b0b0b; background: #fafaf8; }
+.painel-tabela th.painel-num, .painel-tabela td.painel-num { text-align: right;
+  font-variant-numeric: tabular-nums; }
+.painel-ordem { margin-left: 4px; font-size: 10px; color: #898781; }
 .painel-tabela tbody tr { cursor: pointer; }
 .painel-tabela tbody tr:hover, .painel-tabela tbody tr[data-ativo="1"] { background: #f4f4f1; }
 .painel-detalhe { margin-top: 14px; padding: 12px; border: 1px solid #e1e0d9; border-radius: 6px;
   background: #fafaf8; font-size: 12px; line-height: 1.5; }
+.painel-detalhe .painel-tabela { margin-top: 10px; }
 .painel-detalhe h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
 .painel-vazio { color: #52514e; font-size: 13px; padding: 16px 0; text-align: center; }
+.painel-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px; margin-bottom: 12px; }
+.painel-cartao { border: 1px solid #e1e0d9; border-radius: 6px; padding: 10px 12px;
+  background: #fafaf8; }
+.painel-cartao-destaque { border-color: #c3c2b7; background: #f4f4f1; }
+.painel-cartao-titulo { display: flex; align-items: center; gap: 6px; font-size: 12px;
+  font-weight: 600; margin-bottom: 6px; color: #0b0b0b; }
+.painel-cartao-valor { font-size: 18px; font-weight: 600; color: #0b0b0b; line-height: 1.2; }
+.painel-cartao-meta { font-size: 11.5px; color: #52514e; margin-top: 3px; line-height: 1.4; }
+.painel-grafico { position: relative; }
+.painel-btn:focus-visible,
+.painel-btn[role="tab"]:focus-visible,
+.painel-var:has(input:focus-visible),
+.painel-var input:focus-visible,
+.painel-tabela th[aria-sort]:focus-visible,
+.painel-grafico svg:focus-visible,
+.painel-grafico [tabindex]:focus-visible { outline: 2px solid #0b0b0b; outline-offset: 2px; }
+.painel-grafico svg:focus-visible { border-radius: 6px; }
+.painel-balao { position: absolute; top: 10px; z-index: 5; min-width: 220px; max-width: 310px;
+  padding: 8px 10px; border-radius: 6px; background: rgba(11, 11, 11, 0.94); color: #ffffff;
+  font-size: 11.5px; line-height: 1.45; pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); }
+.painel-balao[hidden] { display: none; }
+.painel-balao-titulo { font-weight: 600; margin-bottom: 5px; padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2); }
+.painel-balao-item { margin-top: 5px; }
+.painel-balao-var { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.painel-balao-meta { color: #e1e0d9; padding-left: 16px; }
+.painel-matriz { margin-top: 16px; }
+.painel-matriz h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
+.painel-matriz-legenda { display: flex; flex-wrap: wrap; gap: 8px 14px; font-size: 11.5px;
+  color: #52514e; margin-bottom: 8px; align-items: center; }
+.painel-matriz-item { display: inline-flex; align-items: center; gap: 5px; }
+.painel-matriz-amostra { display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+  border: 1px solid transparent; }
+.painel-matriz-tabela th, .painel-matriz-tabela td { text-align: center;
+  font-variant-numeric: tabular-nums; }
+.painel-matriz-tabela th:first-child, .painel-matriz-tabela td:first-child { text-align: left; }
+.painel-cel-aprovada { background: #e6f4ea; color: #137333; border-color: #a8dab5;
+  font-weight: 600; }
+.painel-cel-mista { background: #fef7e0; color: #b06000; border-color: #fdd663; font-weight: 600; }
+.painel-cel-reprovada { background: #fce8e6; color: #c5221f; border-color: #f6aea9;
+  font-weight: 600; }
+.painel-cel-infra { background: #f1f3f4; color: #52514e; border-color: #d2d5d9; font-weight: 600; }
+.painel-cel-vazia { color: #898781; }
+.painel-ressalvas { margin-top: 14px; padding: 12px 14px; border: 1px solid #e1e0d9;
+  border-radius: 8px; background: #fafaf8; font-size: 12.5px; line-height: 1.5; }
+.painel-ressalvas h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: #0b0b0b; }
+.painel-ressalvas p { margin: 0 0 8px; color: #52514e; }
+.painel-ressalvas p:last-child { margin-bottom: 0; }
+.painel-ressalvas ul { margin: 6px 0 0; padding-left: 18px; color: #0b0b0b; }
+.painel-ressalvas li { margin: 2px 0; }
+@media (prefers-reduced-motion: reduce) {
+  #painel-interativo,
+  #painel-interativo *,
+  #painel-interativo *::before,
+  #painel-interativo *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
 </style>
 </head>
 <body>
@@ -49,7 +122,18 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
 <h2>Painel interativo</h2>
 <p class="leitura">Filtre variantes, alterne métricas e clique em um ponto ou linha da tabela para inspecionar a execução.</p>
 <div id="painel-raiz"></div>
-<script type="application/json" id="dados-painel">{"escalas":[60,600,6000],"execucoes":[{"aprovadas":20,"casos":4,"casos_detalhe":[{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-01","iteracoes_media":5.2,"reprovadas":0,"tokens_entrada_medio":14196.4},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-02","iteracoes_media":4.4,"reprovadas":0,"tokens_entrada_medio":13077.4},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-03","iteracoes_media":5.2,"reprovadas":0,"tokens_entrada_medio":14258.6},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":5.6,"reprovadas":0,"tokens_entrada_medio":15937.0}],"categorias_pct":{"calculo":100.0},"erro_infra":0,"escala":60,"incompleta":false,"iniciado_em":"2026-11-24T18:37:53+00:00","iteracoes_media":5.1,"motivo_incompleta":"","nao_executadas":0,"nota":"avaliacao-20261124-184211-semente42.json","numero":1,"ponto_fraco":false,"reprovadas":0,"rodadas":20,"rodadas_validas":20,"rotulo":"REPL (Code Mode)","valores":{"custo":0.528122,"pico":3770.8,"taxa":100.0,"tokens":14.36735},"variante":"repl"},{"aprovadas":20,"casos":4,"casos_detalhe":[{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-01","iteracoes_media":5.0,"reprovadas":0,"tokens_entrada_medio":13435.6},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-02","iteracoes_media":5.4,"reprovadas":0,"tokens_entrada_medio":15039.0},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-03","iteracoes_media":4.4,"reprovadas":0,"tokens_entrada_medio":11698.2},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":6.0,"reprovadas":0,"tokens_entrada_medio":17416.0}],"categorias_pct":{"calculo":100.0},"erro_infra":0,"escala":600,"incompleta":false,"iniciado_em":"2026-11-24T18:52:20+00:00","iteracoes_media":5.2,"motivo_incompleta":"","nao_executadas":0,"nota":"avaliacao-20261124-185553-semente42.json","numero":2,"ponto_fraco":false,"reprovadas":0,"rodadas":20,"rodadas_validas":20,"rotulo":"REPL (Code Mode)","valores":{"custo":0.52505,"pico":3458.05,"taxa":100.0,"tokens":14.397200000000002},"variante":"repl"},{"aprovadas":20,"casos":4,"casos_detalhe":[{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-01","iteracoes_media":4.8,"reprovadas":0,"tokens_entrada_medio":13247.6},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-02","iteracoes_media":5.4,"reprovadas":0,"tokens_entrada_medio":15181.0},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-03","iteracoes_media":5.0,"reprovadas":0,"tokens_entrada_medio":13798.2},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":5.6,"reprovadas":0,"tokens_entrada_medio":16467.4}],"categorias_pct":{"calculo":100.0},"erro_infra":0,"escala":6000,"incompleta":false,"iniciado_em":"2026-11-24T19:55:29+00:00","iteracoes_media":5.2,"motivo_incompleta":"","nao_executadas":0,"nota":"avaliacao-20261124-200000-semente42.json","numero":3,"ponto_fraco":false,"reprovadas":0,"rodadas":20,"rodadas_validas":20,"rotulo":"REPL (Code Mode)","valores":{"custo":0.592635,"pico":3561.15,"taxa":100.0,"tokens":14.673549999999999},"variante":"repl"},{"aprovadas":19,"casos":4,"casos_detalhe":[{"aprovadas":4,"categoria":"calculo","erro_infra":0,"id":"calculo-01","iteracoes_media":4.2,"reprovadas":1,"tokens_entrada_medio":19561.6},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-02","iteracoes_media":4.2,"reprovadas":0,"tokens_entrada_medio":19726.6},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-03","iteracoes_media":4.0,"reprovadas":0,"tokens_entrada_medio":17878.0},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":4.2,"reprovadas":0,"tokens_entrada_medio":19861.8}],"categorias_pct":{"calculo":95.0},"erro_infra":0,"escala":60,"incompleta":false,"iniciado_em":"2026-11-24T18:37:53+00:00","iteracoes_media":4.15,"motivo_incompleta":"","nao_executadas":0,"nota":"avaliacao-20261124-185008-semente42.json","numero":1,"ponto_fraco":false,"reprovadas":1,"rodadas":20,"rodadas_validas":20,"rotulo":"Tool calling em JSON","valores":{"custo":3.08534,"pico":7057.1,"taxa":95.0,"tokens":19.257},"variante":"json"},{"aprovadas":7,"casos":4,"casos_detalhe":[{"aprovadas":1,"categoria":"calculo","erro_infra":4,"id":"calculo-01","iteracoes_media":6.0,"reprovadas":0,"tokens_entrada_medio":76091.0},{"aprovadas":1,"categoria":"calculo","erro_infra":4,"id":"calculo-02","iteracoes_media":6.0,"reprovadas":0,"tokens_entrada_medio":67065.0},{"aprovadas":0,"categoria":"calculo","erro_infra":5,"id":"calculo-03","iteracoes_media":null,"reprovadas":0,"tokens_entrada_medio":null},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":7.0,"reprovadas":0,"tokens_entrada_medio":113801.2}],"categorias_pct":{"calculo":100.0},"erro_infra":13,"escala":600,"incompleta":true,"iniciado_em":"2026-11-24T19:55:29+00:00","iteracoes_media":6.714285714285714,"motivo_incompleta":"execução incompleta: 13 erros de infraestrutura","nao_executadas":0,"nota":"avaliacao-20261124-204115-semente42.json: 7 de 20 rodadas válidas","numero":2,"ponto_fraco":true,"reprovadas":0,"rodadas":20,"rodadas_validas":7,"rotulo":"Tool calling em JSON","valores":{"custo":6.63312,"pico":36313.0,"taxa":100.0,"tokens":53.07925},"variante":"json"},{"aprovadas":0,"casos":4,"casos_detalhe":[{"aprovadas":0,"categoria":"calculo","erro_infra":3,"id":"calculo-01","iteracoes_media":5.5,"reprovadas":2,"tokens_entrada_medio":69082.5},{"aprovadas":0,"categoria":"calculo","erro_infra":1,"id":"calculo-02","iteracoes_media":9.25,"reprovadas":4,"tokens_entrada_medio":188314.25},{"aprovadas":0,"categoria":"calculo","erro_infra":1,"id":"calculo-03","iteracoes_media":6.25,"reprovadas":4,"tokens_entrada_medio":68037.5},{"aprovadas":0,"categoria":"calculo","erro_infra":2,"id":"calculo-04","iteracoes_media":10.333333333333334,"reprovadas":3,"tokens_entrada_medio":233159.33333333334}],"categorias_pct":{"calculo":0.0},"erro_infra":7,"escala":6000,"incompleta":true,"iniciado_em":"2026-11-24T19:55:29+00:00","iteracoes_media":8.0,"motivo_incompleta":"execução incompleta: 7 erros de infraestrutura","nao_executadas":0,"nota":"avaliacao-20261124-212603-semente42.json","numero":3,"ponto_fraco":false,"reprovadas":13,"rodadas":20,"rodadas_validas":13,"rotulo":"Tool calling em JSON","valores":{"custo":14.959042,"pico":35495.61538461538,"taxa":0.0,"tokens":125.98525},"variante":"json"},{"aprovadas":20,"casos":4,"casos_detalhe":[{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-01","iteracoes_media":5.2,"reprovadas":0,"tokens_entrada_medio":31018.2},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-02","iteracoes_media":5.4,"reprovadas":0,"tokens_entrada_medio":32421.2},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-03","iteracoes_media":5.2,"reprovadas":0,"tokens_entrada_medio":30462.4},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":4.4,"reprovadas":0,"tokens_entrada_medio":19266.2}],"categorias_pct":{"calculo":100.0},"erro_infra":0,"escala":60,"incompleta":false,"iniciado_em":"2026-11-24T18:37:53+00:00","iteracoes_media":5.05,"motivo_incompleta":"","nao_executadas":0,"nota":"avaliacao-20261124-185219-semente42.json","numero":1,"ponto_fraco":false,"reprovadas":0,"rodadas":20,"rodadas_validas":20,"rotulo":"Tool calling em JSON, com agregação","valores":{"custo":4.251819,"pico":7747.35,"taxa":100.0,"tokens":28.292},"variante":"json-agregacao"},{"aprovadas":7,"casos":4,"casos_detalhe":[{"aprovadas":0,"categoria":"calculo","erro_infra":1,"id":"calculo-01","iteracoes_media":9.5,"reprovadas":4,"tokens_entrada_medio":137558.75},{"aprovadas":2,"categoria":"calculo","erro_infra":2,"id":"calculo-02","iteracoes_media":8.0,"reprovadas":1,"tokens_entrada_medio":111243.66666666667},{"aprovadas":0,"categoria":"calculo","erro_infra":5,"id":"calculo-03","iteracoes_media":null,"reprovadas":0,"tokens_entrada_medio":null},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":4.0,"reprovadas":0,"tokens_entrada_medio":15919.0}],"categorias_pct":{"calculo":58.333333333333336},"erro_infra":8,"escala":600,"incompleta":true,"iniciado_em":"2026-11-24T19:55:29+00:00","iteracoes_media":6.833333333333333,"motivo_incompleta":"execução incompleta: 8 erros de infraestrutura","nao_executadas":0,"nota":"avaliacao-20261124-203546-semente42.json","numero":2,"ponto_fraco":false,"reprovadas":5,"rodadas":20,"rodadas_validas":12,"rotulo":"Tool calling em JSON, com agregação","valores":{"custo":6.393596,"pico":15505.0,"taxa":58.333333333333336,"tokens":65.66995},"variante":"json-agregacao"},{"aprovadas":9,"casos":4,"casos_detalhe":[{"aprovadas":1,"categoria":"calculo","erro_infra":0,"id":"calculo-01","iteracoes_media":9.8,"reprovadas":4,"tokens_entrada_medio":76072.6},{"aprovadas":3,"categoria":"calculo","erro_infra":0,"id":"calculo-02","iteracoes_media":10.2,"reprovadas":2,"tokens_entrada_medio":80777.0},{"aprovadas":0,"categoria":"calculo","erro_infra":3,"id":"calculo-03","iteracoes_media":10.0,"reprovadas":2,"tokens_entrada_medio":275266.0},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":4.2,"reprovadas":0,"tokens_entrada_medio":17034.8}],"categorias_pct":{"calculo":52.94117647058824},"erro_infra":3,"escala":6000,"incompleta":true,"iniciado_em":"2026-11-24T19:55:29+00:00","iteracoes_media":8.294117647058824,"motivo_incompleta":"execução incompleta: 3 erros de infraestrutura","nao_executadas":0,"nota":"avaliacao-20261124-203254-semente42.json","numero":3,"ponto_fraco":false,"reprovadas":8,"rodadas":20,"rodadas_validas":17,"rotulo":"Tool calling em JSON, com agregação","valores":{"custo":7.203921,"pico":16975.647058823528,"taxa":52.94117647058824,"tokens":77.1941},"variante":"json-agregacao"}],"metricas":[{"casas":1,"id":"tokens","teto":null,"titulo":"Tokens de entrada por rodada (mil)","unidade":"mil tokens"},{"casas":2,"id":"custo","teto":null,"titulo":"Custo por rodada (milésimos de US$)","unidade":"milésimos de US$"},{"casas":0,"id":"pico","teto":null,"titulo":"Pico de contexto médio (tokens)","unidade":"tokens"},{"casas":1,"id":"taxa","teto":100.0,"titulo":"Taxa de acerto (%)","unidade":"%"}],"variantes":[{"cor":"#2a78d6","id":"repl","rotulo":"REPL (Code Mode)"},{"cor":"#eb6834","id":"json","rotulo":"Tool calling em JSON"},{"cor":"#2bb5c8","id":"json-agregacao","rotulo":"Tool calling em JSON, com agregação"}]}</script>
+<noscript><p class="leitura">O painel interativo precisa de JavaScript. Os gráficos estáticos abaixo continuam disponíveis.</p></noscript>
+<div class="painel-ressalvas">
+<h3>Como ler e ressalvas</h3>
+<p><code>erro_infra</code> = chamada ao modelo passou do prazo; taxa de acerto conta só rodadas válidas.</p>
+<ul>
+<li><strong>Tool calling em JSON, 600 linhas (execução 2)</strong>: avaliacao-20261124-204115-semente42.json: 7 de 20 rodadas válidas; execução incompleta: 13 erros de infraestrutura</li>
+<li><strong>Tool calling em JSON, 6.000 linhas (execução 3)</strong>: execução incompleta: 7 erros de infraestrutura</li>
+<li><strong>Tool calling em JSON, com agregação, 600 linhas (execução 2)</strong>: execução incompleta: 8 erros de infraestrutura</li>
+<li><strong>Tool calling em JSON, com agregação, 6.000 linhas (execução 3)</strong>: execução incompleta: 3 erros de infraestrutura</li>
+</ul>
+</div>
+<script type="application/json" id="dados-painel">{"escalas":[60,600,6000],"execucoes":[{"aprovadas":20,"casos":4,"casos_detalhe":[{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-01","iteracoes_media":5.2,"reprovadas":0,"tokens_entrada_medio":14196.4},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-02","iteracoes_media":4.4,"reprovadas":0,"tokens_entrada_medio":13077.4},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-03","iteracoes_media":5.2,"reprovadas":0,"tokens_entrada_medio":14258.6},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":5.6,"reprovadas":0,"tokens_entrada_medio":15937.0}],"categorias_pct":{"calculo":100.0},"custo_por_acerto_usd":0.0005281217999999999,"erro_infra":0,"escala":60,"incompleta":false,"iniciado_em":"2026-11-24T18:37:53+00:00","iteracoes_media":5.1,"motivo_incompleta":"","nao_executadas":0,"nota":"avaliacao-20261124-184211-semente42.json","numero":1,"ponto_fraco":false,"reprovadas":0,"rodadas":20,"rodadas_validas":20,"rotulo":"REPL (Code Mode)","tokens_entrada":14367.35,"tokens_saida":650,"valores":{"custo":0.528122,"custo_acerto":0.528122,"iteracoes":5.1,"pico":3770.8,"taxa":100.0,"tokens":14.36735},"variante":"repl"},{"aprovadas":20,"casos":4,"casos_detalhe":[{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-01","iteracoes_media":5.0,"reprovadas":0,"tokens_entrada_medio":13435.6},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-02","iteracoes_media":5.4,"reprovadas":0,"tokens_entrada_medio":15039.0},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-03","iteracoes_media":4.4,"reprovadas":0,"tokens_entrada_medio":11698.2},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":6.0,"reprovadas":0,"tokens_entrada_medio":17416.0}],"categorias_pct":{"calculo":100.0},"custo_por_acerto_usd":0.0005250503999999999,"erro_infra":0,"escala":600,"incompleta":false,"iniciado_em":"2026-11-24T18:52:20+00:00","iteracoes_media":5.2,"motivo_incompleta":"","nao_executadas":0,"nota":"avaliacao-20261124-185553-semente42.json","numero":2,"ponto_fraco":false,"reprovadas":0,"rodadas":20,"rodadas_validas":20,"rotulo":"REPL (Code Mode)","tokens_entrada":14397.2,"tokens_saida":660,"valores":{"custo":0.52505,"custo_acerto":0.52505,"iteracoes":5.2,"pico":3458.05,"taxa":100.0,"tokens":14.397200000000002},"variante":"repl"},{"aprovadas":20,"casos":4,"casos_detalhe":[{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-01","iteracoes_media":4.8,"reprovadas":0,"tokens_entrada_medio":13247.6},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-02","iteracoes_media":5.4,"reprovadas":0,"tokens_entrada_medio":15181.0},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-03","iteracoes_media":5.0,"reprovadas":0,"tokens_entrada_medio":13798.2},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":5.6,"reprovadas":0,"tokens_entrada_medio":16467.4}],"categorias_pct":{"calculo":100.0},"custo_por_acerto_usd":0.00059263543,"erro_infra":0,"escala":6000,"incompleta":false,"iniciado_em":"2026-11-24T19:55:29+00:00","iteracoes_media":5.2,"motivo_incompleta":"","nao_executadas":0,"nota":"avaliacao-20261124-200000-semente42.json","numero":3,"ponto_fraco":false,"reprovadas":0,"rodadas":20,"rodadas_validas":20,"rotulo":"REPL (Code Mode)","tokens_entrada":14673.55,"tokens_saida":756,"valores":{"custo":0.592635,"custo_acerto":0.592635,"iteracoes":5.2,"pico":3561.15,"taxa":100.0,"tokens":14.673549999999999},"variante":"repl"},{"aprovadas":19,"casos":4,"casos_detalhe":[{"aprovadas":4,"categoria":"calculo","erro_infra":0,"id":"calculo-01","iteracoes_media":4.2,"reprovadas":1,"tokens_entrada_medio":19561.6},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-02","iteracoes_media":4.2,"reprovadas":0,"tokens_entrada_medio":19726.6},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-03","iteracoes_media":4.0,"reprovadas":0,"tokens_entrada_medio":17878.0},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":4.2,"reprovadas":0,"tokens_entrada_medio":19861.8}],"categorias_pct":{"calculo":95.0},"custo_por_acerto_usd":0.0032477265263157894,"erro_infra":0,"escala":60,"incompleta":false,"iniciado_em":"2026-11-24T18:37:53+00:00","iteracoes_media":4.15,"motivo_incompleta":"","nao_executadas":0,"nota":"avaliacao-20261124-185008-semente42.json","numero":1,"ponto_fraco":false,"reprovadas":1,"rodadas":20,"rodadas_validas":20,"rotulo":"Tool calling em JSON","tokens_entrada":19257.0,"tokens_saida":5695,"valores":{"custo":3.08534,"custo_acerto":3.247727,"iteracoes":4.15,"pico":7057.1,"taxa":95.0,"tokens":19.257},"variante":"json"},{"aprovadas":7,"casos":4,"casos_detalhe":[{"aprovadas":1,"categoria":"calculo","erro_infra":4,"id":"calculo-01","iteracoes_media":6.0,"reprovadas":0,"tokens_entrada_medio":76091.0},{"aprovadas":1,"categoria":"calculo","erro_infra":4,"id":"calculo-02","iteracoes_media":6.0,"reprovadas":0,"tokens_entrada_medio":67065.0},{"aprovadas":0,"categoria":"calculo","erro_infra":5,"id":"calculo-03","iteracoes_media":null,"reprovadas":0,"tokens_entrada_medio":null},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":7.0,"reprovadas":0,"tokens_entrada_medio":113801.2}],"categorias_pct":{"calculo":100.0},"custo_por_acerto_usd":0.01895177077142857,"erro_infra":13,"escala":600,"incompleta":true,"iniciado_em":"2026-11-24T19:55:29+00:00","iteracoes_media":6.714285714285714,"motivo_incompleta":"execução incompleta: 13 erros de infraestrutura","nao_executadas":0,"nota":"avaliacao-20261124-204115-semente42.json: 7 de 20 rodadas válidas","numero":2,"ponto_fraco":true,"reprovadas":0,"rodadas":20,"rodadas_validas":7,"rotulo":"Tool calling em JSON","tokens_entrada":53079.25,"tokens_saida":28502,"valores":{"custo":6.63312,"custo_acerto":18.951771,"iteracoes":6.714285714285714,"pico":36313.0,"taxa":100.0,"tokens":53.07925},"variante":"json"},{"aprovadas":0,"casos":4,"casos_detalhe":[{"aprovadas":0,"categoria":"calculo","erro_infra":3,"id":"calculo-01","iteracoes_media":5.5,"reprovadas":2,"tokens_entrada_medio":69082.5},{"aprovadas":0,"categoria":"calculo","erro_infra":1,"id":"calculo-02","iteracoes_media":9.25,"reprovadas":4,"tokens_entrada_medio":188314.25},{"aprovadas":0,"categoria":"calculo","erro_infra":1,"id":"calculo-03","iteracoes_media":6.25,"reprovadas":4,"tokens_entrada_medio":68037.5},{"aprovadas":0,"categoria":"calculo","erro_infra":2,"id":"calculo-04","iteracoes_media":10.333333333333334,"reprovadas":3,"tokens_entrada_medio":233159.33333333334}],"categorias_pct":{"calculo":0.0},"custo_por_acerto_usd":null,"erro_infra":7,"escala":6000,"incompleta":true,"iniciado_em":"2026-11-24T19:55:29+00:00","iteracoes_media":8.0,"motivo_incompleta":"execução incompleta: 7 erros de infraestrutura","nao_executadas":0,"nota":"avaliacao-20261124-212603-semente42.json","numero":3,"ponto_fraco":false,"reprovadas":13,"rodadas":20,"rodadas_validas":13,"rotulo":"Tool calling em JSON","tokens_entrada":125985.25,"tokens_saida":24812,"valores":{"custo":14.959042,"custo_acerto":null,"iteracoes":8.0,"pico":35495.61538461538,"taxa":0.0,"tokens":125.98525},"variante":"json"},{"aprovadas":20,"casos":4,"casos_detalhe":[{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-01","iteracoes_media":5.2,"reprovadas":0,"tokens_entrada_medio":31018.2},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-02","iteracoes_media":5.4,"reprovadas":0,"tokens_entrada_medio":32421.2},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-03","iteracoes_media":5.2,"reprovadas":0,"tokens_entrada_medio":30462.4},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":4.4,"reprovadas":0,"tokens_entrada_medio":19266.2}],"categorias_pct":{"calculo":100.0},"custo_por_acerto_usd":0.0042518192199999996,"erro_infra":0,"escala":60,"incompleta":false,"iniciado_em":"2026-11-24T18:37:53+00:00","iteracoes_media":5.05,"motivo_incompleta":"","nao_executadas":0,"nota":"avaliacao-20261124-185219-semente42.json","numero":1,"ponto_fraco":false,"reprovadas":0,"rodadas":20,"rodadas_validas":20,"rotulo":"Tool calling em JSON, com agregação","tokens_entrada":28292.0,"tokens_saida":7802,"valores":{"custo":4.251819,"custo_acerto":4.251819,"iteracoes":5.05,"pico":7747.35,"taxa":100.0,"tokens":28.292},"variante":"json-agregacao"},{"aprovadas":7,"casos":4,"casos_detalhe":[{"aprovadas":0,"categoria":"calculo","erro_infra":1,"id":"calculo-01","iteracoes_media":9.5,"reprovadas":4,"tokens_entrada_medio":137558.75},{"aprovadas":2,"categoria":"calculo","erro_infra":2,"id":"calculo-02","iteracoes_media":8.0,"reprovadas":1,"tokens_entrada_medio":111243.66666666667},{"aprovadas":0,"categoria":"calculo","erro_infra":5,"id":"calculo-03","iteracoes_media":null,"reprovadas":0,"tokens_entrada_medio":null},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":4.0,"reprovadas":0,"tokens_entrada_medio":15919.0}],"categorias_pct":{"calculo":58.333333333333336},"custo_por_acerto_usd":0.018267418285714286,"erro_infra":8,"escala":600,"incompleta":true,"iniciado_em":"2026-11-24T19:55:29+00:00","iteracoes_media":6.833333333333333,"motivo_incompleta":"execução incompleta: 8 erros de infraestrutura","nao_executadas":0,"nota":"avaliacao-20261124-203546-semente42.json","numero":2,"ponto_fraco":false,"reprovadas":5,"rodadas":20,"rodadas_validas":12,"rotulo":"Tool calling em JSON, com agregação","tokens_entrada":65669.95,"tokens_saida":7571,"valores":{"custo":6.393596,"custo_acerto":18.267418,"iteracoes":6.833333333333333,"pico":15505.0,"taxa":58.333333333333336,"tokens":65.66995},"variante":"json-agregacao"},{"aprovadas":9,"casos":4,"casos_detalhe":[{"aprovadas":1,"categoria":"calculo","erro_infra":0,"id":"calculo-01","iteracoes_media":9.8,"reprovadas":4,"tokens_entrada_medio":76072.6},{"aprovadas":3,"categoria":"calculo","erro_infra":0,"id":"calculo-02","iteracoes_media":10.2,"reprovadas":2,"tokens_entrada_medio":80777.0},{"aprovadas":0,"categoria":"calculo","erro_infra":3,"id":"calculo-03","iteracoes_media":10.0,"reprovadas":2,"tokens_entrada_medio":275266.0},{"aprovadas":5,"categoria":"calculo","erro_infra":0,"id":"calculo-04","iteracoes_media":4.2,"reprovadas":0,"tokens_entrada_medio":17034.8}],"categorias_pct":{"calculo":52.94117647058824},"custo_por_acerto_usd":0.016008712888888887,"erro_infra":3,"escala":6000,"incompleta":true,"iniciado_em":"2026-11-24T19:55:29+00:00","iteracoes_media":8.294117647058824,"motivo_incompleta":"execução incompleta: 3 erros de infraestrutura","nao_executadas":0,"nota":"avaliacao-20261124-203254-semente42.json","numero":3,"ponto_fraco":false,"reprovadas":8,"rodadas":20,"rodadas_validas":17,"rotulo":"Tool calling em JSON, com agregação","tokens_entrada":77194.1,"tokens_saida":10966,"valores":{"custo":7.203921,"custo_acerto":16.008713,"iteracoes":8.294117647058824,"pico":16975.647058823528,"taxa":52.94117647058824,"tokens":77.1941},"variante":"json-agregacao"}],"metricas":[{"casas":1,"id":"tokens","teto":null,"titulo":"Tokens de entrada por rodada (mil)","unidade":"mil tokens"},{"casas":2,"id":"custo","teto":null,"titulo":"Custo por rodada (milésimos de US$)","unidade":"milésimos de US$"},{"casas":0,"id":"pico","teto":null,"titulo":"Pico de contexto médio (tokens)","unidade":"tokens"},{"casas":1,"id":"taxa","teto":100.0,"titulo":"Taxa de acerto (%)","unidade":"%"},{"casas":2,"id":"iteracoes","teto":null,"titulo":"Iterações por pedido","unidade":"iterações por pedido"},{"casas":2,"id":"custo_acerto","teto":null,"titulo":"Custo por acerto (milésimos de US$)","unidade":"milésimos de US$"}],"variantes":[{"cor":"#2a78d6","id":"repl","rotulo":"REPL (Code Mode)"},{"cor":"#eb6834","id":"json","rotulo":"Tool calling em JSON"},{"cor":"#2bb5c8","id":"json-agregacao","rotulo":"Tool calling em JSON, com agregação"}]}</script>
 <script>
 (function () {
   'use strict';
@@ -66,9 +150,13 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
   var NS = 'http://www.w3.org/2000/svg';
   var metricaAtiva = metricas[0].id;
   var escalaLog = true;
+  var yZero = true;
   var ativas = {};
   variantes.forEach(function (v) { ativas[v.id] = true; });
   var selecionada = execucoes[0];
+  var escalaGuia = null;
+  var sortCol = null;
+  var sortDir = 'asc';
 
   function el(tag, cls, texto) {
     var n = document.createElement(tag);
@@ -97,6 +185,14 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
     return Number(valor).toLocaleString('pt-BR');
   }
 
+  function fmtRazao(valor) {
+    var arred = Math.round(valor * 10) / 10;
+    if (Math.abs(arred - Math.round(arred)) < 1e-9) {
+      return fmtInt(Math.round(arred)) + 'x';
+    }
+    return fmt(arred, 1) + 'x';
+  }
+
   function metricaAtual() {
     for (var i = 0; i < metricas.length; i++) {
       if (metricas[i].id === metricaAtiva) return metricas[i];
@@ -114,23 +210,55 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
   var caixa = el('div', 'painel-caixa');
   var controles = el('div', 'painel-controles');
   var grupoMetricas = el('div', 'painel-grupo');
+  grupoMetricas.setAttribute('role', 'tablist');
+  grupoMetricas.setAttribute('aria-label', 'Métricas');
   var grupoEscalaX = el('div', 'painel-grupo');
   var grupoVars = el('div', 'painel-grupo');
-  var areaSvg = el('div');
-  var areaTabela = el('div');
+  var areaResumo = el('div', 'painel-resumo');
+  var areaSvg = el('div', 'painel-grafico');
+  var areaTabela = el('div', 'painel-tabela-wrap');
   var areaDetalhe = el('div', 'painel-detalhe');
+  var areaMatriz = el('div', 'painel-matriz');
 
   var btnsMetrica = [];
-  metricas.forEach(function (m) {
+  function selecionarMetrica(idx, focar) {
+    var m = metricas[idx];
+    if (!m) return;
+    metricaAtiva = m.id;
+    btnsMetrica.forEach(function (item, i) {
+      var ativo = i === idx;
+      item.btn.setAttribute('aria-selected', ativo ? 'true' : 'false');
+      item.btn.setAttribute('tabindex', ativo ? '0' : '-1');
+      if (ativo && focar) item.btn.focus();
+    });
+    render();
+  }
+
+  metricas.forEach(function (m, idx) {
     var b = el('button', 'painel-btn', m.titulo);
     b.type = 'button';
-    b.setAttribute('aria-pressed', m.id === metricaAtiva ? 'true' : 'false');
+    b.setAttribute('role', 'tab');
+    var ativoInicial = m.id === metricaAtiva;
+    b.setAttribute('aria-selected', ativoInicial ? 'true' : 'false');
+    b.setAttribute('tabindex', ativoInicial ? '0' : '-1');
     b.addEventListener('click', function () {
-      metricaAtiva = m.id;
-      btnsMetrica.forEach(function (item) {
-        item.btn.setAttribute('aria-pressed', item.id === metricaAtiva ? 'true' : 'false');
-      });
-      render();
+      selecionarMetrica(idx, false);
+    });
+    b.addEventListener('keydown', function (ev) {
+      var proximo = null;
+      if (ev.key === 'ArrowRight') {
+        proximo = (idx + 1) % metricas.length;
+      } else if (ev.key === 'ArrowLeft') {
+        proximo = (idx - 1 + metricas.length) % metricas.length;
+      } else if (ev.key === 'Home') {
+        proximo = 0;
+      } else if (ev.key === 'End') {
+        proximo = metricas.length - 1;
+      }
+      if (proximo !== null) {
+        ev.preventDefault();
+        selecionarMetrica(proximo, true);
+      }
     });
     btnsMetrica.push({ id: m.id, btn: b });
     grupoMetricas.appendChild(b);
@@ -147,13 +275,26 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
   });
   grupoEscalaX.appendChild(btnLog);
 
+  var btnY = el('button', 'painel-btn', 'Eixo Y: começar em zero');
+  btnY.type = 'button';
+  btnY.setAttribute('aria-pressed', 'true');
+  btnY.addEventListener('click', function () {
+    yZero = !yZero;
+    btnY.setAttribute('aria-pressed', yZero ? 'true' : 'false');
+    btnY.textContent = yZero ? 'Eixo Y: começar em zero' : 'Eixo Y: escala própria';
+    render();
+  });
+  grupoEscalaX.appendChild(btnY);
+
   variantes.forEach(function (v) {
     var lbl = el('label', 'painel-var');
+    lbl.setAttribute('data-ativa', '1');
     var cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = true;
     cb.addEventListener('change', function () {
       ativas[v.id] = cb.checked;
+      lbl.setAttribute('data-ativa', cb.checked ? '1' : '0');
       render();
     });
     var dot = el('span', 'painel-cor');
@@ -168,10 +309,82 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
   controles.appendChild(grupoEscalaX);
   controles.appendChild(grupoVars);
   caixa.appendChild(controles);
+  caixa.appendChild(areaResumo);
   caixa.appendChild(areaSvg);
   caixa.appendChild(areaTabela);
   caixa.appendChild(areaDetalhe);
+  caixa.appendChild(areaMatriz);
   raiz.appendChild(caixa);
+
+  function renderResumo(filtradas) {
+    areaResumo.textContent = '';
+    if (!filtradas.length) return;
+    var maiorEscala = filtradas[0].escala;
+    for (var i = 1; i < filtradas.length; i++) {
+      if (filtradas[i].escala > maiorEscala) {
+        maiorEscala = filtradas[i].escala;
+      }
+    }
+    var naMaior = filtradas.filter(function (e) {
+      return e.escala === maiorEscala;
+    });
+    var custosValidos = [];
+    variantes.forEach(function (v) {
+      if (!ativas[v.id]) return;
+      var exec = null;
+      for (var j = 0; j < naMaior.length; j++) {
+        if (naMaior[j].variante === v.id) {
+          exec = naMaior[j];
+          break;
+        }
+      }
+      var cartao = el('div', 'painel-cartao');
+      var tit = el('div', 'painel-cartao-titulo');
+      var dot = el('span', 'painel-cor');
+      dot.style.background = v.cor;
+      tit.appendChild(dot);
+      tit.appendChild(document.createTextNode(v.rotulo));
+      cartao.appendChild(tit);
+
+      var custo = exec && exec.valores ? exec.valores.custo : null;
+      var taxa = exec && exec.valores ? exec.valores.taxa : null;
+      var custoTxt = (custo === null || custo === undefined)
+        ? 'sem dado'
+        : (fmt(custo, 2) + ' milésimos de US$');
+      var taxaTxt = (taxa === null || taxa === undefined)
+        ? 'sem dado'
+        : (fmt(taxa, 1) + '%');
+
+      cartao.appendChild(el('div', 'painel-cartao-valor', taxaTxt));
+      cartao.appendChild(
+        el('div', 'painel-cartao-meta', 'Taxa de acerto (' + fmtInt(maiorEscala) + ' linhas)')
+      );
+      cartao.appendChild(el('div', 'painel-cartao-meta', 'Custo/rodada: ' + custoTxt));
+      areaResumo.appendChild(cartao);
+
+      if (custo !== null && custo !== undefined && custo > 0) {
+        custosValidos.push({ rotulo: v.rotulo, custo: custo });
+      }
+    });
+
+    if (custosValidos.length >= 2) {
+      var maisCara = custosValidos[0];
+      var maisBarata = custosValidos[0];
+      for (var k = 1; k < custosValidos.length; k++) {
+        if (custosValidos[k].custo > maisCara.custo) maisCara = custosValidos[k];
+        if (custosValidos[k].custo < maisBarata.custo) maisBarata = custosValidos[k];
+      }
+      var razao = maisCara.custo / maisBarata.custo;
+      var cartaoRazao = el('div', 'painel-cartao painel-cartao-destaque');
+      var tituloRazao = 'Razão de custo (' + fmtInt(maiorEscala) + ' linhas)';
+      cartaoRazao.appendChild(el('div', 'painel-cartao-titulo', tituloRazao));
+      cartaoRazao.appendChild(el('div', 'painel-cartao-valor', fmtRazao(razao)));
+      cartaoRazao.appendChild(
+        el('div', 'painel-cartao-meta', maisCara.rotulo + ' vs ' + maisBarata.rotulo)
+      );
+      areaResumo.appendChild(cartaoRazao);
+    }
+  }
 
   function renderSvg(met, filtradas) {
     areaSvg.textContent = '';
@@ -188,7 +401,8 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
     var svg = svgEl('svg', {
       viewBox: '0 0 ' + W + ' ' + H,
       role: 'img',
-      'aria-label': met.titulo
+      tabindex: 0,
+      'aria-label': met.titulo + ' (use as setas esquerda e direita para percorrer as escalas)'
     });
     svg.appendChild(svgEl('rect', {
       x: 0.5, y: 0.5, width: W - 1, height: H - 1, rx: 6,
@@ -203,21 +417,41 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
     var xHi = xMax + (xSpan > 0 ? xSpan * 0.08 : 0.5);
 
     var ys = pontosValidos.map(function (e) { return e.valores[met.id]; });
+    var yMinRaw = Math.min.apply(null, ys);
     var yMaxRaw = Math.max.apply(null, ys);
+    var yLo = 0;
     var yHi = met.teto !== null && met.teto !== undefined
       ? met.teto
       : (yMaxRaw > 0 ? yMaxRaw * 1.1 : 1);
+    if (!yZero) {
+      var ySpan = yMaxRaw - yMinRaw;
+      if (ySpan > 0) {
+        var folgaY = ySpan * 0.1;
+        yLo = yMinRaw >= 0 ? Math.max(0, yMinRaw - folgaY) : yMinRaw - folgaY;
+        yHi = yMaxRaw + folgaY;
+      } else if (yMinRaw === 0) {
+        yLo = 0;
+        yHi = 1;
+      } else {
+        var margemY = Math.abs(yMinRaw) * 0.1 || 1;
+        yLo = yMinRaw >= 0 ? Math.max(0, yMinRaw - margemY) : yMinRaw - margemY;
+        yHi = yMaxRaw + margemY;
+      }
+      if (met.teto !== null && met.teto !== undefined && yMaxRaw <= met.teto) {
+        yHi = Math.min(met.teto, yHi);
+      }
+    }
 
     function pxX(escala) {
       var xVal = escalaLog ? Math.log10(escala) : escala;
       return L + ((xVal - xLo) / (xHi - xLo)) * (R - L);
     }
     function pxY(val) {
-      return B - (val / yHi) * (B - T);
+      return B - ((val - yLo) / (yHi - yLo)) * (B - T);
     }
 
     for (var g = 0; g <= 4; g++) {
-      var vTick = (yHi / 4) * g;
+      var vTick = yLo + ((yHi - yLo) / 4) * g;
       var gy = pxY(vTick);
       svg.appendChild(svgEl('line', {
         x1: L, y1: gy.toFixed(2), x2: R, y2: gy.toFixed(2),
@@ -269,14 +503,12 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
         var circ = svgEl('circle', {
           cx: cx.toFixed(2), cy: cy.toFixed(2), r: ativo ? 6.5 : 4.5,
           fill: oco ? '#ffffff' : v.cor, stroke: v.cor, 'stroke-width': ativo ? 2.5 : 2,
-          tabindex: 0, style: 'cursor:pointer'
+          tabindex: 0, style: 'cursor:pointer', 'data-escala': e.escala
         });
         var dica = v.rotulo + ', ' + fmtInt(e.escala) + ' linhas: ' +
           fmt(e.valores[met.id], met.casas) + ' ' + met.unidade;
         if (e.incompleta && e.motivo_incompleta) dica += ' (' + e.motivo_incompleta + ')';
-        var title = svgEl('title');
-        title.textContent = dica;
-        circ.appendChild(title);
+        circ.setAttribute('aria-label', dica);
         circ.addEventListener('click', function () { selecionada = e; render(); });
         circ.addEventListener('keydown', function (ev) {
           if (ev.key === 'Enter' || ev.key === ' ') {
@@ -289,40 +521,407 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
       });
     });
 
+    var escalasVisiveis = escalas.filter(function (esc) {
+      return pontosValidos.some(function (e) { return e.escala === esc; });
+    });
+
+    var linhaGuia = svgEl('line', {
+      x1: L, y1: T, x2: L, y2: B,
+      stroke: '#52514e', 'stroke-width': 1.2, 'stroke-dasharray': '4 3',
+      'pointer-events': 'none', visibility: 'hidden', 'data-guia': '1'
+    });
+    svg.appendChild(linhaGuia);
+
+    var balao = el('div', 'painel-balao');
+    balao.setAttribute('role', 'tooltip');
+    balao.hidden = true;
+
+    function esconderGuia() {
+      escalaGuia = null;
+      linhaGuia.setAttribute('visibility', 'hidden');
+      balao.hidden = true;
+      balao.textContent = '';
+    }
+
+    function mostrarGuia(esc) {
+      if (esc === null || esc === undefined || escalasVisiveis.indexOf(esc) === -1) {
+        esconderGuia();
+        return;
+      }
+      escalaGuia = esc;
+      var gx = pxX(esc);
+      linhaGuia.setAttribute('x1', gx.toFixed(2));
+      linhaGuia.setAttribute('x2', gx.toFixed(2));
+      linhaGuia.setAttribute('visibility', 'visible');
+
+      balao.textContent = '';
+      balao.appendChild(el('div', 'painel-balao-titulo', fmtInt(esc) + ' linhas'));
+      variantes.forEach(function (v) {
+        if (!ativas[v.id]) return;
+        var exec = null;
+        for (var i = 0; i < filtradas.length; i++) {
+          if (filtradas[i].variante === v.id && filtradas[i].escala === esc) {
+            exec = filtradas[i];
+            break;
+          }
+        }
+        if (!exec) return;
+        var item = el('div', 'painel-balao-item');
+        var cab = el('div', 'painel-balao-var');
+        var dot = el('span', 'painel-cor');
+        dot.style.background = v.cor;
+        cab.appendChild(dot);
+        var val = exec.valores ? exec.valores[met.id] : null;
+        var valTexto = (val === null || val === undefined)
+          ? 'sem dado'
+          : (fmt(val, met.casas) + ' ' + met.unidade);
+        cab.appendChild(document.createTextNode(v.rotulo + ': ' + valTexto));
+        item.appendChild(cab);
+
+        var meta = el(
+          'div',
+          'painel-balao-meta',
+          'Rodadas: ' + exec.rodadas_validas + '/' + exec.rodadas +
+            ' — Aprovadas: ' + exec.aprovadas +
+            ' | Reprovadas: ' + exec.reprovadas +
+            ' | Infra: ' + exec.erro_infra
+        );
+        item.appendChild(meta);
+        balao.appendChild(item);
+      });
+
+      var pct = (gx / W) * 100;
+      if (gx < W * 0.58) {
+        balao.style.left = (pct + 1.5).toFixed(2) + '%';
+        balao.style.right = 'auto';
+      } else {
+        balao.style.left = 'auto';
+        balao.style.right = (100 - pct + 1.5).toFixed(2) + '%';
+      }
+      balao.hidden = false;
+    }
+
+    function escalaMaisProxima(clientX) {
+      if (!escalasVisiveis.length) return null;
+      var svgX = L;
+      if (typeof clientX === 'number' && svg.getBoundingClientRect) {
+        var rect = svg.getBoundingClientRect();
+        if (rect && rect.width > 0) {
+          svgX = ((clientX - rect.left) / rect.width) * W;
+        }
+      }
+      var melhor = escalasVisiveis[0];
+      var melhorDist = Math.abs(pxX(melhor) - svgX);
+      for (var i = 1; i < escalasVisiveis.length; i++) {
+        var d = Math.abs(pxX(escalasVisiveis[i]) - svgX);
+        if (d < melhorDist) {
+          melhorDist = d;
+          melhor = escalasVisiveis[i];
+        }
+      }
+      return melhor;
+    }
+
+    svg.addEventListener('pointermove', function (ev) {
+      if (ev.pointerType === 'touch') return;
+      mostrarGuia(escalaMaisProxima(ev.clientX));
+    });
+    svg.addEventListener('pointerleave', function () {
+      esconderGuia();
+    });
+    svg.addEventListener('pointerdown', function (ev) {
+      if (ev.pointerType === 'touch') {
+        mostrarGuia(escalaMaisProxima(ev.clientX));
+      }
+    });
+    svg.addEventListener('touchstart', function (ev) {
+      if (ev.touches && ev.touches.length) {
+        mostrarGuia(escalaMaisProxima(ev.touches[0].clientX));
+      }
+    }, { passive: true });
+    svg.addEventListener('focusin', function (ev) {
+      var tgt = ev.target;
+      var escAttr = tgt && tgt.getAttribute ? tgt.getAttribute('data-escala') : null;
+      if (escAttr !== null) {
+        mostrarGuia(Number(escAttr));
+      } else if (escalaGuia !== null && escalasVisiveis.indexOf(escalaGuia) !== -1) {
+        mostrarGuia(escalaGuia);
+      } else if (selecionada && escalasVisiveis.indexOf(selecionada.escala) !== -1) {
+        mostrarGuia(selecionada.escala);
+      } else if (escalasVisiveis.length) {
+        mostrarGuia(escalasVisiveis[0]);
+      }
+    });
+    svg.addEventListener('focusout', function (ev) {
+      if (!ev.relatedTarget || (svg.contains && !svg.contains(ev.relatedTarget))) {
+        esconderGuia();
+      }
+    });
+    svg.addEventListener('keydown', function (ev) {
+      if (!escalasVisiveis.length) return;
+      var atual = escalaGuia;
+      if (atual === null || escalasVisiveis.indexOf(atual) === -1) {
+        atual = (selecionada && escalasVisiveis.indexOf(selecionada.escala) !== -1)
+          ? selecionada.escala
+          : escalasVisiveis[0];
+      }
+      var idx = escalasVisiveis.indexOf(atual);
+      var novoIdx = null;
+      if (ev.key === 'ArrowRight') {
+        novoIdx = Math.min(escalasVisiveis.length - 1, idx + 1);
+      } else if (ev.key === 'ArrowLeft') {
+        novoIdx = Math.max(0, idx - 1);
+      } else if (ev.key === 'Home') {
+        novoIdx = 0;
+      } else if (ev.key === 'End') {
+        novoIdx = escalasVisiveis.length - 1;
+      } else if (ev.key === 'Escape') {
+        esconderGuia();
+        return;
+      }
+      if (novoIdx !== null) {
+        ev.preventDefault();
+        mostrarGuia(escalasVisiveis[novoIdx]);
+      }
+    });
+
     areaSvg.appendChild(svg);
+    areaSvg.appendChild(balao);
+    if (escalaGuia !== null && escalasVisiveis.indexOf(escalaGuia) !== -1) {
+      mostrarGuia(escalaGuia);
+    }
   }
 
-  function renderTabela(met, filtradas) {
+  var COLUNAS_TABELA = [
+    {
+      id: 'variante',
+      titulo: 'Variante',
+      tipo: 'texto',
+      valor: function (e) { return e.rotulo; }
+    },
+    {
+      id: 'escala',
+      titulo: 'Escala',
+      tipo: 'num',
+      valor: function (e) { return e.escala / 60; },
+      texto: function (e) { return fmtRazao(e.escala / 60); }
+    },
+    {
+      id: 'linhas',
+      titulo: 'Linhas',
+      tipo: 'num',
+      valor: function (e) { return e.escala; },
+      texto: function (e) { return fmtInt(e.escala); }
+    },
+    {
+      id: 'rodadas',
+      titulo: 'Rodadas',
+      tipo: 'num',
+      valor: function (e) { return e.rodadas; },
+      texto: function (e) { return e.rodadas_validas + '/' + e.rodadas; }
+    },
+    {
+      id: 'aprovadas',
+      titulo: 'Aprovadas',
+      tipo: 'num',
+      valor: function (e) { return e.aprovadas; },
+      texto: function (e) { return fmtInt(e.aprovadas); }
+    },
+    {
+      id: 'reprovadas',
+      titulo: 'Reprovadas',
+      tipo: 'num',
+      valor: function (e) { return e.reprovadas; },
+      texto: function (e) { return fmtInt(e.reprovadas); }
+    },
+    {
+      id: 'infra',
+      titulo: 'Infra',
+      tipo: 'num',
+      valor: function (e) { return e.erro_infra; },
+      texto: function (e) { return fmtInt(e.erro_infra); }
+    },
+    {
+      id: 'acerto',
+      titulo: 'Acerto (válidas)',
+      tipo: 'num',
+      valor: function (e) { return e.valores ? e.valores.taxa : null; },
+      texto: function (e) {
+        var v = e.valores ? e.valores.taxa : null;
+        return (v === null || v === undefined) ? 'sem dado' : (fmt(v, 1) + '%');
+      }
+    },
+    {
+      id: 'iteracoes',
+      titulo: 'Iterações',
+      tipo: 'num',
+      valor: function (e) { return e.valores ? e.valores.iteracoes : null; },
+      texto: function (e) {
+        var v = e.valores ? e.valores.iteracoes : null;
+        return (v === null || v === undefined) ? 'sem dado' : fmt(v, 2);
+      }
+    },
+    {
+      id: 'tokens_entrada',
+      titulo: 'Tokens entrada',
+      tipo: 'num',
+      valor: function (e) { return e.tokens_entrada; },
+      texto: function (e) {
+        var v = e.tokens_entrada;
+        return (v === null || v === undefined) ? 'sem dado' : fmtInt(Math.round(v));
+      }
+    },
+    {
+      id: 'tokens_saida',
+      titulo: 'Tokens saída',
+      tipo: 'num',
+      valor: function (e) { return e.tokens_saida; },
+      texto: function (e) {
+        var v = e.tokens_saida;
+        return (v === null || v === undefined) ? 'sem dado' : fmtInt(Math.round(v));
+      }
+    },
+    {
+      id: 'custo_rodada',
+      titulo: 'Custo por rodada',
+      tipo: 'num',
+      valor: function (e) { return e.valores ? e.valores.custo : null; },
+      texto: function (e) {
+        var v = e.valores ? e.valores.custo : null;
+        return (v === null || v === undefined) ? 'sem dado' : (fmt(v, 2) + ' mUS$');
+      }
+    },
+    {
+      id: 'custo_acerto',
+      titulo: 'Custo por acerto',
+      tipo: 'num',
+      valor: function (e) { return e.valores ? e.valores.custo_acerto : null; },
+      texto: function (e) {
+        var v = e.valores ? e.valores.custo_acerto : null;
+        return (v === null || v === undefined) ? 'sem dado' : (fmt(v, 2) + ' mUS$');
+      }
+    },
+    {
+      id: 'pico',
+      titulo: 'Pico de contexto',
+      tipo: 'num',
+      valor: function (e) { return e.valores ? e.valores.pico : null; },
+      texto: function (e) {
+        var v = e.valores ? e.valores.pico : null;
+        return (v === null || v === undefined) ? 'sem dado' : fmt(v, 0);
+      }
+    },
+    {
+      id: 'estado',
+      titulo: 'Estado',
+      tipo: 'texto',
+      valor: function (e) { return e.incompleta ? 'Incompleta' : 'Completa'; },
+      texto: function (e) { return e.incompleta ? 'Incompleta' : 'Completa'; }
+    }
+  ];
+
+  function alternarOrdenacao(colId) {
+    if (sortCol === colId) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortCol = colId;
+      sortDir = 'asc';
+    }
+    render();
+  }
+
+  function ordenarExecucoes(lista) {
+    if (!sortCol) return lista.slice();
+    var col = null;
+    for (var i = 0; i < COLUNAS_TABELA.length; i++) {
+      if (COLUNAS_TABELA[i].id === sortCol) {
+        col = COLUNAS_TABELA[i];
+        break;
+      }
+    }
+    if (!col) return lista.slice();
+    var indexadas = lista.map(function (item, idx) {
+      return { item: item, idx: idx, val: col.valor(item) };
+    });
+    indexadas.sort(function (a, b) {
+      var va = a.val;
+      var vb = b.val;
+      var aNulo = va === null || va === undefined || (typeof va === 'number' && isNaN(va));
+      var bNulo = vb === null || vb === undefined || (typeof vb === 'number' && isNaN(vb));
+      if (aNulo && bNulo) return a.idx - b.idx;
+      if (aNulo) return 1;
+      if (bNulo) return -1;
+      var cmp = 0;
+      if (col.tipo === 'texto') {
+        cmp = String(va).localeCompare(String(vb), 'pt-BR');
+      } else {
+        cmp = Number(va) - Number(vb);
+      }
+      if (cmp !== 0) return sortDir === 'asc' ? cmp : -cmp;
+      return a.idx - b.idx;
+    });
+    return indexadas.map(function (x) { return x.item; });
+  }
+
+  function renderTabela(filtradas) {
     areaTabela.textContent = '';
-    if (!filtradas.length) return;
+    if (!filtradas.length) {
+      areaTabela.appendChild(el('p', 'painel-vazio', 'Nenhuma variante selecionada.'));
+      return;
+    }
+    var ordenadas = ordenarExecucoes(filtradas);
     var tbl = el('table', 'painel-tabela');
     var thead = el('thead');
     var hr = el('tr');
-    ['Variante', 'Linhas', met.titulo, 'Rodadas válidas', 'Estado'].forEach(function (h) {
-      hr.appendChild(el('th', null, h));
+    COLUNAS_TABELA.forEach(function (col) {
+      var th = el('th', col.tipo === 'num' ? 'painel-num' : null);
+      var ativa = sortCol === col.id;
+      var ariaSort = ativa ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none';
+      th.setAttribute('aria-sort', ariaSort);
+      th.setAttribute('tabindex', '0');
+      th.setAttribute('data-coluna', col.id);
+      th.appendChild(document.createTextNode(col.titulo));
+      var seta = ativa ? (sortDir === 'asc' ? '▲' : '▼') : '⇅';
+      var ind = el('span', 'painel-ordem', seta);
+      ind.setAttribute('aria-hidden', 'true');
+      th.appendChild(ind);
+      th.addEventListener('click', function () {
+        alternarOrdenacao(col.id);
+      });
+      th.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          alternarOrdenacao(col.id);
+        }
+      });
+      hr.appendChild(th);
     });
     thead.appendChild(hr);
     tbl.appendChild(thead);
 
     var tbody = el('tbody');
-    filtradas.forEach(function (e) {
+    ordenadas.forEach(function (e) {
       var tr = el('tr');
       if (selecionada && selecionada.variante === e.variante && selecionada.escala === e.escala) {
         tr.setAttribute('data-ativo', '1');
       }
-      var tdVar = el('td');
-      var dot = el('span', 'painel-cor');
-      dot.style.background = corVariante(e.variante);
-      dot.style.marginRight = '6px';
-      tdVar.appendChild(dot);
-      tdVar.appendChild(document.createTextNode(e.rotulo));
-      tr.appendChild(tdVar);
-      tr.appendChild(el('td', null, fmtInt(e.escala)));
-      var val = e.valores ? e.valores[met.id] : null;
-      tr.appendChild(el('td', null, fmt(val, met.casas)));
-      tr.appendChild(el('td', null, e.rodadas_validas + '/' + e.rodadas));
-      var estado = e.incompleta ? 'Incompleta' : (e.ponto_fraco ? 'Ponto fraco' : 'Completa');
-      tr.appendChild(el('td', null, estado));
+      COLUNAS_TABELA.forEach(function (col) {
+        if (col.id === 'variante') {
+          var tdVar = el('td');
+          var dot = el('span', 'painel-cor');
+          dot.style.background = corVariante(e.variante);
+          dot.style.marginRight = '6px';
+          tdVar.appendChild(dot);
+          tdVar.appendChild(document.createTextNode(e.rotulo));
+          tr.appendChild(tdVar);
+          return;
+        }
+        var td = el('td', col.tipo === 'num' ? 'painel-num' : null, col.texto(e));
+        if (col.id === 'estado' && e.incompleta && e.motivo_incompleta) {
+          td.setAttribute('title', e.motivo_incompleta);
+        }
+        tr.appendChild(td);
+      });
       tr.addEventListener('click', function () {
         selecionada = e;
         render();
@@ -377,6 +976,147 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
     }
   }
 
+  function estadoCelulaCaso(c) {
+    var a = c.aprovadas || 0;
+    var r = c.reprovadas || 0;
+    var i = c.erro_infra || 0;
+    if (a > 0 && r === 0 && i === 0) {
+      return { id: 'aprovada', cls: 'painel-cel-aprovada', rotulo: 'Todas aprovadas' };
+    }
+    if (a === 0 && r === 0) {
+      return { id: 'infra', cls: 'painel-cel-infra', rotulo: 'Só infra' };
+    }
+    if (a === 0 && r > 0) {
+      return { id: 'reprovada', cls: 'painel-cel-reprovada', rotulo: 'Nenhuma aprovada' };
+    }
+    return { id: 'mista', cls: 'painel-cel-mista', rotulo: 'Mistas' };
+  }
+
+  function renderMatriz(filtradas) {
+    areaMatriz.textContent = '';
+    if (!filtradas.length) return;
+
+    var varsAtivas = variantes.filter(function (v) { return !!ativas[v.id]; });
+    var escalasAtivas = escalas.filter(function (esc) {
+      return filtradas.some(function (e) { return e.escala === esc; });
+    });
+    if (!varsAtivas.length || !escalasAtivas.length) return;
+
+    var mapaExec = {};
+    var casosMapa = {};
+    filtradas.forEach(function (e) {
+      var chaveExec = e.escala + '|' + e.variante;
+      var porCaso = {};
+      (e.casos_detalhe || []).forEach(function (c) {
+        porCaso[c.id] = c;
+        if (!casosMapa[c.id]) {
+          casosMapa[c.id] = c.categoria || '';
+        }
+      });
+      mapaExec[chaveExec] = porCaso;
+    });
+
+    var casosIds = Object.keys(casosMapa).sort();
+    if (!casosIds.length) return;
+
+    areaMatriz.appendChild(el('h4', null, 'Matriz por caso (aprovadas/reprovadas/infra)'));
+
+    var legenda = el('div', 'painel-matriz-legenda');
+    [
+      { cls: 'painel-cel-aprovada', txt: 'Todas aprovadas' },
+      { cls: 'painel-cel-mista', txt: 'Mistas' },
+      { cls: 'painel-cel-reprovada', txt: 'Nenhuma aprovada' },
+      { cls: 'painel-cel-infra', txt: 'Só infra' }
+    ].forEach(function (item) {
+      var sp = el('span', 'painel-matriz-item');
+      sp.appendChild(el('span', 'painel-matriz-amostra ' + item.cls));
+      sp.appendChild(document.createTextNode(item.txt));
+      legenda.appendChild(sp);
+    });
+    areaMatriz.appendChild(legenda);
+
+    var wrap = el('div', 'painel-tabela-wrap');
+    var tbl = el('table', 'painel-tabela painel-matriz-tabela');
+    var thead = el('thead');
+    var trEsc = el('tr');
+    var thCaso = el('th', null, 'Caso');
+    thCaso.setAttribute('rowspan', '2');
+    thCaso.setAttribute('scope', 'col');
+    trEsc.appendChild(thCaso);
+
+    escalasAtivas.forEach(function (esc) {
+      var th = el('th', null, fmtRazao(esc / 60) + ' (' + fmtInt(esc) + ')');
+      th.setAttribute('colspan', String(varsAtivas.length));
+      th.setAttribute('scope', 'colgroup');
+      trEsc.appendChild(th);
+    });
+    thead.appendChild(trEsc);
+
+    var trVar = el('tr');
+    escalasAtivas.forEach(function () {
+      varsAtivas.forEach(function (v) {
+        var th = el('th');
+        th.setAttribute('scope', 'col');
+        var dot = el('span', 'painel-cor');
+        dot.style.background = v.cor;
+        dot.style.marginRight = '4px';
+        th.appendChild(dot);
+        th.appendChild(document.createTextNode(v.rotulo));
+        trVar.appendChild(th);
+      });
+    });
+    thead.appendChild(trVar);
+    tbl.appendChild(thead);
+
+    var tbody = el('tbody');
+    casosIds.forEach(function (casoId) {
+      var tr = el('tr');
+      var thRow = el('th', null, casoId);
+      thRow.setAttribute('scope', 'row');
+      if (casosMapa[casoId]) {
+        thRow.setAttribute('title', 'Categoria: ' + casosMapa[casoId]);
+      }
+      tr.appendChild(thRow);
+
+      escalasAtivas.forEach(function (esc) {
+        varsAtivas.forEach(function (v) {
+          var porCaso = mapaExec[esc + '|' + v.id] || {};
+          var c = porCaso[casoId];
+          if (!c) {
+            var tdVazio = el('td', 'painel-cel-vazia', '—');
+            tdVazio.setAttribute(
+              'title',
+              casoId + ' — ' + v.rotulo + ' (' + fmtInt(esc) + ' linhas): sem dado'
+            );
+            tr.appendChild(tdVazio);
+            return;
+          }
+          var est = estadoCelulaCaso(c);
+          var texto = (c.aprovadas || 0) + '/' + (c.reprovadas || 0) + '/' + (c.erro_infra || 0);
+          var iterTxt = (c.iteracoes_media !== null && c.iteracoes_media !== undefined)
+            ? fmt(c.iteracoes_media, 1)
+            : 'sem dado';
+          var tokTxt = (c.tokens_entrada_medio !== null && c.tokens_entrada_medio !== undefined)
+            ? fmtInt(Math.round(c.tokens_entrada_medio))
+            : 'sem dado';
+          var dica = casoId + ' — ' + v.rotulo + ' (' + fmtInt(esc) + ' linhas): ' +
+            est.rotulo + ' (' + texto + ') | Iterações médias: ' + iterTxt +
+            ' | Tokens médios: ' + tokTxt;
+
+          var td = el('td', est.cls, texto);
+          td.setAttribute('data-estado', est.id);
+          td.setAttribute('title', dica);
+          td.setAttribute('aria-label', dica);
+          tr.appendChild(td);
+        });
+      });
+      tbody.appendChild(tr);
+    });
+    tbl.appendChild(tbody);
+    wrap.appendChild(tbl);
+    areaMatriz.appendChild(wrap);
+  }
+
   function render() {
     var met = metricaAtual();
     var filtradas = execucoes.filter(function (e) { return !!ativas[e.variante]; });
@@ -385,9 +1125,11 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
     } else if (!filtradas.length) {
       selecionada = null;
     }
+    renderResumo(filtradas);
     renderSvg(met, filtradas);
-    renderTabela(met, filtradas);
+    renderTabela(filtradas);
     renderDetalhe();
+    renderMatriz(filtradas);
   }
 
   render();
