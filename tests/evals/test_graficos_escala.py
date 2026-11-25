@@ -861,6 +861,8 @@ def test_painel_presenca_dos_elementos_e_ordem_no_modo_escala() -> None:
     assert "painel-btn" in html
     assert "painel-var" in html
     assert "painel-cor" in html
+    assert "painel-resumo" in html
+    assert "painel-cartao" in html
     assert "painel-tabela" in html
     assert "painel-detalhe" in html
     assert "Eixo X logar\\u00edtmico" in html or "Eixo X logarítmico" in html
@@ -1192,7 +1194,7 @@ if (btnY.textContent !== 'Eixo Y: começar em zero') {{
   throw new Error('btnY initial text: ' + btnY.textContent);
 }}
 
-const areaSvg = caixa.children[1];
+const areaSvg = caixa.children[2];
 function yTicks() {{
   const svg = areaSvg.children[0];
   return svg.children
@@ -1389,7 +1391,7 @@ global.document = {{
 {scripts[0]}
 const caixa = raiz.children[0];
 const controles = caixa.children[0];
-const areaSvg = caixa.children[1];
+const areaSvg = caixa.children[2];
 const svg = areaSvg.children[0];
 const balao = areaSvg.children[1];
 const guia = svg.children.find((c) => c.getAttribute('data-guia') === '1');
@@ -1490,3 +1492,157 @@ if (!txtFiltrado.includes('JSON')) {{
     js_path.write_text(harness_js, encoding="utf-8")
     proc = subprocess.run(["node", str(js_path)], capture_output=True, text=True, check=False)
     assert proc.returncode == 0, f"Falha no teste de guia/balão JS: {proc.stderr}\n{proc.stdout}"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node não disponível no PATH")
+def test_painel_cartoes_resumo_maior_escala_e_razao_custo(tmp_path: Path) -> None:
+    dados = DadosEvolucao(
+        versao=1,
+        execucoes=(
+            _exec(1, "repl", 60, custo_por_rodada_executada_usd=0.001, taxa_pct=90.0),
+            _exec(2, "repl", 600, custo_por_rodada_executada_usd=0.001, taxa_pct=85.0),
+            _exec(3, "repl", 6000, custo_por_rodada_executada_usd=0.001, taxa_pct=80.0),
+            _exec(1, "json", 60, custo_por_rodada_executada_usd=0.002, taxa_pct=85.0),
+            _exec(2, "json", 600, custo_por_rodada_executada_usd=0.010, taxa_pct=60.0),
+            _exec(3, "json", 6000, custo_por_rodada_executada_usd=0.025, taxa_pct=30.0),
+            _exec(1, "json-agregacao", 60, custo_por_rodada_executada_usd=0.0012, taxa_pct=88.0),
+            _exec(2, "json-agregacao", 600, custo_por_rodada_executada_usd=0.0025, taxa_pct=82.0),
+        ),
+    )
+    html = gerar_pagina_html(dados)
+    m_json = re.search(
+        r'<script type="application/json" id="dados-painel">(.*?)</script>',
+        html,
+        flags=re.DOTALL,
+    )
+    assert m_json is not None
+    scripts = re.findall(
+        r"<script(?![^>]*application/json)[^>]*>(.*?)</script>",
+        html,
+        flags=re.DOTALL,
+    )
+    assert len(scripts) == 2
+
+    harness_js = f"""
+const jsonText = {json.dumps(m_json.group(1))};
+function makeNode(tag, ns) {{
+  const attrs = {{}};
+  const listeners = {{}};
+  let _text = '';
+  const node = {{
+    tagName: tag.toUpperCase(),
+    namespaceURI: ns || null,
+    className: '',
+    hidden: false,
+    get textContent() {{ return _text; }},
+    set textContent(v) {{
+      _text = String(v);
+      if (_text === '') this.children = [];
+    }},
+    style: {{}},
+    children: [],
+    setAttribute(k, v) {{ attrs[k] = String(v); }},
+    getAttribute(k) {{ return k in attrs ? attrs[k] : null; }},
+    appendChild(c) {{ this.children.push(c); return c; }},
+    addEventListener(ev, fn) {{ (listeners[ev] = listeners[ev] || []).push(fn); }},
+    dispatchEvent(ev) {{
+      if (!ev.target) ev.target = this;
+      (listeners[ev.type] || []).forEach((fn) => fn(ev));
+    }},
+  }};
+  return node;
+}}
+function collectText(n) {{
+  if (n.nodeType === 3) return n.textContent || '';
+  if (n.children && n.children.length) return n.children.map(collectText).join(' ');
+  return n.textContent || '';
+}}
+const raiz = makeNode('div');
+const elDados = {{ textContent: jsonText }};
+global.document = {{
+  getElementById(id) {{
+    if (id === 'dados-painel') return elDados;
+    if (id === 'painel-raiz') return raiz;
+    return null;
+  }},
+  createElement(tag) {{ return makeNode(tag); }},
+  createElementNS(ns, tag) {{ return makeNode(tag, ns); }},
+  createTextNode(t) {{ return {{ nodeType: 3, textContent: String(t) }}; }},
+}};
+{scripts[0]}
+const caixa = raiz.children[0];
+const controles = caixa.children[0];
+const areaResumo = caixa.children[1];
+const areaSvg = caixa.children[2];
+if (areaResumo.className !== 'painel-resumo') {{
+  throw new Error('expected painel-resumo above chart, got ' + areaResumo.className);
+}}
+if (areaSvg.className !== 'painel-grafico') {{
+  throw new Error('expected painel-grafico after resumo, got ' + areaSvg.className);
+}}
+const cartoes = areaResumo.children;
+// 3 variantes ativas + 1 cartao de razao de custo = 4 cartoes
+if (cartoes.length !== 4) {{
+  throw new Error('expected 4 cards, got ' + cartoes.length);
+}}
+const txtRepl = collectText(cartoes[0]);
+if (
+  !txtRepl.includes('REPL') ||
+  !txtRepl.includes('80,0%') ||
+  !txtRepl.includes('1,00 milésimos de US$') ||
+  !txtRepl.includes('6.000 linhas')
+) {{
+  throw new Error('unexpected REPL card: ' + txtRepl);
+}}
+const txtJson = collectText(cartoes[1]);
+if (
+  !txtJson.includes('JSON') ||
+  !txtJson.includes('30,0%') ||
+  !txtJson.includes('25,00 milésimos de US$') ||
+  !txtJson.includes('6.000 linhas')
+) {{
+  throw new Error('unexpected JSON card: ' + txtJson);
+}}
+const txtAgreg = collectText(cartoes[2]);
+if (!txtAgreg.includes('sem dado')) {{
+  throw new Error('expected sem dado for variant missing 6000 scale: ' + txtAgreg);
+}}
+const txtRazao = collectText(cartoes[3]);
+if (!txtRazao.includes('25x') || !txtRazao.includes('JSON vs REPL')) {{
+  throw new Error('unexpected ratio card: ' + txtRazao);
+}}
+
+// Desmarcar JSON -> maior escala continua 6000 (REPL), apenas 1 variante com custo em 6000
+const grupoVars = controles.children[2];
+const cbJson = grupoVars.children[1].children[0];
+cbJson.checked = false;
+cbJson.dispatchEvent({{ type: 'change' }});
+if (areaResumo.children.length !== 2) {{
+  throw new Error(
+    'expected 2 cards without ratio when <2 variants have cost at max scale, got ' +
+      areaResumo.children.length
+  );
+}}
+
+// Desmarcar REPL tambem -> apenas json-agregacao ativo, maior escala passa a ser 600
+const cbRepl = grupoVars.children[0].children[0];
+cbRepl.checked = false;
+cbRepl.dispatchEvent({{ type: 'change' }});
+if (areaResumo.children.length !== 1) {{
+  throw new Error('expected 1 card for json-agregacao alone, got ' + areaResumo.children.length);
+}}
+const txtSoAgreg = collectText(areaResumo.children[0]);
+if (
+  !txtSoAgreg.includes('600 linhas') ||
+  !txtSoAgreg.includes('82,0%') ||
+  !txtSoAgreg.includes('2,50 milésimos de US$')
+) {{
+  throw new Error('unexpected filtered single-variant card at 600: ' + txtSoAgreg);
+}}
+"""
+    js_path = tmp_path / "test_resumo.js"
+    js_path.write_text(harness_js, encoding="utf-8")
+    proc = subprocess.run(["node", str(js_path)], capture_output=True, text=True, check=False)
+    assert proc.returncode == 0, (
+        f"Falha no teste de cartões-resumo JS: {proc.stderr}\n{proc.stdout}"
+    )

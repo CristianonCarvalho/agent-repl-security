@@ -2024,6 +2024,15 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
   background: #fafaf8; font-size: 12px; line-height: 1.5; }
 .painel-detalhe h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
 .painel-vazio { color: #52514e; font-size: 13px; padding: 16px 0; text-align: center; }
+.painel-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px; margin-bottom: 12px; }
+.painel-cartao { border: 1px solid #e1e0d9; border-radius: 6px; padding: 10px 12px;
+  background: #fafaf8; }
+.painel-cartao-destaque { border-color: #c3c2b7; background: #f4f4f1; }
+.painel-cartao-titulo { display: flex; align-items: center; gap: 6px; font-size: 12px;
+  font-weight: 600; margin-bottom: 6px; color: #0b0b0b; }
+.painel-cartao-valor { font-size: 18px; font-weight: 600; color: #0b0b0b; line-height: 1.2; }
+.painel-cartao-meta { font-size: 11.5px; color: #52514e; margin-top: 3px; line-height: 1.4; }
 .painel-grafico { position: relative; }
 .painel-grafico svg:focus { outline: 2px solid #0b0b0b; outline-offset: 2px; border-radius: 6px; }
 .painel-balao { position: absolute; top: 10px; z-index: 5; min-width: 220px; max-width: 310px;
@@ -2087,6 +2096,14 @@ _SCRIPT_PAINEL: Final = """\
     return Number(valor).toLocaleString('pt-BR');
   }
 
+  function fmtRazao(valor) {
+    var arred = Math.round(valor * 10) / 10;
+    if (Math.abs(arred - Math.round(arred)) < 1e-9) {
+      return fmtInt(Math.round(arred)) + 'x';
+    }
+    return fmt(arred, 1) + 'x';
+  }
+
   function metricaAtual() {
     for (var i = 0; i < metricas.length; i++) {
       if (metricas[i].id === metricaAtiva) return metricas[i];
@@ -2108,6 +2125,7 @@ _SCRIPT_PAINEL: Final = """\
   grupoMetricas.setAttribute('aria-label', 'M\u00e9tricas');
   var grupoEscalaX = el('div', 'painel-grupo');
   var grupoVars = el('div', 'painel-grupo');
+  var areaResumo = el('div', 'painel-resumo');
   var areaSvg = el('div', 'painel-grafico');
   var areaTabela = el('div');
   var areaDetalhe = el('div', 'painel-detalhe');
@@ -2199,10 +2217,81 @@ _SCRIPT_PAINEL: Final = """\
   controles.appendChild(grupoEscalaX);
   controles.appendChild(grupoVars);
   caixa.appendChild(controles);
+  caixa.appendChild(areaResumo);
   caixa.appendChild(areaSvg);
   caixa.appendChild(areaTabela);
   caixa.appendChild(areaDetalhe);
   raiz.appendChild(caixa);
+
+  function renderResumo(filtradas) {
+    areaResumo.textContent = '';
+    if (!filtradas.length) return;
+    var maiorEscala = filtradas[0].escala;
+    for (var i = 1; i < filtradas.length; i++) {
+      if (filtradas[i].escala > maiorEscala) {
+        maiorEscala = filtradas[i].escala;
+      }
+    }
+    var naMaior = filtradas.filter(function (e) {
+      return e.escala === maiorEscala;
+    });
+    var custosValidos = [];
+    variantes.forEach(function (v) {
+      if (!ativas[v.id]) return;
+      var exec = null;
+      for (var j = 0; j < naMaior.length; j++) {
+        if (naMaior[j].variante === v.id) {
+          exec = naMaior[j];
+          break;
+        }
+      }
+      var cartao = el('div', 'painel-cartao');
+      var tit = el('div', 'painel-cartao-titulo');
+      var dot = el('span', 'painel-cor');
+      dot.style.background = v.cor;
+      tit.appendChild(dot);
+      tit.appendChild(document.createTextNode(v.rotulo));
+      cartao.appendChild(tit);
+
+      var custo = exec && exec.valores ? exec.valores.custo : null;
+      var taxa = exec && exec.valores ? exec.valores.taxa : null;
+      var custoTxt = (custo === null || custo === undefined)
+        ? 'sem dado'
+        : (fmt(custo, 2) + ' mil\u00e9simos de US$');
+      var taxaTxt = (taxa === null || taxa === undefined)
+        ? 'sem dado'
+        : (fmt(taxa, 1) + '%');
+
+      cartao.appendChild(el('div', 'painel-cartao-valor', taxaTxt));
+      cartao.appendChild(
+        el('div', 'painel-cartao-meta', 'Taxa de acerto (' + fmtInt(maiorEscala) + ' linhas)')
+      );
+      cartao.appendChild(el('div', 'painel-cartao-meta', 'Custo/rodada: ' + custoTxt));
+      areaResumo.appendChild(cartao);
+
+      if (custo !== null && custo !== undefined && custo > 0) {
+        custosValidos.push({ rotulo: v.rotulo, custo: custo });
+      }
+    });
+
+    if (custosValidos.length >= 2) {
+      var maisCara = custosValidos[0];
+      var maisBarata = custosValidos[0];
+      for (var k = 1; k < custosValidos.length; k++) {
+        if (custosValidos[k].custo > maisCara.custo) maisCara = custosValidos[k];
+        if (custosValidos[k].custo < maisBarata.custo) maisBarata = custosValidos[k];
+      }
+      var razao = maisCara.custo / maisBarata.custo;
+      var cartaoRazao = el('div', 'painel-cartao painel-cartao-destaque');
+      var tituloRazao = 'Raz\u00e3o de custo (' + fmtInt(maiorEscala) + ' linhas)';
+      cartaoRazao.appendChild(el('div', 'painel-cartao-titulo', tituloRazao));
+      cartaoRazao.appendChild(el('div', 'painel-cartao-valor', fmtRazao(razao)));
+      cartaoRazao.appendChild(
+        el('div', 'painel-cartao-meta', maisCara.rotulo + ' vs ' + maisBarata.rotulo)
+      );
+      areaResumo.appendChild(cartaoRazao);
+    }
+  }
 
   function renderSvg(met, filtradas) {
     areaSvg.textContent = '';
@@ -2603,6 +2692,7 @@ _SCRIPT_PAINEL: Final = """\
     } else if (!filtradas.length) {
       selecionada = null;
     }
+    renderResumo(filtradas);
     renderSvg(met, filtradas);
     renderTabela(met, filtradas);
     renderDetalhe();
