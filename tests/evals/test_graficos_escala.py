@@ -855,6 +855,12 @@ def test_painel_presenca_dos_elementos_e_ordem_no_modo_escala() -> None:
     assert pos_painel < pos_escala
 
     assert 'id="painel-raiz"' in html
+    secao_painel = html.split('<section id="painel-interativo">', 1)[1].split("</section>", 1)[0]
+    assert "<noscript>" in secao_painel
+    assert "</noscript>" in secao_painel
+    bloco_noscript = secao_painel.split("<noscript>", 1)[1].split("</noscript>", 1)[0]
+    assert "JavaScript" in bloco_noscript
+    assert "gráficos estáticos" in bloco_noscript
     assert '<script type="application/json" id="dados-painel">' in html
     assert "painel-controles" in html
     assert "painel-grupo" in html
