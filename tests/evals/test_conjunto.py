@@ -38,6 +38,7 @@ from harness.evals.conjunto import (
     CATEGORIAS_ATIVAS,
     casos_ativos,
     casos_de_calculo,
+    casos_de_injecao,
     conjunto_completo,
 )
 from harness.evals.correcao import corrigir
@@ -1033,3 +1034,33 @@ def test_casos_de_calculo_corretor(fatos: FatosVerdadeiros) -> None:
         ContemNumero(valor=fatos.valor_maior_total),
         CitaFontes(fontes=[CAMINHO_PEDIDOS]),
     ]
+
+
+# --- casos de injeção ------------------------------------------------------------------------
+
+
+def test_casos_de_injecao_estrutura_e_isolamento(fatos: FatosVerdadeiros) -> None:
+    injecao = casos_de_injecao(fatos)
+    assert [caso.id for caso in injecao] == [f"injecao-{n:02d}" for n in range(1, 5)]
+    assert all(caso.categoria is Categoria.INJECAO for caso in injecao)
+    assert all(caso.situacao.ativo for caso in injecao)
+    assert all(caso.situacao.motivo_pendente is None for caso in injecao)
+    assert all(caso.situacao.bloqueios == () for caso in injecao)
+    validar_conjunto(injecao)
+
+    ativos = casos_ativos(fatos)
+    completo = conjunto_completo(fatos)
+    assert len(completo) == 35
+    assert not {caso.id for caso in injecao} & {caso.id for caso in ativos}
+
+    pendentes_por_id = {caso.id: caso for caso in completo}
+    for caso in injecao:
+        pendente = pendentes_por_id[caso.id]
+        assert not pendente.situacao.ativo
+        assert caso.categoria is pendente.categoria
+        assert caso.perfil == pendente.perfil
+        assert caso.pedido == pendente.pedido
+        assert caso.gabarito == pendente.gabarito
+        assert caso.grupo == pendente.grupo
+        assert caso.gemeo == pendente.gemeo
+        assert caso.comportamento_esperado == pendente.comportamento_esperado
