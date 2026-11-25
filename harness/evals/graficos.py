@@ -1610,13 +1610,17 @@ def _tokens_escala_mil(execucao: Execucao) -> float | None:
     return None if bruto is None else bruto / 1000
 
 
+def _para_milesimos(valor: float | None) -> float | None:
+    return None if valor is None else round(valor * 1000, 6)
+
+
 def _custo_escala_milesimos(execucao: Execucao) -> float | None:
     bruto = (
         execucao.custo_por_rodada_executada_usd
         if execucao.custo_por_rodada_executada_usd is not None
         else execucao.custo_por_rodada_usd
     )
-    return None if bruto is None else round(bruto * 1000, 6)
+    return _para_milesimos(bruto)
 
 
 def _fmt_mil(valor: float) -> str:
@@ -2004,7 +2008,8 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
 .painel-grupo { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .painel-btn { border: 1px solid #c3c2b7; background: #f4f4f1; color: #0b0b0b; border-radius: 6px;
   padding: 5px 10px; font-size: 12px; cursor: pointer; }
-.painel-btn[aria-pressed="true"] { background: #0b0b0b; color: #ffffff; border-color: #0b0b0b; }
+.painel-btn[aria-pressed="true"],
+.painel-btn[aria-selected="true"] { background: #0b0b0b; color: #ffffff; border-color: #0b0b0b; }
 .painel-var { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
   padding: 4px 8px; border: 1px solid #e1e0d9; border-radius: 6px; background: #fafaf8;
   cursor: pointer; }
@@ -2085,6 +2090,8 @@ _SCRIPT_PAINEL: Final = """\
   var caixa = el('div', 'painel-caixa');
   var controles = el('div', 'painel-controles');
   var grupoMetricas = el('div', 'painel-grupo');
+  grupoMetricas.setAttribute('role', 'tablist');
+  grupoMetricas.setAttribute('aria-label', 'M\u00e9tricas');
   var grupoEscalaX = el('div', 'painel-grupo');
   var grupoVars = el('div', 'painel-grupo');
   var areaSvg = el('div');
@@ -2092,16 +2099,44 @@ _SCRIPT_PAINEL: Final = """\
   var areaDetalhe = el('div', 'painel-detalhe');
 
   var btnsMetrica = [];
-  metricas.forEach(function (m) {
+  function selecionarMetrica(idx, focar) {
+    var m = metricas[idx];
+    if (!m) return;
+    metricaAtiva = m.id;
+    btnsMetrica.forEach(function (item, i) {
+      var ativo = i === idx;
+      item.btn.setAttribute('aria-selected', ativo ? 'true' : 'false');
+      item.btn.setAttribute('tabindex', ativo ? '0' : '-1');
+      if (ativo && focar) item.btn.focus();
+    });
+    render();
+  }
+
+  metricas.forEach(function (m, idx) {
     var b = el('button', 'painel-btn', m.titulo);
     b.type = 'button';
-    b.setAttribute('aria-pressed', m.id === metricaAtiva ? 'true' : 'false');
+    b.setAttribute('role', 'tab');
+    var ativoInicial = m.id === metricaAtiva;
+    b.setAttribute('aria-selected', ativoInicial ? 'true' : 'false');
+    b.setAttribute('tabindex', ativoInicial ? '0' : '-1');
     b.addEventListener('click', function () {
-      metricaAtiva = m.id;
-      btnsMetrica.forEach(function (item) {
-        item.btn.setAttribute('aria-pressed', item.id === metricaAtiva ? 'true' : 'false');
-      });
-      render();
+      selecionarMetrica(idx, false);
+    });
+    b.addEventListener('keydown', function (ev) {
+      var proximo = null;
+      if (ev.key === 'ArrowRight') {
+        proximo = (idx + 1) % metricas.length;
+      } else if (ev.key === 'ArrowLeft') {
+        proximo = (idx - 1 + metricas.length) % metricas.length;
+      } else if (ev.key === 'Home') {
+        proximo = 0;
+      } else if (ev.key === 'End') {
+        proximo = metricas.length - 1;
+      }
+      if (proximo !== null) {
+        ev.preventDefault();
+        selecionarMetrica(proximo, true);
+      }
     });
     btnsMetrica.push({ id: m.id, btn: b });
     grupoMetricas.appendChild(b);
@@ -2399,6 +2434,7 @@ def _dados_painel_escala(dados: DadosEvolucao) -> dict[str, object]:
                         for caso in sorted(execucao.casos_detalhe, key=lambda c: c.id)
                     ],
                     "categorias_pct": dict(sorted(execucao.categorias_pct.items())),
+                    "custo_por_acerto_usd": execucao.custo_por_acerto_usd,
                     "erro_infra": execucao.erro_infra,
                     "escala": escala,
                     "incompleta": execucao.incompleta,
@@ -2415,6 +2451,8 @@ def _dados_painel_escala(dados: DadosEvolucao) -> dict[str, object]:
                     "rotulo": _rotulo_variante(variante),
                     "valores": {
                         "custo": _custo_escala_milesimos(execucao),
+                        "custo_acerto": _para_milesimos(execucao.custo_por_acerto_usd),
+                        "iteracoes": execucao.iteracoes_media,
                         "pico": execucao.pico_contexto_medio,
                         "taxa": execucao.taxa_pct,
                         "tokens": _tokens_escala_mil(execucao),
@@ -2453,6 +2491,20 @@ def _dados_painel_escala(dados: DadosEvolucao) -> dict[str, object]:
                 "teto": 100.0,
                 "titulo": "Taxa de acerto (%)",
                 "unidade": "%",
+            },
+            {
+                "casas": 2,
+                "id": "iteracoes",
+                "teto": None,
+                "titulo": "Iterações por pedido",
+                "unidade": "iterações por pedido",
+            },
+            {
+                "casas": 2,
+                "id": "custo_acerto",
+                "teto": None,
+                "titulo": "Custo por acerto (milésimos de US$)",
+                "unidade": "milésimos de US$",
             },
         ],
         "variantes": [
