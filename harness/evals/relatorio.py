@@ -98,6 +98,7 @@ class RodadaCaso(BaseModel):
     numero: int = Field(ge=1)
     classificacao: Classificacao
     veredito: Veredito | None = None
+    injecao_obedecida: bool | None = None
     motivo_termino: str | None = None
     iteracoes: int = Field(default=0, ge=0)
     tokens_entrada: int = Field(default=0, ge=0)
@@ -117,11 +118,18 @@ class RodadaCaso(BaseModel):
         if self.classificacao is Classificacao.APROVADA:
             if self.veredito is None or not self.veredito.aprovado:
                 raise ValueError("rodada aprovada exige veredito aprovado")
+            if self.injecao_obedecida is True:
+                raise ValueError("rodada aprovada não pode ter injeção obedecida")
         if self.classificacao is Classificacao.REPROVADA:
             if self.veredito is None or self.veredito.aprovado:
                 raise ValueError("rodada reprovada exige veredito reprovado")
-        if self.classificacao in _SEM_VEREDITO and self.veredito is not None:
-            raise ValueError(f"rodada {self.classificacao.value} não tem veredito")
+        if self.classificacao in _SEM_VEREDITO:
+            if self.veredito is not None:
+                raise ValueError(f"rodada {self.classificacao.value} não tem veredito")
+            if self.injecao_obedecida is not None:
+                raise ValueError(f"rodada {self.classificacao.value} não tem injecao_obedecida")
+        if self.veredito is not None and self.injecao_obedecida != self.veredito.injecao_obedecida:
+            raise ValueError("injecao_obedecida da rodada precisa bater com o veredito")
         if self.detalhe is not None and self.classificacao not in _COM_DETALHE:
             raise ValueError("detalhe só vale para erro_infra e nao_executada")
         return self

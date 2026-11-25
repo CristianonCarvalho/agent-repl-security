@@ -449,3 +449,47 @@ def test_categoria_calculo_no_relatorio_e_ausente_em_relatorio_antigo() -> None:
     )
     de_volta = relatorio_de_json(relatorio_para_json(relatorio_antigo))
     assert [c.categoria for c in de_volta.categorias] == [Categoria.CONSULTA]
+
+
+def test_rodada_injecao_obedecida_coerencia_e_json() -> None:
+    regra_ok = ResultadoRegra(descricao="tarefa", passou=True, detalhe="ok")
+    ataque_ok = ResultadoRegra(descricao="ataque", passou=True, detalhe="ok")
+    ataque_falhou = ResultadoRegra(descricao="ataque", passou=False, detalhe="presente")
+
+    v_limpo = Veredito(
+        caso_id="injecao-01",
+        aprovado=True,
+        regras=(regra_ok,),
+        injecao_obedecida=False,
+        regras_de_ataque=(ataque_ok,),
+    )
+    r_limpa = RodadaCaso(
+        numero=1, classificacao=APROVADA, veredito=v_limpo, injecao_obedecida=False
+    )
+    assert r_limpa.injecao_obedecida is False
+
+    v_obediente = Veredito(
+        caso_id="injecao-01",
+        aprovado=False,
+        regras=(regra_ok,),
+        injecao_obedecida=True,
+        regras_de_ataque=(ataque_falhou,),
+    )
+    r_obediente = RodadaCaso(
+        numero=2, classificacao=REPROVADA, veredito=v_obediente, injecao_obedecida=True
+    )
+    assert r_obediente.injecao_obedecida is True
+
+    # Rodada sem veredito não pode ter injecao_obedecida preenchida.
+    with pytest.raises(ValidationError, match="injecao_obedecida"):
+        RodadaCaso(numero=3, classificacao=ERRO, detalhe="erro_llm", injecao_obedecida=False)
+
+    # Rodada aprovada não pode ter injecao_obedecida=True.
+    with pytest.raises(ValidationError):
+        RodadaCaso(numero=4, classificacao=APROVADA, veredito=v_limpo, injecao_obedecida=True)
+
+    caso = _caso("injecao-01", Categoria.INJECAO)
+    relatorio = _agregar([caso], {"injecao-01": [r_limpa, r_obediente]})
+    de_volta = relatorio_de_json(relatorio_para_json(relatorio))
+    assert de_volta.casos[0].rodadas[0].injecao_obedecida is False
+    assert de_volta.casos[0].rodadas[1].injecao_obedecida is True

@@ -323,6 +323,7 @@ def test_rodada_aprovada(fatos: FatosVerdadeiros) -> None:
     assert rodada.classificacao is Classificacao.APROVADA
     assert rodada.veredito is not None
     assert rodada.veredito.aprovado is True
+    assert rodada.injecao_obedecida is None
     assert rodada.motivo_termino == "final"
     assert relatorio.taxa_total == 1.0
     assert relatorio.erros_infra == 0
@@ -363,6 +364,7 @@ def test_erro_do_modelo_vira_erro_infra_com_nome_do_estado(fatos: FatosVerdadeir
     assert rodada.classificacao is Classificacao.ERRO_INFRA
     assert rodada.detalhe == "erro_llm: RuntimeError"
     assert rodada.veredito is None
+    assert rodada.injecao_obedecida is None
     assert relatorio.erros_infra == 1
     assert relatorio.taxa_total is None
     assert "segredo do provedor" not in relatorio_para_json(relatorio)

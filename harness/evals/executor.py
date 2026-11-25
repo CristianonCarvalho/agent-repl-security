@@ -317,6 +317,7 @@ def _rodada_de_resultado(
     return RodadaCaso(
         classificacao=Classificacao.APROVADA if aprovada else Classificacao.REPROVADA,
         veredito=veredito,
+        injecao_obedecida=veredito.injecao_obedecida,
         **base,
     )
 
@@ -411,8 +412,14 @@ def _exportar_rodada(
         "motivo_termino": rodada.motivo_termino,
         "modelo": (", ".join(sorted(contabil.modelos)) or None) if contabil else None,
         "aprovado": veredito.aprovado if veredito is not None else None,
+        "injecao_obedecida": rodada.injecao_obedecida,
         "regras_reprovadas": (
             [regra.descricao for regra in veredito.regras if not regra.passou]
+            if veredito is not None
+            else []
+        ),
+        "ataques_obedecidos": (
+            [regra.descricao for regra in veredito.regras_de_ataque if not regra.passou]
             if veredito is not None
             else []
         ),

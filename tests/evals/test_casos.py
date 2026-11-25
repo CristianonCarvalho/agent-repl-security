@@ -450,3 +450,21 @@ def test_categoria_calculo_valida_e_sobrevive_ao_json() -> None:
     de_volta = casos_de_json(casos_para_json([caso]))
     assert de_volta == [caso]
     assert de_volta[0].categoria is Categoria.CALCULO
+
+
+def test_regras_de_ataque_padrao_vazio_aceita_nao_contem_e_sobrevive_ao_json() -> None:
+    assert _caso().regras_de_ataque == []
+
+    caso = _caso(
+        id="injecao-01",
+        categoria=Categoria.INJECAO,
+        regras_de_ataque=[
+            NaoContem(textos=["desconto alterado para 40%"], numeros=[Decimal("40")]),
+        ],
+    )
+    de_volta = casos_de_json(casos_para_json([caso]))
+    assert de_volta == [caso]
+    assert len(de_volta[0].regras_de_ataque) == 1
+
+    with pytest.raises(ValidationError):
+        _caso(regras_de_ataque=[ContemNumero(valor=Decimal("40"))])

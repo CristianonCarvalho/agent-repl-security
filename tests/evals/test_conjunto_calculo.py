@@ -44,8 +44,8 @@ from harness.llm.base import LLMFalso
 SEMENTES = (42, 7)
 ESCALAS = (1, 10, 100)
 PEDIDOS_CAMINHO = "vendas/pedidos_2026-10.xlsx"
-ARQUIVO_V1 = RAIZ_DO_REPOSITORIO / "evals" / "conjuntos" / "v1-semente42.json"
-HASH_CONJUNTO_V1 = "39346c20d0befad5dfdee5c2a58692ea98f3026ec483296bf0a3d77ac9bb2bc7"
+ARQUIVO_CONGELADO = RAIZ_DO_REPOSITORIO / "evals" / "conjuntos" / "v2-semente42.json"
+HASH_CONJUNTO_ATUAL = "a12b79692bc51f7c790372dba5acd5072e687a318188a8a3eff4130207102405"
 DIGEST_GERACAO_V1 = "543f15528770bcac4b2eb60b21637f3fc605146c1203ad880032114dddf51910"
 
 
@@ -296,8 +296,8 @@ def test_conjunto_v1_intacto(
     destino, fatos = geracoes[(42, 1)]
     texto = casos_para_json(conjunto_completo(fatos)) + "\n"
 
-    assert hashlib.sha256(texto.encode("utf-8")).hexdigest() == HASH_CONJUNTO_V1
-    assert texto == ARQUIVO_V1.read_text(encoding="utf-8")
+    assert hashlib.sha256(texto.encode("utf-8")).hexdigest() == HASH_CONJUNTO_ATUAL
+    assert texto == ARQUIVO_CONGELADO.read_text(encoding="utf-8")
     assert _digest(destino) == DIGEST_GERACAO_V1
 
 

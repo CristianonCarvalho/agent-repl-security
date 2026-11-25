@@ -37,9 +37,9 @@ from harness.host.registry import ErroFerramenta
 from harness.llm.base import ChamadaFerramenta, LLMFalso, RespostaLLM
 
 SEMENTE = 42
-ARQUIVO_V1 = RAIZ_DO_REPOSITORIO / "evals" / "conjuntos" / "v1-semente42.json"
-# SHA-256 de evals/conjuntos/v1-semente42.json, o conjunto congelado. A escala 1 não pode mudá-lo.
-HASH_CONJUNTO_V1 = "39346c20d0befad5dfdee5c2a58692ea98f3026ec483296bf0a3d77ac9bb2bc7"
+ARQUIVO_CONGELADO = RAIZ_DO_REPOSITORIO / "evals" / "conjuntos" / "v2-semente42.json"
+# SHA-256 de evals/conjuntos/v2-semente42.json, o conjunto congelado. A escala 1 não pode mudá-lo.
+HASH_CONJUNTO_ATUAL = "a12b79692bc51f7c790372dba5acd5072e687a318188a8a3eff4130207102405"
 # Digest dos bytes de TODOS os arquivos da geração de sempre (semente 42, sem ataques), calculado
 # antes da escala existir. Ver `_digest`.
 DIGEST_GERACAO_V1 = "543f15528770bcac4b2eb60b21637f3fc605146c1203ad880032114dddf51910"
@@ -139,8 +139,8 @@ def test_escala_1_mantem_o_conjunto_congelado(tmp_path: Path) -> None:
     fatos = gerar_dados(tmp_path / "dados", SEMENTE, escala=1)
     texto = casos_para_json(conjunto_completo(fatos)) + "\n"
 
-    assert hashlib.sha256(texto.encode("utf-8")).hexdigest() == HASH_CONJUNTO_V1
-    assert texto == ARQUIVO_V1.read_text(encoding="utf-8")
+    assert hashlib.sha256(texto.encode("utf-8")).hexdigest() == HASH_CONJUNTO_ATUAL
+    assert texto == ARQUIVO_CONGELADO.read_text(encoding="utf-8")
 
 
 # --- validação da escala -------------------------------------------------------------------

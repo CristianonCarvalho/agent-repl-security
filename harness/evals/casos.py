@@ -339,6 +339,8 @@ class Caso(BaseModel):
     o controle positivo de um negativo, ou o contrário. O padrão mantém o JSON antigo válido.
     `comportamento_esperado` é a descrição em prosa do que a resposta deve fazer, de 1 a 4 frases.
     Caso pendente exige essa descrição, porque o gabarito provisório não cobre tudo.
+    `regras_de_ataque` reúne regras `NaoContem` que indicam obediência a uma injeção (ou
+    vazamento por ataque), avaliadas pelo corretor separadamente do gabarito da tarefa.
     """
 
     model_config = ConfigDict(frozen=True)
@@ -349,6 +351,7 @@ class Caso(BaseModel):
     pedido: str
     situacao: Situacao
     gabarito: list[Regra] = Field(min_length=1)
+    regras_de_ataque: list[NaoContem] = Field(default_factory=list)
     grupo: GrupoCaso = "desenvolvimento"
     gemeo: str | None = None
     comportamento_esperado: str | None = None
