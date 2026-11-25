@@ -2024,6 +2024,18 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
   background: #fafaf8; font-size: 12px; line-height: 1.5; }
 .painel-detalhe h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
 .painel-vazio { color: #52514e; font-size: 13px; padding: 16px 0; text-align: center; }
+.painel-grafico { position: relative; }
+.painel-grafico svg:focus { outline: 2px solid #0b0b0b; outline-offset: 2px; border-radius: 6px; }
+.painel-balao { position: absolute; top: 10px; z-index: 5; min-width: 220px; max-width: 310px;
+  padding: 8px 10px; border-radius: 6px; background: rgba(11, 11, 11, 0.94); color: #ffffff;
+  font-size: 11.5px; line-height: 1.45; pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); }
+.painel-balao[hidden] { display: none; }
+.painel-balao-titulo { font-weight: 600; margin-bottom: 5px; padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2); }
+.painel-balao-item { margin-top: 5px; }
+.painel-balao-var { display: flex; align-items: center; gap: 6px; font-weight: 600; }
+.painel-balao-meta { color: #e1e0d9; padding-left: 16px; }
 """
 
 _SCRIPT_PAINEL: Final = """\
@@ -2046,6 +2058,7 @@ _SCRIPT_PAINEL: Final = """\
   var ativas = {};
   variantes.forEach(function (v) { ativas[v.id] = true; });
   var selecionada = execucoes[0];
+  var escalaGuia = null;
 
   function el(tag, cls, texto) {
     var n = document.createElement(tag);
@@ -2095,7 +2108,7 @@ _SCRIPT_PAINEL: Final = """\
   grupoMetricas.setAttribute('aria-label', 'M\u00e9tricas');
   var grupoEscalaX = el('div', 'painel-grupo');
   var grupoVars = el('div', 'painel-grupo');
-  var areaSvg = el('div');
+  var areaSvg = el('div', 'painel-grafico');
   var areaTabela = el('div');
   var areaDetalhe = el('div', 'painel-detalhe');
 
@@ -2206,7 +2219,8 @@ _SCRIPT_PAINEL: Final = """\
     var svg = svgEl('svg', {
       viewBox: '0 0 ' + W + ' ' + H,
       role: 'img',
-      'aria-label': met.titulo
+      tabindex: 0,
+      'aria-label': met.titulo + ' (use as setas esquerda e direita para percorrer as escalas)'
     });
     svg.appendChild(svgEl('rect', {
       x: 0.5, y: 0.5, width: W - 1, height: H - 1, rx: 6,
@@ -2307,14 +2321,12 @@ _SCRIPT_PAINEL: Final = """\
         var circ = svgEl('circle', {
           cx: cx.toFixed(2), cy: cy.toFixed(2), r: ativo ? 6.5 : 4.5,
           fill: oco ? '#ffffff' : v.cor, stroke: v.cor, 'stroke-width': ativo ? 2.5 : 2,
-          tabindex: 0, style: 'cursor:pointer'
+          tabindex: 0, style: 'cursor:pointer', 'data-escala': e.escala
         });
         var dica = v.rotulo + ', ' + fmtInt(e.escala) + ' linhas: ' +
           fmt(e.valores[met.id], met.casas) + ' ' + met.unidade;
         if (e.incompleta && e.motivo_incompleta) dica += ' (' + e.motivo_incompleta + ')';
-        var title = svgEl('title');
-        title.textContent = dica;
-        circ.appendChild(title);
+        circ.setAttribute('aria-label', dica);
         circ.addEventListener('click', function () { selecionada = e; render(); });
         circ.addEventListener('keydown', function (ev) {
           if (ev.key === 'Enter' || ev.key === ' ') {
@@ -2327,7 +2339,175 @@ _SCRIPT_PAINEL: Final = """\
       });
     });
 
+    var escalasVisiveis = escalas.filter(function (esc) {
+      return pontosValidos.some(function (e) { return e.escala === esc; });
+    });
+
+    var linhaGuia = svgEl('line', {
+      x1: L, y1: T, x2: L, y2: B,
+      stroke: '#52514e', 'stroke-width': 1.2, 'stroke-dasharray': '4 3',
+      'pointer-events': 'none', visibility: 'hidden', 'data-guia': '1'
+    });
+    svg.appendChild(linhaGuia);
+
+    var balao = el('div', 'painel-balao');
+    balao.setAttribute('role', 'tooltip');
+    balao.hidden = true;
+
+    function esconderGuia() {
+      escalaGuia = null;
+      linhaGuia.setAttribute('visibility', 'hidden');
+      balao.hidden = true;
+      balao.textContent = '';
+    }
+
+    function mostrarGuia(esc) {
+      if (esc === null || esc === undefined || escalasVisiveis.indexOf(esc) === -1) {
+        esconderGuia();
+        return;
+      }
+      escalaGuia = esc;
+      var gx = pxX(esc);
+      linhaGuia.setAttribute('x1', gx.toFixed(2));
+      linhaGuia.setAttribute('x2', gx.toFixed(2));
+      linhaGuia.setAttribute('visibility', 'visible');
+
+      balao.textContent = '';
+      balao.appendChild(el('div', 'painel-balao-titulo', fmtInt(esc) + ' linhas'));
+      variantes.forEach(function (v) {
+        if (!ativas[v.id]) return;
+        var exec = null;
+        for (var i = 0; i < filtradas.length; i++) {
+          if (filtradas[i].variante === v.id && filtradas[i].escala === esc) {
+            exec = filtradas[i];
+            break;
+          }
+        }
+        if (!exec) return;
+        var item = el('div', 'painel-balao-item');
+        var cab = el('div', 'painel-balao-var');
+        var dot = el('span', 'painel-cor');
+        dot.style.background = v.cor;
+        cab.appendChild(dot);
+        var val = exec.valores ? exec.valores[met.id] : null;
+        var valTexto = (val === null || val === undefined)
+          ? 'sem dado'
+          : (fmt(val, met.casas) + ' ' + met.unidade);
+        cab.appendChild(document.createTextNode(v.rotulo + ': ' + valTexto));
+        item.appendChild(cab);
+
+        var meta = el(
+          'div',
+          'painel-balao-meta',
+          'Rodadas: ' + exec.rodadas_validas + '/' + exec.rodadas +
+            ' \u2014 Aprovadas: ' + exec.aprovadas +
+            ' | Reprovadas: ' + exec.reprovadas +
+            ' | Infra: ' + exec.erro_infra
+        );
+        item.appendChild(meta);
+        balao.appendChild(item);
+      });
+
+      var pct = (gx / W) * 100;
+      if (gx < W * 0.58) {
+        balao.style.left = (pct + 1.5).toFixed(2) + '%';
+        balao.style.right = 'auto';
+      } else {
+        balao.style.left = 'auto';
+        balao.style.right = (100 - pct + 1.5).toFixed(2) + '%';
+      }
+      balao.hidden = false;
+    }
+
+    function escalaMaisProxima(clientX) {
+      if (!escalasVisiveis.length) return null;
+      var svgX = L;
+      if (typeof clientX === 'number' && svg.getBoundingClientRect) {
+        var rect = svg.getBoundingClientRect();
+        if (rect && rect.width > 0) {
+          svgX = ((clientX - rect.left) / rect.width) * W;
+        }
+      }
+      var melhor = escalasVisiveis[0];
+      var melhorDist = Math.abs(pxX(melhor) - svgX);
+      for (var i = 1; i < escalasVisiveis.length; i++) {
+        var d = Math.abs(pxX(escalasVisiveis[i]) - svgX);
+        if (d < melhorDist) {
+          melhorDist = d;
+          melhor = escalasVisiveis[i];
+        }
+      }
+      return melhor;
+    }
+
+    svg.addEventListener('pointermove', function (ev) {
+      if (ev.pointerType === 'touch') return;
+      mostrarGuia(escalaMaisProxima(ev.clientX));
+    });
+    svg.addEventListener('pointerleave', function () {
+      esconderGuia();
+    });
+    svg.addEventListener('pointerdown', function (ev) {
+      if (ev.pointerType === 'touch') {
+        mostrarGuia(escalaMaisProxima(ev.clientX));
+      }
+    });
+    svg.addEventListener('touchstart', function (ev) {
+      if (ev.touches && ev.touches.length) {
+        mostrarGuia(escalaMaisProxima(ev.touches[0].clientX));
+      }
+    }, { passive: true });
+    svg.addEventListener('focusin', function (ev) {
+      var tgt = ev.target;
+      var escAttr = tgt && tgt.getAttribute ? tgt.getAttribute('data-escala') : null;
+      if (escAttr !== null) {
+        mostrarGuia(Number(escAttr));
+      } else if (escalaGuia !== null && escalasVisiveis.indexOf(escalaGuia) !== -1) {
+        mostrarGuia(escalaGuia);
+      } else if (selecionada && escalasVisiveis.indexOf(selecionada.escala) !== -1) {
+        mostrarGuia(selecionada.escala);
+      } else if (escalasVisiveis.length) {
+        mostrarGuia(escalasVisiveis[0]);
+      }
+    });
+    svg.addEventListener('focusout', function (ev) {
+      if (!ev.relatedTarget || (svg.contains && !svg.contains(ev.relatedTarget))) {
+        esconderGuia();
+      }
+    });
+    svg.addEventListener('keydown', function (ev) {
+      if (!escalasVisiveis.length) return;
+      var atual = escalaGuia;
+      if (atual === null || escalasVisiveis.indexOf(atual) === -1) {
+        atual = (selecionada && escalasVisiveis.indexOf(selecionada.escala) !== -1)
+          ? selecionada.escala
+          : escalasVisiveis[0];
+      }
+      var idx = escalasVisiveis.indexOf(atual);
+      var novoIdx = null;
+      if (ev.key === 'ArrowRight') {
+        novoIdx = Math.min(escalasVisiveis.length - 1, idx + 1);
+      } else if (ev.key === 'ArrowLeft') {
+        novoIdx = Math.max(0, idx - 1);
+      } else if (ev.key === 'Home') {
+        novoIdx = 0;
+      } else if (ev.key === 'End') {
+        novoIdx = escalasVisiveis.length - 1;
+      } else if (ev.key === 'Escape') {
+        esconderGuia();
+        return;
+      }
+      if (novoIdx !== null) {
+        ev.preventDefault();
+        mostrarGuia(escalasVisiveis[novoIdx]);
+      }
+    });
+
     areaSvg.appendChild(svg);
+    areaSvg.appendChild(balao);
+    if (escalaGuia !== null && escalasVisiveis.indexOf(escalaGuia) !== -1) {
+      mostrarGuia(escalaGuia);
+    }
   }
 
   function renderTabela(met, filtradas) {

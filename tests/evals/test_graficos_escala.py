@@ -1246,3 +1246,247 @@ if (yTicks()[0] !== '0,0') throw new Error('expected 0,0 restored');
     js_path.write_text(harness_js, encoding="utf-8")
     proc = subprocess.run(["node", str(js_path)], capture_output=True, text=True, check=False)
     assert proc.returncode == 0, f"Falha no teste de controles X/Y JS: {proc.stderr}\n{proc.stdout}"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node não disponível no PATH")
+def test_painel_guia_vertical_balao_multivariante_e_setas_escalas(tmp_path: Path) -> None:
+    dados = DadosEvolucao(
+        versao=1,
+        execucoes=(
+            _exec(
+                1,
+                "repl",
+                60,
+                rodadas=10,
+                rodadas_validas=9,
+                aprovadas=8,
+                reprovadas=1,
+                erro_infra=1,
+                tokens_entrada_por_rodada_executada=8000.0,
+            ),
+            _exec(
+                2,
+                "repl",
+                600,
+                rodadas=10,
+                rodadas_validas=10,
+                aprovadas=9,
+                reprovadas=1,
+                erro_infra=0,
+                tokens_entrada_por_rodada_executada=12000.0,
+            ),
+            _exec(
+                3,
+                "repl",
+                6000,
+                rodadas=10,
+                rodadas_validas=8,
+                aprovadas=6,
+                reprovadas=2,
+                erro_infra=2,
+                tokens_entrada_por_rodada_executada=18000.0,
+            ),
+            _exec(
+                1,
+                "json",
+                60,
+                rodadas=10,
+                rodadas_validas=10,
+                aprovadas=7,
+                reprovadas=3,
+                erro_infra=0,
+                tokens_entrada_por_rodada_executada=10000.0,
+            ),
+            _exec(
+                2,
+                "json",
+                600,
+                rodadas=10,
+                rodadas_validas=9,
+                aprovadas=5,
+                reprovadas=4,
+                erro_infra=1,
+                tokens_entrada_por_rodada_executada=15000.0,
+            ),
+            _exec(
+                3,
+                "json",
+                6000,
+                rodadas=10,
+                rodadas_validas=7,
+                aprovadas=4,
+                reprovadas=3,
+                erro_infra=3,
+                tokens_entrada_por_rodada_executada=22000.0,
+            ),
+        ),
+    )
+    html = gerar_pagina_html(dados)
+    m_json = re.search(
+        r'<script type="application/json" id="dados-painel">(.*?)</script>',
+        html,
+        flags=re.DOTALL,
+    )
+    assert m_json is not None
+    scripts = re.findall(
+        r"<script(?![^>]*application/json)[^>]*>(.*?)</script>",
+        html,
+        flags=re.DOTALL,
+    )
+    assert len(scripts) == 2
+
+    harness_js = f"""
+const jsonText = {json.dumps(m_json.group(1))};
+function makeNode(tag, ns) {{
+  const attrs = {{}};
+  const listeners = {{}};
+  let _text = '';
+  const node = {{
+    tagName: tag.toUpperCase(),
+    namespaceURI: ns || null,
+    className: '',
+    hidden: false,
+    get textContent() {{ return _text; }},
+    set textContent(v) {{
+      _text = String(v);
+      if (_text === '') this.children = [];
+    }},
+    style: {{}},
+    children: [],
+    setAttribute(k, v) {{ attrs[k] = String(v); }},
+    getAttribute(k) {{ return k in attrs ? attrs[k] : null; }},
+    appendChild(c) {{ this.children.push(c); return c; }},
+    contains(alvo) {{
+      if (alvo === this) return true;
+      return this.children.some((c) => c.contains && c.contains(alvo));
+    }},
+    getBoundingClientRect() {{ return {{ left: 0, top: 0, width: 720, height: 300 }}; }},
+    addEventListener(ev, fn) {{ (listeners[ev] = listeners[ev] || []).push(fn); }},
+    dispatchEvent(ev) {{
+      if (!ev.target) ev.target = this;
+      (listeners[ev.type] || []).forEach((fn) => fn(ev));
+    }},
+  }};
+  return node;
+}}
+function collectText(n) {{
+  if (n.nodeType === 3) return n.textContent || '';
+  if (n.children && n.children.length) return n.children.map(collectText).join(' ');
+  return n.textContent || '';
+}}
+const raiz = makeNode('div');
+const elDados = {{ textContent: jsonText }};
+global.document = {{
+  getElementById(id) {{
+    if (id === 'dados-painel') return elDados;
+    if (id === 'painel-raiz') return raiz;
+    return null;
+  }},
+  createElement(tag) {{ return makeNode(tag); }},
+  createElementNS(ns, tag) {{ return makeNode(tag, ns); }},
+  createTextNode(t) {{ return {{ nodeType: 3, textContent: String(t) }}; }},
+}};
+{scripts[0]}
+const caixa = raiz.children[0];
+const controles = caixa.children[0];
+const areaSvg = caixa.children[1];
+const svg = areaSvg.children[0];
+const balao = areaSvg.children[1];
+const guia = svg.children.find((c) => c.getAttribute('data-guia') === '1');
+if (!guia) throw new Error('missing vertical guideline');
+if (guia.getAttribute('visibility') !== 'hidden') throw new Error('guide should start hidden');
+if (!balao.hidden) throw new Error('balao should start hidden');
+
+const ticksX = svg.children
+  .filter((c) => c.tagName === 'TEXT' && c.getAttribute('text-anchor') === 'middle')
+  .map((c) => Number(c.getAttribute('x')));
+if (ticksX.length !== 3) throw new Error('expected 3 x ticks');
+
+// Hover near second scale (600)
+svg.dispatchEvent({{ type: 'pointermove', pointerType: 'mouse', clientX: ticksX[1] + 5 }});
+if (guia.getAttribute('visibility') !== 'visible') throw new Error('guide not visible on hover');
+if (Math.abs(Number(guia.getAttribute('x1')) - ticksX[1]) > 0.1) {{
+  throw new Error('guide did not snap to scale 600');
+}}
+if (balao.hidden) throw new Error('balao not visible on hover');
+const txt600 = collectText(balao);
+if (!txt600.includes('600 linhas')) throw new Error('missing scale header: ' + txt600);
+if (!txt600.includes('REPL') || !txt600.includes('JSON')) {{
+  throw new Error('missing all visible variants: ' + txt600);
+}}
+if (!txt600.includes('12,0') || !txt600.includes('15,0')) {{
+  throw new Error('missing metric values: ' + txt600);
+}}
+if (!txt600.includes('10/10') || !txt600.includes('9/10')) {{
+  throw new Error('missing valid/total rounds: ' + txt600);
+}}
+if (
+  !txt600.includes('Aprovadas: 9') ||
+  !txt600.includes('Reprovadas: 4') ||
+  !txt600.includes('Infra: 1')
+) {{
+  throw new Error('missing aprovadas/reprovadas/infra: ' + txt600);
+}}
+
+// Pointer leave hides guide and balao
+svg.dispatchEvent({{ type: 'pointerleave' }});
+if (guia.getAttribute('visibility') !== 'hidden' || !balao.hidden) {{
+  throw new Error('expected hidden after pointerleave');
+}}
+
+// Touch near third scale (6000)
+svg.dispatchEvent({{ type: 'pointerdown', pointerType: 'touch', clientX: ticksX[2] - 4 }});
+if (guia.getAttribute('visibility') !== 'visible') throw new Error('guide not visible on touch');
+if (Math.abs(Number(guia.getAttribute('x1')) - ticksX[2]) > 0.1) {{
+  throw new Error('guide did not snap to scale 6000 on touch');
+}}
+if (!collectText(balao).includes('6.000 linhas')) {{
+  throw new Error('expected 6.000 linhas on touch');
+}}
+
+// Focus + keyboard ArrowLeft / ArrowRight / Home / End / Escape
+svg.dispatchEvent({{ type: 'focusin', target: svg }});
+if (guia.getAttribute('visibility') !== 'visible') throw new Error('guide not visible on focusin');
+function keySvg(k) {{
+  let prevented = false;
+  svg.dispatchEvent({{ type: 'keydown', key: k, preventDefault() {{ prevented = true; }} }});
+  if (k !== 'Escape' && !prevented) throw new Error('expected preventDefault for ' + k);
+}}
+function assertGuiaX(expected, msg) {{
+  if (Math.abs(Number(guia.getAttribute('x1')) - expected) > 0.1) throw new Error(msg);
+}}
+keySvg('Home');
+assertGuiaX(ticksX[0], 'Home failed');
+keySvg('ArrowRight');
+assertGuiaX(ticksX[1], 'ArrowRight failed');
+keySvg('ArrowRight');
+assertGuiaX(ticksX[2], 'ArrowRight 2 failed');
+keySvg('ArrowLeft');
+assertGuiaX(ticksX[1], 'ArrowLeft failed');
+keySvg('End');
+assertGuiaX(ticksX[2], 'End failed');
+keySvg('Escape');
+if (guia.getAttribute('visibility') !== 'hidden' || !balao.hidden) {{
+  throw new Error('Escape did not hide guide');
+}}
+
+// Uncheck first variant checkbox -> balao should only list remaining visible variant
+const grupoVars = controles.children[2];
+const cb0 = grupoVars.children[0].children[0];
+cb0.checked = false;
+cb0.dispatchEvent({{ type: 'change' }});
+const svg2 = areaSvg.children[0];
+const balao2 = areaSvg.children[1];
+svg2.dispatchEvent({{ type: 'pointermove', pointerType: 'mouse', clientX: ticksX[0] }});
+const txtFiltrado = collectText(balao2);
+if (txtFiltrado.includes('REPL')) {{
+  throw new Error('hidden variant should not appear: ' + txtFiltrado);
+}}
+if (!txtFiltrado.includes('JSON')) {{
+  throw new Error('visible variant should appear: ' + txtFiltrado);
+}}
+"""
+    js_path = tmp_path / "test_guia_balao.js"
+    js_path.write_text(harness_js, encoding="utf-8")
+    proc = subprocess.run(["node", str(js_path)], capture_output=True, text=True, check=False)
+    assert proc.returncode == 0, f"Falha no teste de guia/balão JS: {proc.stderr}\n{proc.stdout}"
