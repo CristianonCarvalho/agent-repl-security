@@ -462,24 +462,20 @@ def test_gerar_todos_e_pagina_incluem_escala_apenas_quando_ativa(tmp_path: Path)
         assert not (pasta_b / nome).exists()
 
     pagina = gerar_pagina_html(com_escala)
-    assert pagina.count("<section") == 2
-    pos_painel = pagina.index("<h2>Painel interativo</h2>")
-    pos_escala = pagina.index(f"<h2>{SECAO_ESCALA[0]}</h2>")
-    assert pos_painel < pos_escala
+    assert pagina.count("<section") == 1
+    assert "<h2>Painel interativo</h2>" in pagina
     assert 'id="dados-painel"' in pagina
-    assert f"<h2>{SECAO_ESCALA[0]}</h2>" in pagina
-    assert "<h2>Escala dos dados</h2>" in pagina
-    assert f"<h3>{SECAO_ESCALA_PAINEIS[0]}</h3>" in pagina
-    assert pagina.count("<svg ") == 5
+    assert f"<h2>{SECAO_ESCALA[0]}</h2>" not in pagina
+    assert "<h2>Escala dos dados</h2>" not in pagina
+    assert f"<h3>{SECAO_ESCALA_PAINEIS[0]}</h3>" not in pagina
     assert f"<h2>{SECAO_COMPARACAO[0]}</h2>" not in pagina
     for _, titulo, _ in SECOES:
         assert f"<h2>{titulo}</h2>" not in pagina
     ids = re.findall(r'\sid="([^"]+)"', pagina)
     assert len(ids) == len(set(ids))
-    assert "tep" in ids and "dep" in ids
-    for i in range(1, 5):
-        assert f"te{i}" in ids and f"de{i}" in ids
-    assert "tc" not in ids and "t1" not in ids
+    assert "painel-interativo" in ids
+    assert "tep" not in ids and "dep" not in ids
+    assert not any(re.fullmatch(r"[te]\d", i) or re.fullmatch(r"d[ep]\d", i) for i in ids)
 
 
 def test_pagina_html_escala_csp_interatividade_e_escape() -> None:
@@ -503,7 +499,7 @@ def test_pagina_html_escala_csp_interatividade_e_escape() -> None:
         "content=\"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'\">"
     ) in pagina
     assert "pointerover" in pagina and "focusin" in pagina
-    assert 'tabindex="0"' in pagina
+    assert "setAttribute('tabindex', '0')" in pagina
     assert "Teste &lt;escala&gt; &amp; &quot;aspas&quot;" in pagina
     assert "var&lt;A&gt;&amp;&quot;1&quot;" in pagina
     assert "motivo &lt;especial&gt; &amp; &quot;teste&quot;" in pagina
@@ -669,12 +665,12 @@ def test_modo_escala_com_relatorios_sinteticos_tres_escalas_e_tres_variantes(
     assert len(vazados) == 4
     assert all(el.get("fill") == "#ffffff" for el in vazados)
 
-    # HTML válido com CSP inalterada e 5 SVGs inline.
+    # HTML válido com CSP inalterada e nenhum SVG estático (os de escala ficam em disco).
     html = (pasta_a / NOME_PAGINA).read_text(encoding="utf-8")
     validador = _ValidadorHTML()
     validador.feed(html)
     assert validador.pilha == []
-    assert validador.svgs == 5
+    assert validador.svgs == 0
     # 1: <script type="application/json" id="dados-painel">, 2: script do painel, 3: tooltips
     assert validador.scripts == 3
     assert validador.estilos == 1
@@ -850,9 +846,8 @@ def test_pagina_fora_do_modo_escala_inalterada_regressao() -> None:
 def test_painel_presenca_dos_elementos_e_ordem_no_modo_escala() -> None:
     html = gerar_pagina_html(_dados_escala())
 
-    pos_painel = html.index('id="painel-interativo"')
-    pos_escala = html.index(f"<h2>{SECAO_ESCALA[0]}</h2>")
-    assert pos_painel < pos_escala
+    assert 'id="painel-interativo"' in html
+    assert f"<h2>{SECAO_ESCALA[0]}</h2>" not in html
 
     assert 'id="painel-raiz"' in html
     secao_painel = html.split('<section id="painel-interativo">', 1)[1].split("</section>", 1)[0]
@@ -873,7 +868,7 @@ def test_painel_presenca_dos_elementos_e_ordem_no_modo_escala() -> None:
     assert "painel-detalhe" in html
     assert "Eixo X logar\\u00edtmico" in html or "Eixo X logarítmico" in html
     assert "Eixo Y: come\\u00e7ar em zero" in html or "Eixo Y: começar em zero" in html
-    assert SECAO_ESCALA_PAINEIS[0] in html
+    assert SECAO_ESCALA_PAINEIS[0] not in html
 
 
 def test_execucao_campos_novos_com_padrao_para_relatorios_antigos(tmp_path: Path) -> None:
@@ -2278,3 +2273,41 @@ def test_css_painel_prefers_reduced_motion_e_focus_visible() -> None:
         ".painel-grafico [tabindex]:focus-visible",
     ):
         assert seletor in estilo
+
+
+def _html_fora_do_painel(html: str) -> str:
+    inicio = html.index('<section id="painel-interativo">')
+    fim = html.index("</section>", inicio) + len("</section>")
+    return html[:inicio] + html[fim:]
+
+
+def test_modo_escala_pagina_nao_embute_svg_estatico_fora_do_painel() -> None:
+    html = gerar_pagina_html(_dados_escala())
+    assert "<svg" not in _html_fora_do_painel(html)
+    assert "<h2>Escala dos dados</h2>" not in html
+    secao_painel = html.split('<section id="painel-interativo">', 1)[1].split("</section>", 1)[0]
+    assert "arquivos .svg da mesma pasta" in secao_painel
+
+
+def test_modo_escala_gerar_todos_continua_gravando_svgs_em_disco(tmp_path: Path) -> None:
+    caminhos = gerar_todos(_dados_escala(), tmp_path)
+    nomes = {caminho.name for caminho in caminhos}
+    for nome in (*NOMES_ESCALA, NOME_ESCALA_PAINEIS):
+        assert nome in nomes
+        _raiz((tmp_path / nome).read_text(encoding="utf-8"))
+    assert NOME_PAGINA in nomes
+
+
+def test_painel_tabela_e_matriz_sao_regioes_rolaveis_e_focaveis() -> None:
+    html = gerar_pagina_html(_dados_escala())
+    assert "areaTabela.setAttribute('tabindex', '0');" in html
+    assert "areaTabela.setAttribute('role', 'region');" in html
+    assert (
+        "areaTabela.setAttribute('aria-label', "
+        "'Tabela completa das execuções, role horizontalmente');"
+    ) in html
+    assert "wrap.setAttribute('tabindex', '0');" in html
+    assert "wrap.setAttribute('role', 'region');" in html
+    assert "wrap.setAttribute('aria-label', 'Matriz por caso, role horizontalmente');" in html
+    assert ".painel-tabela-wrap:focus-visible" in html
+    assert "overflow-x: auto" in html

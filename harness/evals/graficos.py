@@ -2044,6 +2044,7 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
 .painel-var:has(input:focus-visible),
 .painel-var input:focus-visible,
 .painel-tabela th[aria-sort]:focus-visible,
+.painel-tabela-wrap:focus-visible,
 .painel-grafico svg:focus-visible,
 .painel-grafico [tabindex]:focus-visible { outline: 2px solid #0b0b0b; outline-offset: 2px; }
 .painel-grafico svg:focus-visible { border-radius: 6px; }
@@ -2175,6 +2176,9 @@ _SCRIPT_PAINEL: Final = """\
   var areaResumo = el('div', 'painel-resumo');
   var areaSvg = el('div', 'painel-grafico');
   var areaTabela = el('div', 'painel-tabela-wrap');
+  areaTabela.setAttribute('tabindex', '0');
+  areaTabela.setAttribute('role', 'region');
+  areaTabela.setAttribute('aria-label', 'Tabela completa das execuções, role horizontalmente');
   var areaDetalhe = el('div', 'painel-detalhe');
   var areaMatriz = el('div', 'painel-matriz');
 
@@ -2994,6 +2998,9 @@ _SCRIPT_PAINEL: Final = """\
     areaMatriz.appendChild(legenda);
 
     var wrap = el('div', 'painel-tabela-wrap');
+    wrap.setAttribute('tabindex', '0');
+    wrap.setAttribute('role', 'region');
+    wrap.setAttribute('aria-label', 'Matriz por caso, role horizontalmente');
     var tbl = el('table', 'painel-tabela painel-matriz-tabela');
     var thead = el('thead');
     var trEsc = el('tr');
@@ -3273,7 +3280,7 @@ def _painel_interativo_html(dados: DadosEvolucao) -> str:
         "da tabela para inspecionar a execução.</p>",
         '<div id="painel-raiz"></div>',
         '<noscript><p class="leitura">O painel interativo precisa de JavaScript. '
-        "Os gráficos estáticos abaixo continuam disponíveis.</p></noscript>",
+        "Os gráficos estáticos estão nos arquivos .svg da mesma pasta.</p></noscript>",
         _caixa_ressalvas_html(dados),
         f'<script type="application/json" id="dados-painel">{json_dados}</script>',
         f"<script>\n{_SCRIPT_PAINEL}</script>",
@@ -3285,8 +3292,9 @@ def _painel_interativo_html(dados: DadosEvolucao) -> str:
 def gerar_pagina_html(dados: DadosEvolucao) -> str:
     """Página HTML5 autônoma com os gráficos inline e tooltips. Sem recurso externo.
 
-    No modo escala (`tem_modo_escala(dados)`), inclui a seção "Painel interativo" antes dos
-    gráficos estáticos de escala (painéis e os quatro individuais). Os gráficos por execução
+    No modo escala (`tem_modo_escala(dados)`), a página traz só o "Painel interativo", que cobre
+    as métricas de escala. Os SVG de escala (painéis e os quatro individuais) continuam sendo
+    gravados em disco por `gerar_todos`, mas não são embutidos na página. Os gráficos por execução
     (`taxa-total`, `taxa-por-categoria`, `iteracoes-por-pedido`, `custo-por-rodada`), o painel
     de barras da comparação (`comparacao-de-variantes`), a dispersão
     (`dispersao-iteracoes-tokens`) e a curva de contexto (`curva-de-contexto`) são omitidos porque
@@ -3298,26 +3306,6 @@ def gerar_pagina_html(dados: DadosEvolucao) -> str:
     secoes: list[str] = []
     if tem_modo_escala(dados):
         secoes.append(_painel_interativo_html(dados))
-        titulo_escala, leitura_escala = SECAO_ESCALA
-        titulo_ep, leitura_ep = SECAO_ESCALA_PAINEIS
-        partes_escala = [
-            f"<h2>{_esc(titulo_escala)}</h2>",
-            f'<p class="leitura">{_esc(leitura_escala)}</p>',
-            f"<h3>{_esc(titulo_ep)}</h3>",
-            f'<p class="leitura">{_esc(leitura_ep)}</p>',
-            _com_identificador(grafico_escala_paineis(dados), "ep"),
-        ]
-        for indice, ((_, titulo_e, leitura_e), svg_e) in enumerate(
-            zip(SECOES_ESCALA, _svgs_escala(dados), strict=True), 1
-        ):
-            partes_escala.extend(
-                [
-                    f"<h3>{_esc(titulo_e)}</h3>",
-                    f'<p class="leitura">{_esc(leitura_e)}</p>',
-                    _com_identificador(svg_e, f"e{indice}"),
-                ]
-            )
-        secoes.append("<section>\n" + "\n".join(partes_escala) + "</section>")
     else:
         comparacao = _comparacao_se_houver(dados)
         if comparacao is not None:
