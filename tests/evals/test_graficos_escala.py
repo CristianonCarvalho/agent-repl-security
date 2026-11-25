@@ -991,3 +991,125 @@ def test_js_painel_e_tooltips_validos_com_node_check(tmp_path: Path) -> None:
             check=False,
         )
         assert proc.returncode == 0, f"Erro de sintaxe JS em script_{idx}: {proc.stderr}"
+
+
+def test_painel_inclui_metricas_iteracoes_e_custo_por_acerto() -> None:
+    e1 = _exec(1, "repl", 60, iteracoes_media=4.25, custo_por_acerto_usd=0.0125)
+    e2 = _exec(2, "repl", 600, iteracoes_media=None, custo_por_acerto_usd=None)
+    html = gerar_pagina_html(DadosEvolucao(versao=1, execucoes=(e1, e2)))
+
+    m = re.search(
+        r'<script type="application/json" id="dados-painel">(.*?)</script>',
+        html,
+        flags=re.DOTALL,
+    )
+    assert m is not None
+    dados = json.loads(m.group(1))
+    titulos = [met["titulo"] for met in dados["metricas"]]
+    assert "Iterações por pedido" in titulos
+    assert "Custo por acerto (milésimos de US$)" in titulos
+
+    por_escala = {ex["escala"]: ex for ex in dados["execucoes"]}
+    assert por_escala[60]["iteracoes_media"] == pytest.approx(4.25)
+    assert por_escala[60]["custo_por_acerto_usd"] == pytest.approx(0.0125)
+    assert por_escala[60]["valores"]["iteracoes"] == pytest.approx(4.25)
+    assert por_escala[60]["valores"]["custo_acerto"] == pytest.approx(12.5)
+
+    assert por_escala[600]["iteracoes_media"] is None
+    assert por_escala[600]["custo_por_acerto_usd"] is None
+    assert por_escala[600]["valores"]["iteracoes"] is None
+    assert por_escala[600]["valores"]["custo_acerto"] is None
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node não disponível no PATH")
+def test_painel_abas_acessiveis_e_navegacao_teclado(tmp_path: Path) -> None:
+    html = gerar_pagina_html(_dados_escala())
+    m_json = re.search(
+        r'<script type="application/json" id="dados-painel">(.*?)</script>',
+        html,
+        flags=re.DOTALL,
+    )
+    assert m_json is not None
+    scripts = re.findall(
+        r"<script(?![^>]*application/json)[^>]*>(.*?)</script>",
+        html,
+        flags=re.DOTALL,
+    )
+    assert len(scripts) == 2
+
+    harness_js = f"""
+const jsonText = {json.dumps(m_json.group(1))};
+function makeNode(tag, ns) {{
+  const attrs = {{}};
+  const listeners = {{}};
+  const node = {{
+    tagName: tag.toUpperCase(),
+    namespaceURI: ns || null,
+    className: '',
+    textContent: '',
+    style: {{}},
+    children: [],
+    focused: false,
+    setAttribute(k, v) {{ attrs[k] = String(v); }},
+    getAttribute(k) {{ return k in attrs ? attrs[k] : null; }},
+    appendChild(c) {{ this.children.push(c); return c; }},
+    addEventListener(ev, fn) {{ (listeners[ev] = listeners[ev] || []).push(fn); }},
+    dispatchEvent(ev) {{
+      (listeners[ev.type] || []).forEach((fn) => fn(ev));
+    }},
+    focus() {{ node.focused = true; }},
+  }};
+  return node;
+}}
+const raiz = makeNode('div');
+const elDados = {{ textContent: jsonText }};
+global.document = {{
+  getElementById(id) {{
+    if (id === 'dados-painel') return elDados;
+    if (id === 'painel-raiz') return raiz;
+    return null;
+  }},
+  createElement(tag) {{ return makeNode(tag); }},
+  createElementNS(ns, tag) {{ return makeNode(tag, ns); }},
+  createTextNode(t) {{ return {{ nodeType: 3, textContent: String(t) }}; }},
+}};
+{scripts[0]}
+const caixa = raiz.children[0];
+const controles = caixa.children[0];
+const tablist = controles.children[0];
+if (tablist.getAttribute('role') !== 'tablist') throw new Error('missing role=tablist');
+const tabs = tablist.children;
+if (tabs.length !== 6) throw new Error('expected 6 tabs, got ' + tabs.length);
+tabs.forEach((t, i) => {{
+  if (t.getAttribute('role') !== 'tab') throw new Error('missing role=tab at ' + i);
+  if (t.getAttribute('aria-selected') !== (i === 0 ? 'true' : 'false')) {{
+    throw new Error('bad initial aria-selected at ' + i);
+  }}
+  if (t.getAttribute('tabindex') !== (i === 0 ? '0' : '-1')) {{
+    throw new Error('bad initial tabindex at ' + i);
+  }}
+}});
+function key(tab, k) {{
+  let prevented = false;
+  tab.dispatchEvent({{ type: 'keydown', key: k, preventDefault() {{ prevented = true; }} }});
+  if (!prevented) throw new Error('expected preventDefault for ' + k);
+}}
+key(tabs[0], 'ArrowRight');
+if (tabs[1].getAttribute('aria-selected') !== 'true' || !tabs[1].focused) {{
+  throw new Error('ArrowRight failed');
+}}
+key(tabs[1], 'End');
+if (tabs[5].getAttribute('aria-selected') !== 'true' || !tabs[5].focused) {{
+  throw new Error('End failed');
+}}
+key(tabs[5], 'ArrowRight');
+if (tabs[0].getAttribute('aria-selected') !== 'true') throw new Error('wrap ArrowRight failed');
+key(tabs[0], 'ArrowLeft');
+if (tabs[5].getAttribute('aria-selected') !== 'true') throw new Error('wrap ArrowLeft failed');
+key(tabs[5], 'Home');
+if (tabs[0].getAttribute('aria-selected') !== 'true') throw new Error('Home failed');
+"""
+    js_path = tmp_path / "test_tabs.js"
+    js_path.write_text(harness_js, encoding="utf-8")
+    proc = subprocess.run(["node", str(js_path)], capture_output=True, text=True, check=False)
+    assert proc.returncode == 0, f"Falha no teste de abas JS: {proc.stderr}\n{proc.stdout}"
