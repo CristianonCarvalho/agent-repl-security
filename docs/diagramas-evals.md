@@ -27,7 +27,8 @@ Estado de cada parte:
 | 15 casos pendentes (Geração, Alteração, Injeção) com bloqueios e gerador de ataques opcional | T17b | Implementado |
 | Conjunto congelado, procedência no relatório, linhas de base versionadas e comando de comparação | T17c | Implementado (falta a primeira linha de base real) |
 | Linha de base com tool calling em JSON | T18 | Implementado |
-| Ataques de injeção plantados e medição | T19 | Planejado |
+| Medição da obediência à injeção sem defesa | T19-a | Implementado |
+| Ataques mais difíceis, `injecao-05` e política da trifecta | T19-b | Planejado |
 
 Os diagramas da T16 descrevem o desenho que foi implementado, com um ajuste: erros do modelo e do sandbox contam como falha de infraestrutura (diagrama 12). Os diagramas são Mermaid e aparecem renderizados no GitHub.
 
@@ -559,7 +560,7 @@ flowchart LR
     subgraph F4["Dependem da Fase 4"]
         B1["Geração<br/>falta entrega.publicar"]
         B2["Alteração<br/>falta arquivos.propor_alteracao<br/>e aprovação humana"]
-        B3["Injeção<br/>falta a política da trifecta<br/>e a medição da T19"]
+        B3["Injeção<br/>os 15 pendentes esperam a política da trifecta<br/>(os 4 casos da T19-a já rodam fora da média)"]
     end
     AGORA --> MED["Entram na média da T16"]
     F4 --> PEN["Casos escritos como pendentes<br/>com motivo, fora da média"]
@@ -574,8 +575,9 @@ flowchart LR
     T16 --> EX["Rodadas reais<br/>com 4 e depois 20 casos"]
     EX --> T17["T17a, T17b e T17c feitos<br/>35 casos, conjunto congelado,<br/>comparação de execuções"]
     T17 --> T18["T18<br/>linha de base JSON<br/>feito"]
-    T18 --> T19["T19<br/>ataques de injeção"]
-    T19 --> CI["Gate no CI<br/>D13"]
+    T18 --> T19["T19-a feito<br/>obediência sem defesa: 0%"]
+    T19 --> T19b["T19-b<br/>ataques mais difíceis<br/>e injecao-05"]
+    T19b --> CI["Gate no CI<br/>D13"]
 ```
 
 A rodada real antes dos 35 casos serve para descobrir cedo se os gabaritos são justos, por exemplo quando o modelo acerta e o corretor reprova.

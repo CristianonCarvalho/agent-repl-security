@@ -633,4 +633,4 @@ Termos que você vai encontrar em outras fontes e **não usamos** aqui: *LLM-as-
 - [adr/D13-gate-de-eval-com-repeticoes.md](adr/D13-gate-de-eval-com-repeticoes.md): a decisão de rodar várias vezes e comparar com margem.
 - [backlog.md](backlog.md): o que vem a seguir (dicionário de dados, por exemplo).
 
-O que ainda falta construir: a medição dos ataques de injeção (T19), o gate de CI e os casos mais difíceis que tirem a linha de base da saturação.
+A T19-a mediu a obediência à injeção sem defesa (`--conjunto injecao`): 0% nas três variantes, com a leitura em [relatorios/injecao-sem-defesa.md](relatorios/injecao-sem-defesa.md). O que ainda falta construir: ataques mais difíceis e o `injecao-05` (T19-b), a política da trifecta, o gate de CI e os casos mais difíceis que tirem a linha de base da saturação.
