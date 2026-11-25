@@ -521,7 +521,8 @@ Atualizado em 23/11/2026, depois da T20a e da primeira bateria de avaliações r
 | 3. Evals | Escala dos dados (`--escala N`), para medir o custo com mais pedidos (T18c-a) | Implementado; rodada real em 3 escalas (ver `docs/relatorios/escala-de-dados.md`) |
 | 3. Evals | Conjunto de cálculo (`--conjunto calculo`, 4 casos fora do conjunto v1: mediana, mediana por região, desvio padrão populacional e cliente com maior total) (T18d) | Implementado; rodada real em 3 escalas e 3 variantes (ver `docs/relatorios/calculo-fora-do-repertorio.md`) |
 | 3. Evals | Painel interativo no `graficos.html` do modo escala: 6 métricas, legenda clicável, balão com todas as variantes, cartões, tabela ordenável, matriz por caso e ressalvas (T18e) | Implementado |
-| 3. Evals | Comparação com tool calling JSON, medição dos ataques de injeção (T18, T19) | Não iniciado |
+| 3. Evals | Comparação com tool calling JSON: variantes `json` e `json-agregacao`, linhas de base versionadas em `evals/linhas-de-base/` e relatórios de comparação (T18) | Implementado |
+| 3. Evals | Medição dos ataques de injeção, com o gerador de ataques e a política da trifecta (T19) | Não iniciado |
 | 4. Segurança | Aprovação humana, política da trifecta, rastreio de arquivos abertos, gVisor | Não iniciado |
 | Transversal | OpenTelemetry e Langfuse (T20a e T20b) | Implementado |
 | Transversal | CI com gates, SAST, `arquivos.*`, `entrega.publicar` | Não iniciado |

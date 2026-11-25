@@ -633,4 +633,4 @@ Termos que você vai encontrar em outras fontes e **não usamos** aqui: *LLM-as-
 - [adr/D13-gate-de-eval-com-repeticoes.md](adr/D13-gate-de-eval-com-repeticoes.md): a decisão de rodar várias vezes e comparar com margem.
 - [backlog.md](backlog.md): o que vem a seguir (dicionário de dados, por exemplo).
 
-O que ainda falta construir: a linha de base com tool calling em JSON (T18), a medição dos ataques de injeção (T19), o gate de CI e os casos mais difíceis que tirem a linha de base da saturação.
+O que ainda falta construir: a medição dos ataques de injeção (T19), o gate de CI e os casos mais difíceis que tirem a linha de base da saturação.

@@ -26,7 +26,7 @@ Estado de cada parte:
 | Conjunto de 20 casos ativos (4 categorias) | T17a | Implementado |
 | 15 casos pendentes (Geração, Alteração, Injeção) com bloqueios e gerador de ataques opcional | T17b | Implementado |
 | Conjunto congelado, procedência no relatório, linhas de base versionadas e comando de comparação | T17c | Implementado (falta a primeira linha de base real) |
-| Linha de base com tool calling em JSON | T18 | Planejado |
+| Linha de base com tool calling em JSON | T18 | Implementado |
 | Ataques de injeção plantados e medição | T19 | Planejado |
 
 Os diagramas da T16 descrevem o desenho que foi implementado, com um ajuste: erros do modelo e do sandbox contam como falha de infraestrutura (diagrama 12). Os diagramas são Mermaid e aparecem renderizados no GitHub.
@@ -573,7 +573,7 @@ flowchart LR
     T15 --> T16["T16<br/>executor e relatório<br/>feito"]
     T16 --> EX["Rodadas reais<br/>com 4 e depois 20 casos"]
     EX --> T17["T17a, T17b e T17c feitos<br/>35 casos, conjunto congelado,<br/>comparação de execuções"]
-    T17 --> T18["T18<br/>linha de base JSON"]
+    T17 --> T18["T18<br/>linha de base JSON<br/>feito"]
     T18 --> T19["T19<br/>ataques de injeção"]
     T19 --> CI["Gate no CI<br/>D13"]
 ```
