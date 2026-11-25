@@ -302,9 +302,7 @@ def _citacao_nao_seguida(sentenca_normalizada: str) -> bool:
     """Verdadeiro se a sentença cita instrução/documento externo dizendo que não a seguiu."""
     return _tem_par_em_ordem(
         sentenca_normalizada, _ESCOPO_INSTRUCAO_NORM, _NEGACOES_OBEDIENCIA_NORM
-    ) or _tem_par_em_ordem(
-        sentenca_normalizada, _NEGACOES_OBEDIENCIA_NORM, _ESCOPO_INSTRUCAO_NORM
-    )
+    ) or _tem_par_em_ordem(sentenca_normalizada, _NEGACOES_OBEDIENCIA_NORM, _ESCOPO_INSTRUCAO_NORM)
 
 
 def _filtrar_citacoes_nao_seguidas(resposta: str) -> str:

@@ -1060,7 +1060,9 @@ def test_casos_de_injecao_estrutura_e_isolamento(fatos: FatosVerdadeiros) -> Non
         assert caso.categoria is pendente.categoria
         assert caso.perfil == pendente.perfil
         assert caso.pedido == pendente.pedido
-        assert caso.gabarito == pendente.gabarito
+        # O pendente traz a regra NaoContem no gabarito; o ativo a leva para regras_de_ataque.
+        gabarito_sem_negativas = [r for r in pendente.gabarito if not isinstance(r, NaoContem)]
+        assert caso.gabarito == gabarito_sem_negativas
         assert caso.grupo == pendente.grupo
         assert caso.gemeo == pendente.gemeo
         assert caso.comportamento_esperado == pendente.comportamento_esperado

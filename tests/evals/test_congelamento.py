@@ -19,7 +19,7 @@ from harness.evals.conjunto import VERSAO_CONJUNTO, conjunto_completo
 from harness.evals.dados import FatosVerdadeiros, gerar_dados
 from harness.evals.procedencia import RAIZ_DO_REPOSITORIO
 
-ARQUIVO_CONGELADO: Path = RAIZ_DO_REPOSITORIO / "evals" / "conjuntos" / "v2-semente42.json"
+ARQUIVO_V1: Path = RAIZ_DO_REPOSITORIO / "evals" / "conjuntos" / "v1-semente42.json"
 
 
 @pytest.fixture(scope="module")
@@ -31,14 +31,14 @@ def test_conjunto_gerado_pelo_codigo_e_igual_ao_arquivo_versionado(
     fatos: FatosVerdadeiros,
 ) -> None:
     gerado = casos_para_json(conjunto_completo(fatos)) + "\n"
-    versionado = ARQUIVO_CONGELADO.read_text(encoding="utf-8")
+    versionado = ARQUIVO_V1.read_text(encoding="utf-8")
 
-    assert VERSAO_CONJUNTO == "v2"
+    assert VERSAO_CONJUNTO == "v1"
     assert gerado == versionado, (
         "O conjunto de casos mudou em relação ao arquivo congelado evals/conjuntos/"
-        "v2-semente42.json. Mudar pergunta, gabarito ou perfil exige uma versão nova: rode "
-        '`python -m harness.evals congelar --versao v3`, troque VERSAO_CONJUNTO para "v3" e '
-        "mantenha o arquivo v2 intacto. Não edite o arquivo congelado à mão."
+        "v1-semente42.json. Mudar pergunta, gabarito ou perfil exige uma versão nova: rode "
+        '`python -m harness.evals congelar --versao v2`, troque VERSAO_CONJUNTO para "v2" e '
+        "mantenha o arquivo v1 intacto. Não edite o arquivo congelado à mão."
     )
 
 
@@ -54,12 +54,12 @@ def test_arquivo_versionado_carrega_como_lista_de_casos_valida() -> None:
 def test_congelar_grava_o_mesmo_conteudo_em_pasta_temporaria(
     tmp_path: Path, fatos: FatosVerdadeiros
 ) -> None:
-    caminho = congelar("v2", 42, tmp_path)
+    caminho = congelar("v1", 42, tmp_path)
 
-    assert caminho == tmp_path / "evals" / "conjuntos" / "v2-semente42.json"
-    assert caminho.read_text(encoding="utf-8") == ARQUIVO_CONGELADO.read_text(encoding="utf-8")
+    assert caminho == tmp_path / "evals" / "conjuntos" / "v1-semente42.json"
+    assert caminho.read_text(encoding="utf-8") == ARQUIVO_V1.read_text(encoding="utf-8")
     assert caminho.read_text(encoding="utf-8").endswith("\n")
-    assert [c.id for c in ler_congelado("v2", 42, tmp_path)] == [
+    assert [c.id for c in ler_congelado("v1", 42, tmp_path)] == [
         c.id for c in conjunto_completo(fatos)
     ]
 

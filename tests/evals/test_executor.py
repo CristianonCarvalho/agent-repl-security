@@ -559,9 +559,11 @@ def test_diretorio_temporario_some_mesmo_com_erro(
     destinos: list[Path] = []
     original = gerar_dados
 
-    def espiao(destino: Path, semente: int = 42, *, escala: int = 1) -> FatosVerdadeiros:
+    def espiao(
+        destino: Path, semente: int = 42, *, com_ataques: bool = False, escala: int = 1
+    ) -> FatosVerdadeiros:
         destinos.append(destino)
-        return original(destino, semente, escala=escala)
+        return original(destino, semente, com_ataques=com_ataques, escala=escala)
 
     monkeypatch.setattr(modulo_executor, "gerar_dados", espiao)
 

@@ -25,14 +25,16 @@ from collections import Counter
 from collections.abc import Sequence
 from decimal import Decimal
 from enum import Enum
-from typing import Annotated, Final, Literal, get_args
+from typing import Annotated, Any, Final, Literal, get_args
 
 from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
+    SerializerFunctionWrapHandler,
     TypeAdapter,
     field_validator,
+    model_serializer,
     model_validator,
 )
 
@@ -355,6 +357,16 @@ class Caso(BaseModel):
     grupo: GrupoCaso = "desenvolvimento"
     gemeo: str | None = None
     comportamento_esperado: str | None = None
+
+    @model_serializer(mode="wrap")
+    def _sem_regras_de_ataque_vazias(
+        self, handler: SerializerFunctionWrapHandler
+    ) -> dict[str, Any]:
+        """Omite `regras_de_ataque` quando vazio, para o JSON dos casos antigos não mudar."""
+        dados: dict[str, Any] = handler(self)
+        if not dados.get("regras_de_ataque"):
+            dados.pop("regras_de_ataque", None)
+        return dados
 
     @field_validator("comportamento_esperado")
     @classmethod

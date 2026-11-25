@@ -35,6 +35,10 @@ Decisões deste módulo (não estão na spec):
   diferente de 1, o conjunto congelado v1 não vale: `versao_conjunto` do relatório vira
   "nao-congelado-escala-N" e `--salvar-linha-de-base` é recusado antes de qualquer rodada. O
   relatório registra `escala` e `linhas_pedidos`, e `comparar` recusa escalas diferentes.
+- `--conjunto injecao` (não congelado, escala 1, sem linha de base): roda só os 4 casos de
+  `casos_de_injecao`, com os arquivos de ataque em disco (`com_ataques`). Recusa `--escala`
+  diferente de 1 antes de gerar dados. O resumo mostra a taxa de obediência à injeção, nas
+  rodadas válidas.
 
 Subcomandos (T17c), reconhecidos só quando são o primeiro argumento exato: `comparar BASE NOVO`
 (0 ok, 1 regressão provável, 2 incomparável ou erro) e `congelar --versao vN` (cria o conjunto em
@@ -71,7 +75,12 @@ from harness.evals.comparacao import (
     formatar_texto,
 )
 from harness.evals.congelamento import ErroDeCongelamento, congelar
-from harness.evals.conjunto import VERSAO_CONJUNTO, casos_de_calculo, conjunto_completo
+from harness.evals.conjunto import (
+    VERSAO_CONJUNTO,
+    casos_de_calculo,
+    casos_de_injecao,
+    conjunto_completo,
+)
 from harness.evals.dados import ESCALA_MAXIMA, FatosVerdadeiros, gerar_dados
 from harness.evals.executor import (
     VARIANTES,
@@ -94,6 +103,7 @@ from harness.evals.relatorio import (
     Relatorio,
     escrever_relatorio,
     relatorio_de_json,
+    rodadas_avaliadas_de_ataque,
 )
 from harness.llm.base import ModeloLLM
 from harness.llm.config import (
@@ -125,7 +135,7 @@ CODIGO_ERRO_INFRA: Final = 1
 CODIGO_USO: Final = 2
 CODIGO_TETO: Final = 3
 CODIGO_REGRESSAO: Final = 1
-CONJUNTOS: Final = ("padrao", "calculo")
+CONJUNTOS: Final = ("padrao", "calculo", "injecao")
 
 
 class ErroDeUso(Exception):
@@ -156,11 +166,23 @@ def _versao_do_conjunto(escala: int, conjunto: str = "padrao") -> str:
     """`VERSAO_CONJUNTO` no conjunto padrão e escala 1.
 
     Fora disso o conjunto não é o congelado, e o rótulo diz isso para que `comparar` não
-    confunda o relatório com a linha de base.
+    confunda o relatório com a linha de base. Os conjuntos de cálculo e de injeção são sempre
+    não congelados, e a escala deles é 1 (a CLI recusa outra).
     """
     if conjunto == "calculo":
         return "calculo-nao-congelado" if escala == 1 else f"calculo-nao-congelado-escala-{escala}"
+    if conjunto == "injecao":
+        return "injecao-nao-congelado"
     return VERSAO_CONJUNTO if escala == 1 else f"nao-congelado-escala-{escala}"
+
+
+def _validar_conjunto_injecao(args: argparse.Namespace) -> None:
+    """O conjunto de injeção só roda na escala 1. Sai antes de gerar dados ou chamar o modelo."""
+    if args.conjunto == "injecao" and args.escala != 1:
+        raise ErroDeUso(
+            f"o conjunto injecao não aceita --escala {args.escala}: use a escala 1 (padrão) ou "
+            "tire --escala."
+        )
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -257,8 +279,9 @@ def _parser() -> argparse.ArgumentParser:
         "--conjunto",
         choices=CONJUNTOS,
         default="padrao",
-        help="conjunto de casos: padrao (conjunto congelado v1, padrão) ou calculo (4 casos de "
-        "cálculo, não congelado; sem linha de base)",
+        help="conjunto de casos: padrao (conjunto congelado v1, padrão), calculo (4 casos de "
+        "cálculo, não congelado) ou injecao (4 casos de injeção com arquivos de ataque, não "
+        "congelado, escala 1; sem linha de base)",
     )
     return parser
 
@@ -309,6 +332,7 @@ def _config(args: argparse.Namespace) -> ConfigExecucao:
             pausa_s=args.pausa_s,
             variante=args.variante,
             escala=args.escala,
+            com_ataques=args.conjunto == "injecao",
         )
     except ValidationError as erro:
         campos = "; ".join(
@@ -363,16 +387,25 @@ def _fabrica_de_telemetria(
     return lambda: criar_telemetria(ambiente, segredos=segredos)
 
 
+def _casos_do_conjunto(fatos: FatosVerdadeiros, conjunto: str) -> list[Caso]:
+    if conjunto == "calculo":
+        return casos_de_calculo(fatos)
+    if conjunto == "injecao":
+        return casos_de_injecao(fatos)
+    return conjunto_completo(fatos)
+
+
 def _selecionar(
     categorias: frozenset[Categoria], grupo: str, conjunto: str = "padrao"
 ) -> Callable[[FatosVerdadeiros], list[Caso]]:
-    """Função de casos para o executor: conjunto padrão ou de cálculo, por categoria e grupo.
+    """Função de casos para o executor: conjunto padrão, de cálculo ou de injeção, por categoria e
+    grupo.
 
     Pendentes entram na lista, mas o executor não os roda; ficam só em `pendentes` do relatório.
     """
 
     def selecionar(fatos: FatosVerdadeiros) -> list[Caso]:
-        casos = casos_de_calculo(fatos) if conjunto == "calculo" else conjunto_completo(fatos)
+        casos = _casos_do_conjunto(fatos, conjunto)
         if categorias:
             casos = [caso for caso in casos if caso.categoria in categorias]
         if grupo != "todos":
@@ -392,9 +425,15 @@ def _selecao_sem_modelo(
     """A seleção inteira, para decidir antes de qualquer configuração se há caso ativo.
 
     Gera os dados numa pasta temporária que some no fim. Não toca no modelo nem no `.env`.
+    Com o conjunto de injeção, gera também os arquivos de ataque, como a execução faz.
     """
     with tempfile.TemporaryDirectory(prefix="selecao-") as temporaria:
-        fatos = gerar_dados(Path(temporaria) / "dados", semente, escala=escala)
+        fatos = gerar_dados(
+            Path(temporaria) / "dados",
+            semente,
+            com_ataques=conjunto == "injecao",
+            escala=escala,
+        )
         return _selecionar(categorias, grupo, conjunto)(fatos)
 
 
@@ -472,6 +511,12 @@ def _resumo(saida: TextIO, relatorio: Relatorio, caminho: Path | None) -> None:
         linhas.append(f"Custo por acerto: US$ {_br(relatorio.custo_por_acerto)}")
     if relatorio.conjunto != "padrao":
         linhas.append(f"Conjunto: {relatorio.conjunto} (não congelado)")
+    if relatorio.ataques:
+        avaliadas = rodadas_avaliadas_de_ataque(relatorio)
+        linhas.append(
+            f"Taxa de obediência à injeção: {_percentual(relatorio.taxa_obediencia)} "
+            f"({relatorio.rodadas_com_obediencia} de {avaliadas} rodadas válidas)"
+        )
     if relatorio.escala != 1:
         linhas.append(
             f"Escala dos dados: {relatorio.escala} (planilha de pedidos com "
@@ -752,6 +797,7 @@ def main(
     try:
         categorias = _categorias(args.categoria)
         config = _config(args)
+        _validar_conjunto_injecao(args)
         provedor_arg = _provedor_argumento(args.provedor)
         # Linha de base: tudo é conferido antes de gerar dados ou chamar o modelo.
         if args.salvar_linha_de_base is not None:

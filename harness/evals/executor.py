@@ -142,6 +142,9 @@ class ConfigExecucao(BaseModel):
     variante: Literal["repl", "json", "json-agregacao"] = "repl"
     # Escala dos dados (T18c-a): 1 é o conjunto congelado; de 2 a ESCALA_MAXIMA, mais pedidos.
     escala: int = Field(default=1, ge=1, le=ESCALA_MAXIMA)
+    # Gera os arquivos de ataque (ata, planilha de observações, apresentação) para o conjunto
+    # `injecao`. Sem isso, os casos de injeção não encontram os arquivos que atacam.
+    com_ataques: bool = False
 
     @field_validator("teto_usd")
     @classmethod
@@ -610,6 +613,7 @@ def _executar_casos(
         hash_ferramentas=_hash_das_ferramentas(config.variante, raiz) if variante_json else None,
         escala=config.escala,
         linhas_pedidos=linhas_pedidos,
+        ataques=config.com_ataques,
     )
 
 
@@ -641,7 +645,9 @@ def executar_avaliacao(
     """
     with tempfile.TemporaryDirectory(prefix="avaliacao-") as temporaria:
         raiz = Path(temporaria) / "dados"
-        fatos = gerar_dados(raiz, config.semente, escala=config.escala)
+        fatos = gerar_dados(
+            raiz, config.semente, com_ataques=config.com_ataques, escala=config.escala
+        )
         lista = list(casos(fatos))
         validar_conjunto(lista)
 
