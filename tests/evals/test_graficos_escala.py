@@ -1931,3 +1931,276 @@ if (polylines.length !== 1) {{
     js_path.write_text(harness_js, encoding="utf-8")
     proc = subprocess.run(["node", str(js_path)], capture_output=True, text=True, check=False)
     assert proc.returncode == 0, f"Falha no teste de tabela JS: {proc.stderr}\n{proc.stdout}"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node não disponível no PATH")
+def test_painel_matriz_por_caso_estados_texto_tooltip_e_filtro(tmp_path: Path) -> None:
+    dados = DadosEvolucao(
+        versao=1,
+        execucoes=(
+            _exec(
+                1,
+                "repl",
+                60,
+                casos_detalhe=(
+                    CasoDetalhe(
+                        id="caso-01",
+                        categoria="consulta",
+                        aprovadas=3,
+                        reprovadas=0,
+                        erro_infra=0,
+                        iteracoes_media=2.5,
+                        tokens_entrada_medio=4200.0,
+                    ),
+                    CasoDetalhe(
+                        id="caso-02",
+                        categoria="agregacao",
+                        aprovadas=2,
+                        reprovadas=1,
+                        erro_infra=0,
+                        iteracoes_media=4.0,
+                        tokens_entrada_medio=8100.0,
+                    ),
+                ),
+            ),
+            _exec(
+                2,
+                "repl",
+                600,
+                casos_detalhe=(
+                    CasoDetalhe(
+                        id="caso-01",
+                        categoria="consulta",
+                        aprovadas=1,
+                        reprovadas=0,
+                        erro_infra=1,
+                        iteracoes_media=3.0,
+                        tokens_entrada_medio=12000.0,
+                    ),
+                    CasoDetalhe(
+                        id="caso-03",
+                        categoria="alteracao",
+                        aprovadas=0,
+                        reprovadas=0,
+                        erro_infra=3,
+                        iteracoes_media=None,
+                        tokens_entrada_medio=None,
+                    ),
+                ),
+            ),
+            _exec(
+                1,
+                "json",
+                60,
+                casos_detalhe=(
+                    CasoDetalhe(
+                        id="caso-01",
+                        categoria="consulta",
+                        aprovadas=0,
+                        reprovadas=3,
+                        erro_infra=0,
+                        iteracoes_media=6.0,
+                        tokens_entrada_medio=15000.0,
+                    ),
+                    CasoDetalhe(
+                        id="caso-02",
+                        categoria="agregacao",
+                        aprovadas=0,
+                        reprovadas=2,
+                        erro_infra=1,
+                        iteracoes_media=5.5,
+                        tokens_entrada_medio=18000.0,
+                    ),
+                ),
+            ),
+            _exec(
+                2,
+                "json",
+                600,
+                casos_detalhe=(
+                    CasoDetalhe(
+                        id="caso-01",
+                        categoria="consulta",
+                        aprovadas=3,
+                        reprovadas=0,
+                        erro_infra=0,
+                        iteracoes_media=2.0,
+                        tokens_entrada_medio=20000.0,
+                    ),
+                ),
+            ),
+        ),
+    )
+    html = gerar_pagina_html(dados)
+    for cls in (
+        ".painel-matriz",
+        ".painel-cel-aprovada",
+        ".painel-cel-mista",
+        ".painel-cel-reprovada",
+        ".painel-cel-infra",
+    ):
+        assert cls in html
+
+    m_json = re.search(
+        r'<script type="application/json" id="dados-painel">(.*?)</script>',
+        html,
+        flags=re.DOTALL,
+    )
+    assert m_json is not None
+    scripts = re.findall(
+        r"<script(?![^>]*application/json)[^>]*>(.*?)</script>",
+        html,
+        flags=re.DOTALL,
+    )
+    assert len(scripts) == 2
+
+    harness_js = f"""
+const jsonText = {json.dumps(m_json.group(1))};
+function makeNode(tag, ns) {{
+  const attrs = {{}};
+  const listeners = {{}};
+  let _text = '';
+  return {{
+    tagName: tag.toUpperCase(),
+    namespaceURI: ns || null,
+    className: '',
+    hidden: false,
+    get textContent() {{ return _text; }},
+    set textContent(v) {{
+      _text = String(v);
+      if (_text === '') this.children = [];
+    }},
+    style: {{}},
+    children: [],
+    setAttribute(k, v) {{ attrs[k] = String(v); }},
+    getAttribute(k) {{ return k in attrs ? attrs[k] : null; }},
+    appendChild(c) {{ this.children.push(c); return c; }},
+    addEventListener(ev, fn) {{ (listeners[ev] = listeners[ev] || []).push(fn); }},
+    dispatchEvent(ev) {{
+      if (!ev.target) ev.target = this;
+      (listeners[ev.type] || []).forEach((fn) => fn(ev));
+    }},
+  }};
+}}
+function collectText(n) {{
+  if (n.nodeType === 3) return n.textContent || '';
+  if (n.children && n.children.length) return n.children.map(collectText).join('');
+  return n.textContent || '';
+}}
+const raiz = makeNode('div');
+const elDados = {{ textContent: jsonText }};
+global.document = {{
+  getElementById(id) {{
+    if (id === 'dados-painel') return elDados;
+    if (id === 'painel-raiz') return raiz;
+    return null;
+  }},
+  createElement(tag) {{ return makeNode(tag); }},
+  createElementNS(ns, tag) {{ return makeNode(tag, ns); }},
+  createTextNode(t) {{ return {{ nodeType: 3, textContent: String(t) }}; }},
+}};
+{scripts[0]}
+const caixa = raiz.children[0];
+const controles = caixa.children[0];
+const areaMatriz = caixa.children[5];
+if (areaMatriz.className !== 'painel-matriz') {{
+  throw new Error('expected painel-matriz container, got ' + areaMatriz.className);
+}}
+
+function getMatriz() {{
+  const legenda = areaMatriz.children[1];
+  const wrap = areaMatriz.children[2];
+  const tbl = wrap.children[0];
+  const headRows = tbl.children[0].children;
+  const bodyRows = tbl.children[1].children;
+  return {{ legenda, wrap, tbl, headRows, bodyRows }};
+}}
+
+let m = getMatriz();
+if (m.headRows.length !== 2) throw new Error('expected 2 header rows');
+if (m.headRows[0].children.length !== 3) throw new Error('expected Caso + 2 scale headers');
+if (m.headRows[0].children[1].getAttribute('colspan') !== '2') {{
+  throw new Error('expected colspan=2 on scale header');
+}}
+if (m.headRows[1].children.length !== 4) {{
+  throw new Error('expected 4 scale x variant subheaders, got ' + m.headRows[1].children.length);
+}}
+
+if (m.bodyRows.length !== 3) throw new Error('expected 3 case rows, got ' + m.bodyRows.length);
+const rowIds = m.bodyRows.map((r) => collectText(r.children[0]));
+if (JSON.stringify(rowIds) !== JSON.stringify(['caso-01', 'caso-02', 'caso-03'])) {{
+  throw new Error('unexpected case row order: ' + JSON.stringify(rowIds));
+}}
+
+const c1 = m.bodyRows[0].children;
+if (
+  collectText(c1[1]) !== '3/0/0' ||
+  c1[1].className !== 'painel-cel-aprovada' ||
+  c1[1].getAttribute('data-estado') !== 'aprovada'
+) {{
+  throw new Error('unexpected (caso-01, 60, repl): ' + collectText(c1[1]) + ' ' + c1[1].className);
+}}
+const tip1 = c1[1].getAttribute('title');
+if (!tip1.includes('Todas aprovadas') || !tip1.includes('2,5') || !tip1.includes('4.200')) {{
+  throw new Error('unexpected tooltip for (caso-01, 60, repl): ' + tip1);
+}}
+if (c1[1].getAttribute('aria-label') !== tip1) {{
+  throw new Error('expected aria-label matching tooltip');
+}}
+
+if (
+  collectText(c1[2]) !== '0/3/0' ||
+  c1[2].className !== 'painel-cel-reprovada' ||
+  c1[2].getAttribute('data-estado') !== 'reprovada'
+) {{
+  throw new Error('unexpected (caso-01, 60, json): ' + collectText(c1[2]) + ' ' + c1[2].className);
+}}
+
+if (
+  collectText(c1[3]) !== '1/0/1' ||
+  c1[3].className !== 'painel-cel-mista' ||
+  c1[3].getAttribute('data-estado') !== 'mista'
+) {{
+  throw new Error('unexpected (caso-01, 600, repl): ' + collectText(c1[3]) + ' ' + c1[3].className);
+}}
+
+const c2 = m.bodyRows[1].children;
+if (collectText(c2[1]) !== '2/1/0' || c2[1].className !== 'painel-cel-mista') {{
+  throw new Error('unexpected (caso-02, 60, repl): ' + collectText(c2[1]) + ' ' + c2[1].className);
+}}
+if (collectText(c2[2]) !== '0/2/1' || c2[2].className !== 'painel-cel-reprovada') {{
+  throw new Error('unexpected (caso-02, 60, json): ' + collectText(c2[2]) + ' ' + c2[2].className);
+}}
+if (collectText(c2[3]) !== '\\u2014' || c2[3].className !== 'painel-cel-vazia') {{
+  throw new Error('unexpected missing cell: ' + collectText(c2[3]) + ' ' + c2[3].className);
+}}
+
+const c3 = m.bodyRows[2].children;
+if (
+  collectText(c3[3]) !== '0/0/3' ||
+  c3[3].className !== 'painel-cel-infra' ||
+  c3[3].getAttribute('data-estado') !== 'infra'
+) {{
+  throw new Error('unexpected (caso-03, 600, repl): ' + collectText(c3[3]) + ' ' + c3[3].className);
+}}
+const tip3 = c3[3].getAttribute('title');
+if (!tip3.includes('Só infra') || !tip3.includes('sem dado')) {{
+  throw new Error('unexpected tooltip for infra cell: ' + tip3);
+}}
+
+const grupoVars = controles.children[2];
+const cbRepl = grupoVars.children[0].children[0];
+cbRepl.checked = false;
+cbRepl.dispatchEvent({{ type: 'change' }});
+m = getMatriz();
+if (m.headRows[1].children.length !== 2) {{
+  throw new Error('expected 2 columns after filtering REPL, got ' + m.headRows[1].children.length);
+}}
+if (m.bodyRows.length !== 2) {{
+  throw new Error('expected 2 case rows after filtering REPL, got ' + m.bodyRows.length);
+}}
+"""
+    js_path = tmp_path / "test_matriz.js"
+    js_path.write_text(harness_js, encoding="utf-8")
+    proc = subprocess.run(["node", str(js_path)], capture_output=True, text=True, check=False)
+    assert proc.returncode == 0, f"Falha no teste de matriz JS: {proc.stderr}\n{proc.stdout}"
