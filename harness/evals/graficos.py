@@ -2042,6 +2042,7 @@ _SCRIPT_PAINEL: Final = """\
   var NS = 'http://www.w3.org/2000/svg';
   var metricaAtiva = metricas[0].id;
   var escalaLog = true;
+  var yZero = true;
   var ativas = {};
   variantes.forEach(function (v) { ativas[v.id] = true; });
   var selecionada = execucoes[0];
@@ -2153,6 +2154,17 @@ _SCRIPT_PAINEL: Final = """\
   });
   grupoEscalaX.appendChild(btnLog);
 
+  var btnY = el('button', 'painel-btn', 'Eixo Y: come\u00e7ar em zero');
+  btnY.type = 'button';
+  btnY.setAttribute('aria-pressed', 'true');
+  btnY.addEventListener('click', function () {
+    yZero = !yZero;
+    btnY.setAttribute('aria-pressed', yZero ? 'true' : 'false');
+    btnY.textContent = yZero ? 'Eixo Y: come\u00e7ar em zero' : 'Eixo Y: escala pr\u00f3pria';
+    render();
+  });
+  grupoEscalaX.appendChild(btnY);
+
   variantes.forEach(function (v) {
     var lbl = el('label', 'painel-var');
     var cb = document.createElement('input');
@@ -2209,21 +2221,41 @@ _SCRIPT_PAINEL: Final = """\
     var xHi = xMax + (xSpan > 0 ? xSpan * 0.08 : 0.5);
 
     var ys = pontosValidos.map(function (e) { return e.valores[met.id]; });
+    var yMinRaw = Math.min.apply(null, ys);
     var yMaxRaw = Math.max.apply(null, ys);
+    var yLo = 0;
     var yHi = met.teto !== null && met.teto !== undefined
       ? met.teto
       : (yMaxRaw > 0 ? yMaxRaw * 1.1 : 1);
+    if (!yZero) {
+      var ySpan = yMaxRaw - yMinRaw;
+      if (ySpan > 0) {
+        var folgaY = ySpan * 0.1;
+        yLo = yMinRaw >= 0 ? Math.max(0, yMinRaw - folgaY) : yMinRaw - folgaY;
+        yHi = yMaxRaw + folgaY;
+      } else if (yMinRaw === 0) {
+        yLo = 0;
+        yHi = 1;
+      } else {
+        var margemY = Math.abs(yMinRaw) * 0.1 || 1;
+        yLo = yMinRaw >= 0 ? Math.max(0, yMinRaw - margemY) : yMinRaw - margemY;
+        yHi = yMaxRaw + margemY;
+      }
+      if (met.teto !== null && met.teto !== undefined && yMaxRaw <= met.teto) {
+        yHi = Math.min(met.teto, yHi);
+      }
+    }
 
     function pxX(escala) {
       var xVal = escalaLog ? Math.log10(escala) : escala;
       return L + ((xVal - xLo) / (xHi - xLo)) * (R - L);
     }
     function pxY(val) {
-      return B - (val / yHi) * (B - T);
+      return B - ((val - yLo) / (yHi - yLo)) * (B - T);
     }
 
     for (var g = 0; g <= 4; g++) {
-      var vTick = (yHi / 4) * g;
+      var vTick = yLo + ((yHi - yLo) / 4) * g;
       var gy = pxY(vTick);
       svg.appendChild(svgEl('line', {
         x1: L, y1: gy.toFixed(2), x2: R, y2: gy.toFixed(2),
