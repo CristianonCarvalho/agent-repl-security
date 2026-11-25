@@ -2002,7 +2002,8 @@ def _com_identificador(svg: str, sufixo: str) -> str:
 
 _CSS_PAINEL: Final = """\
 h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
-.painel-caixa { background: #ffffff; border: 1px solid #e1e0d9; border-radius: 8px; padding: 14px; }
+.painel-caixa { background: #ffffff; border: 1px solid #e1e0d9; border-radius: 8px; padding: 14px;
+  box-sizing: border-box; max-width: 100%; }
 .painel-controles { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center;
   margin-bottom: 12px; }
 .painel-grupo { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
@@ -2012,16 +2013,26 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
 .painel-btn[aria-selected="true"] { background: #0b0b0b; color: #ffffff; border-color: #0b0b0b; }
 .painel-var { display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
   padding: 4px 8px; border: 1px solid #e1e0d9; border-radius: 6px; background: #fafaf8;
-  cursor: pointer; }
-.painel-cor { width: 10px; height: 10px; border-radius: 999px; display: inline-block; }
-.painel-tabela { width: 100%; border-collapse: collapse; margin-top: 14px; font-size: 12px; }
+  cursor: pointer; transition: opacity 0.15s ease; }
+.painel-var[data-ativa="0"] { opacity: 0.48; }
+.painel-var input { margin: 0; cursor: pointer; }
+.painel-cor { width: 10px; height: 10px; border-radius: 999px; display: inline-block; flex: none; }
+.painel-tabela-wrap { width: 100%; max-width: 100%; overflow-x: auto;
+  -webkit-overflow-scrolling: touch; margin-top: 14px; }
+.painel-tabela { width: 100%; border-collapse: collapse; font-size: 12px; }
 .painel-tabela th, .painel-tabela td { text-align: left; padding: 6px 8px;
-  border-bottom: 1px solid #e1e0d9; }
+  border-bottom: 1px solid #e1e0d9; white-space: nowrap; }
 .painel-tabela th { color: #52514e; font-weight: 600; }
+.painel-tabela th[aria-sort] { cursor: pointer; user-select: none; }
+.painel-tabela th[aria-sort]:hover { color: #0b0b0b; background: #fafaf8; }
+.painel-tabela th.painel-num, .painel-tabela td.painel-num { text-align: right;
+  font-variant-numeric: tabular-nums; }
+.painel-ordem { margin-left: 4px; font-size: 10px; color: #898781; }
 .painel-tabela tbody tr { cursor: pointer; }
 .painel-tabela tbody tr:hover, .painel-tabela tbody tr[data-ativo="1"] { background: #f4f4f1; }
 .painel-detalhe { margin-top: 14px; padding: 12px; border: 1px solid #e1e0d9; border-radius: 6px;
   background: #fafaf8; font-size: 12px; line-height: 1.5; }
+.painel-detalhe .painel-tabela { margin-top: 10px; }
 .painel-detalhe h4 { margin: 0 0 6px; font-size: 13px; font-weight: 600; }
 .painel-vazio { color: #52514e; font-size: 13px; padding: 16px 0; text-align: center; }
 .painel-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
@@ -2068,6 +2079,8 @@ _SCRIPT_PAINEL: Final = """\
   variantes.forEach(function (v) { ativas[v.id] = true; });
   var selecionada = execucoes[0];
   var escalaGuia = null;
+  var sortCol = null;
+  var sortDir = 'asc';
 
   function el(tag, cls, texto) {
     var n = document.createElement(tag);
@@ -2127,7 +2140,7 @@ _SCRIPT_PAINEL: Final = """\
   var grupoVars = el('div', 'painel-grupo');
   var areaResumo = el('div', 'painel-resumo');
   var areaSvg = el('div', 'painel-grafico');
-  var areaTabela = el('div');
+  var areaTabela = el('div', 'painel-tabela-wrap');
   var areaDetalhe = el('div', 'painel-detalhe');
 
   var btnsMetrica = [];
@@ -2198,11 +2211,13 @@ _SCRIPT_PAINEL: Final = """\
 
   variantes.forEach(function (v) {
     var lbl = el('label', 'painel-var');
+    lbl.setAttribute('data-ativa', '1');
     var cb = document.createElement('input');
     cb.type = 'checkbox';
     cb.checked = true;
     cb.addEventListener('change', function () {
       ativas[v.id] = cb.checked;
+      lbl.setAttribute('data-ativa', cb.checked ? '1' : '0');
       render();
     });
     var dot = el('span', 'painel-cor');
@@ -2599,37 +2614,236 @@ _SCRIPT_PAINEL: Final = """\
     }
   }
 
-  function renderTabela(met, filtradas) {
+  var COLUNAS_TABELA = [
+    {
+      id: 'variante',
+      titulo: 'Variante',
+      tipo: 'texto',
+      valor: function (e) { return e.rotulo; }
+    },
+    {
+      id: 'escala',
+      titulo: 'Escala',
+      tipo: 'num',
+      valor: function (e) { return e.escala / 60; },
+      texto: function (e) { return fmtRazao(e.escala / 60); }
+    },
+    {
+      id: 'linhas',
+      titulo: 'Linhas',
+      tipo: 'num',
+      valor: function (e) { return e.escala; },
+      texto: function (e) { return fmtInt(e.escala); }
+    },
+    {
+      id: 'rodadas',
+      titulo: 'Rodadas',
+      tipo: 'num',
+      valor: function (e) { return e.rodadas; },
+      texto: function (e) { return e.rodadas_validas + '/' + e.rodadas; }
+    },
+    {
+      id: 'aprovadas',
+      titulo: 'Aprovadas',
+      tipo: 'num',
+      valor: function (e) { return e.aprovadas; },
+      texto: function (e) { return fmtInt(e.aprovadas); }
+    },
+    {
+      id: 'reprovadas',
+      titulo: 'Reprovadas',
+      tipo: 'num',
+      valor: function (e) { return e.reprovadas; },
+      texto: function (e) { return fmtInt(e.reprovadas); }
+    },
+    {
+      id: 'infra',
+      titulo: 'Infra',
+      tipo: 'num',
+      valor: function (e) { return e.erro_infra; },
+      texto: function (e) { return fmtInt(e.erro_infra); }
+    },
+    {
+      id: 'acerto',
+      titulo: 'Acerto (v\u00e1lidas)',
+      tipo: 'num',
+      valor: function (e) { return e.valores ? e.valores.taxa : null; },
+      texto: function (e) {
+        var v = e.valores ? e.valores.taxa : null;
+        return (v === null || v === undefined) ? 'sem dado' : (fmt(v, 1) + '%');
+      }
+    },
+    {
+      id: 'iteracoes',
+      titulo: 'Itera\u00e7\u00f5es',
+      tipo: 'num',
+      valor: function (e) { return e.valores ? e.valores.iteracoes : null; },
+      texto: function (e) {
+        var v = e.valores ? e.valores.iteracoes : null;
+        return (v === null || v === undefined) ? 'sem dado' : fmt(v, 2);
+      }
+    },
+    {
+      id: 'tokens_entrada',
+      titulo: 'Tokens entrada',
+      tipo: 'num',
+      valor: function (e) { return e.tokens_entrada; },
+      texto: function (e) {
+        var v = e.tokens_entrada;
+        return (v === null || v === undefined) ? 'sem dado' : fmtInt(Math.round(v));
+      }
+    },
+    {
+      id: 'tokens_saida',
+      titulo: 'Tokens sa\u00edda',
+      tipo: 'num',
+      valor: function (e) { return e.tokens_saida; },
+      texto: function (e) {
+        var v = e.tokens_saida;
+        return (v === null || v === undefined) ? 'sem dado' : fmtInt(Math.round(v));
+      }
+    },
+    {
+      id: 'custo_rodada',
+      titulo: 'Custo por rodada',
+      tipo: 'num',
+      valor: function (e) { return e.valores ? e.valores.custo : null; },
+      texto: function (e) {
+        var v = e.valores ? e.valores.custo : null;
+        return (v === null || v === undefined) ? 'sem dado' : (fmt(v, 2) + ' mUS$');
+      }
+    },
+    {
+      id: 'custo_acerto',
+      titulo: 'Custo por acerto',
+      tipo: 'num',
+      valor: function (e) { return e.valores ? e.valores.custo_acerto : null; },
+      texto: function (e) {
+        var v = e.valores ? e.valores.custo_acerto : null;
+        return (v === null || v === undefined) ? 'sem dado' : (fmt(v, 2) + ' mUS$');
+      }
+    },
+    {
+      id: 'pico',
+      titulo: 'Pico de contexto',
+      tipo: 'num',
+      valor: function (e) { return e.valores ? e.valores.pico : null; },
+      texto: function (e) {
+        var v = e.valores ? e.valores.pico : null;
+        return (v === null || v === undefined) ? 'sem dado' : fmt(v, 0);
+      }
+    },
+    {
+      id: 'estado',
+      titulo: 'Estado',
+      tipo: 'texto',
+      valor: function (e) { return e.incompleta ? 'Incompleta' : 'Completa'; },
+      texto: function (e) { return e.incompleta ? 'Incompleta' : 'Completa'; }
+    }
+  ];
+
+  function alternarOrdenacao(colId) {
+    if (sortCol === colId) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortCol = colId;
+      sortDir = 'asc';
+    }
+    render();
+  }
+
+  function ordenarExecucoes(lista) {
+    if (!sortCol) return lista.slice();
+    var col = null;
+    for (var i = 0; i < COLUNAS_TABELA.length; i++) {
+      if (COLUNAS_TABELA[i].id === sortCol) {
+        col = COLUNAS_TABELA[i];
+        break;
+      }
+    }
+    if (!col) return lista.slice();
+    var indexadas = lista.map(function (item, idx) {
+      return { item: item, idx: idx, val: col.valor(item) };
+    });
+    indexadas.sort(function (a, b) {
+      var va = a.val;
+      var vb = b.val;
+      var aNulo = va === null || va === undefined || (typeof va === 'number' && isNaN(va));
+      var bNulo = vb === null || vb === undefined || (typeof vb === 'number' && isNaN(vb));
+      if (aNulo && bNulo) return a.idx - b.idx;
+      if (aNulo) return 1;
+      if (bNulo) return -1;
+      var cmp = 0;
+      if (col.tipo === 'texto') {
+        cmp = String(va).localeCompare(String(vb), 'pt-BR');
+      } else {
+        cmp = Number(va) - Number(vb);
+      }
+      if (cmp !== 0) return sortDir === 'asc' ? cmp : -cmp;
+      return a.idx - b.idx;
+    });
+    return indexadas.map(function (x) { return x.item; });
+  }
+
+  function renderTabela(filtradas) {
     areaTabela.textContent = '';
-    if (!filtradas.length) return;
+    if (!filtradas.length) {
+      areaTabela.appendChild(el('p', 'painel-vazio', 'Nenhuma variante selecionada.'));
+      return;
+    }
+    var ordenadas = ordenarExecucoes(filtradas);
     var tbl = el('table', 'painel-tabela');
     var thead = el('thead');
     var hr = el('tr');
-    ['Variante', 'Linhas', met.titulo, 'Rodadas v\u00e1lidas', 'Estado'].forEach(function (h) {
-      hr.appendChild(el('th', null, h));
+    COLUNAS_TABELA.forEach(function (col) {
+      var th = el('th', col.tipo === 'num' ? 'painel-num' : null);
+      var ativa = sortCol === col.id;
+      var ariaSort = ativa ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none';
+      th.setAttribute('aria-sort', ariaSort);
+      th.setAttribute('tabindex', '0');
+      th.setAttribute('data-coluna', col.id);
+      th.appendChild(document.createTextNode(col.titulo));
+      var seta = ativa ? (sortDir === 'asc' ? '\u25b2' : '\u25bc') : '\u21c5';
+      var ind = el('span', 'painel-ordem', seta);
+      ind.setAttribute('aria-hidden', 'true');
+      th.appendChild(ind);
+      th.addEventListener('click', function () {
+        alternarOrdenacao(col.id);
+      });
+      th.addEventListener('keydown', function (ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          alternarOrdenacao(col.id);
+        }
+      });
+      hr.appendChild(th);
     });
     thead.appendChild(hr);
     tbl.appendChild(thead);
 
     var tbody = el('tbody');
-    filtradas.forEach(function (e) {
+    ordenadas.forEach(function (e) {
       var tr = el('tr');
       if (selecionada && selecionada.variante === e.variante && selecionada.escala === e.escala) {
         tr.setAttribute('data-ativo', '1');
       }
-      var tdVar = el('td');
-      var dot = el('span', 'painel-cor');
-      dot.style.background = corVariante(e.variante);
-      dot.style.marginRight = '6px';
-      tdVar.appendChild(dot);
-      tdVar.appendChild(document.createTextNode(e.rotulo));
-      tr.appendChild(tdVar);
-      tr.appendChild(el('td', null, fmtInt(e.escala)));
-      var val = e.valores ? e.valores[met.id] : null;
-      tr.appendChild(el('td', null, fmt(val, met.casas)));
-      tr.appendChild(el('td', null, e.rodadas_validas + '/' + e.rodadas));
-      var estado = e.incompleta ? 'Incompleta' : (e.ponto_fraco ? 'Ponto fraco' : 'Completa');
-      tr.appendChild(el('td', null, estado));
+      COLUNAS_TABELA.forEach(function (col) {
+        if (col.id === 'variante') {
+          var tdVar = el('td');
+          var dot = el('span', 'painel-cor');
+          dot.style.background = corVariante(e.variante);
+          dot.style.marginRight = '6px';
+          tdVar.appendChild(dot);
+          tdVar.appendChild(document.createTextNode(e.rotulo));
+          tr.appendChild(tdVar);
+          return;
+        }
+        var td = el('td', col.tipo === 'num' ? 'painel-num' : null, col.texto(e));
+        if (col.id === 'estado' && e.incompleta && e.motivo_incompleta) {
+          td.setAttribute('title', e.motivo_incompleta);
+        }
+        tr.appendChild(td);
+      });
       tr.addEventListener('click', function () {
         selecionada = e;
         render();
@@ -2694,7 +2908,7 @@ _SCRIPT_PAINEL: Final = """\
     }
     renderResumo(filtradas);
     renderSvg(met, filtradas);
-    renderTabela(met, filtradas);
+    renderTabela(filtradas);
     renderDetalhe();
   }
 
@@ -2719,6 +2933,11 @@ def _dados_painel_escala(dados: DadosEvolucao) -> dict[str, object]:
             execucao = ultimas.get((variante, escala))
             if execucao is None:
                 continue
+            tokens_entrada = (
+                execucao.tokens_entrada_por_rodada_executada
+                if execucao.tokens_entrada_por_rodada_executada is not None
+                else execucao.tokens_entrada_por_rodada
+            )
             execucoes_payload.append(
                 {
                     "aprovadas": execucao.aprovadas,
@@ -2751,6 +2970,8 @@ def _dados_painel_escala(dados: DadosEvolucao) -> dict[str, object]:
                     "rodadas": execucao.rodadas,
                     "rodadas_validas": execucao.rodadas_validas,
                     "rotulo": _rotulo_variante(variante),
+                    "tokens_entrada": tokens_entrada,
+                    "tokens_saida": execucao.tokens_saida_por_rodada,
                     "valores": {
                         "custo": _custo_escala_milesimos(execucao),
                         "custo_acerto": _para_milesimos(execucao.custo_por_acerto_usd),
