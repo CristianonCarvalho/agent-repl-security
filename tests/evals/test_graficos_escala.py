@@ -1646,3 +1646,288 @@ if (
     assert proc.returncode == 0, (
         f"Falha no teste de cartões-resumo JS: {proc.stderr}\n{proc.stdout}"
     )
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node não disponível no PATH")
+def test_painel_tabela_completa_ordenavel_estavel_e_filtro_legenda(tmp_path: Path) -> None:
+    dados = DadosEvolucao(
+        versao=1,
+        execucoes=(
+            _exec(
+                1,
+                "repl",
+                60,
+                rodadas=10,
+                rodadas_validas=10,
+                aprovadas=8,
+                reprovadas=2,
+                erro_infra=0,
+                taxa_pct=80.0,
+                iteracoes_media=2.5,
+                tokens_entrada_por_rodada_executada=8000.0,
+                tokens_saida_por_rodada=320,
+                custo_por_rodada_executada_usd=0.001,
+                custo_por_acerto_usd=0.00125,
+                pico_contexto_medio=5000.0,
+            ),
+            _exec(
+                2,
+                "repl",
+                600,
+                rodadas=10,
+                rodadas_validas=9,
+                aprovadas=9,
+                reprovadas=0,
+                erro_infra=1,
+                taxa_pct=100.0,
+                iteracoes_media=3.0,
+                tokens_entrada_por_rodada_executada=12000.0,
+                tokens_saida_por_rodada=450,
+                custo_por_rodada_executada_usd=0.002,
+                custo_por_acerto_usd=0.00222,
+                pico_contexto_medio=7500.0,
+                incompleta=True,
+                motivo_incompleta="teto de orçamento",
+            ),
+            _exec(
+                1,
+                "json",
+                60,
+                rodadas=10,
+                rodadas_validas=8,
+                aprovadas=4,
+                reprovadas=4,
+                erro_infra=2,
+                taxa_pct=50.0,
+                iteracoes_media=5.0,
+                tokens_entrada_por_rodada_executada=15000.0,
+                tokens_saida_por_rodada=600,
+                custo_por_rodada_executada_usd=0.004,
+                custo_por_acerto_usd=0.01,
+                pico_contexto_medio=9000.0,
+            ),
+            _exec(
+                2,
+                "json",
+                600,
+                rodadas=10,
+                rodadas_validas=10,
+                aprovadas=6,
+                reprovadas=4,
+                erro_infra=0,
+                taxa_pct=60.0,
+                iteracoes_media=6.0,
+                tokens_entrada_por_rodada_executada=25000.0,
+                tokens_saida_por_rodada=800,
+                custo_por_rodada_executada_usd=0.010,
+                custo_por_acerto_usd=None,
+                pico_contexto_medio=14000.0,
+            ),
+        ),
+    )
+    html = gerar_pagina_html(dados)
+    assert ".painel-tabela-wrap" in html
+    assert "overflow-x: auto" in html
+
+    m_json = re.search(
+        r'<script type="application/json" id="dados-painel">(.*?)</script>',
+        html,
+        flags=re.DOTALL,
+    )
+    assert m_json is not None
+    scripts = re.findall(
+        r"<script(?![^>]*application/json)[^>]*>(.*?)</script>",
+        html,
+        flags=re.DOTALL,
+    )
+    assert len(scripts) == 2
+
+    harness_js = f"""
+const jsonText = {json.dumps(m_json.group(1))};
+function makeNode(tag, ns) {{
+  const attrs = {{}};
+  const listeners = {{}};
+  let _text = '';
+  const node = {{
+    tagName: tag.toUpperCase(),
+    namespaceURI: ns || null,
+    className: '',
+    hidden: false,
+    get textContent() {{ return _text; }},
+    set textContent(v) {{
+      _text = String(v);
+      if (_text === '') this.children = [];
+    }},
+    style: {{}},
+    children: [],
+    setAttribute(k, v) {{ attrs[k] = String(v); }},
+    getAttribute(k) {{ return k in attrs ? attrs[k] : null; }},
+    appendChild(c) {{ this.children.push(c); return c; }},
+    addEventListener(ev, fn) {{ (listeners[ev] = listeners[ev] || []).push(fn); }},
+    dispatchEvent(ev) {{
+      if (!ev.target) ev.target = this;
+      (listeners[ev.type] || []).forEach((fn) => fn(ev));
+    }},
+  }};
+  return node;
+}}
+function collectText(n) {{
+  if (n.nodeType === 3) return n.textContent || '';
+  if (n.children && n.children.length) return n.children.map(collectText).join('');
+  return n.textContent || '';
+}}
+const raiz = makeNode('div');
+const elDados = {{ textContent: jsonText }};
+global.document = {{
+  getElementById(id) {{
+    if (id === 'dados-painel') return elDados;
+    if (id === 'painel-raiz') return raiz;
+    return null;
+  }},
+  createElement(tag) {{ return makeNode(tag); }},
+  createElementNS(ns, tag) {{ return makeNode(tag, ns); }},
+  createTextNode(t) {{ return {{ nodeType: 3, textContent: String(t) }}; }},
+}};
+{scripts[0]}
+const caixa = raiz.children[0];
+const controles = caixa.children[0];
+const areaSvg = caixa.children[2];
+const areaTabela = caixa.children[3];
+if (areaTabela.className !== 'painel-tabela-wrap') {{
+  throw new Error('expected painel-tabela-wrap container, got ' + areaTabela.className);
+}}
+
+function getTable() {{
+  const tbl = areaTabela.children[0];
+  const ths = tbl.children[0].children[0].children;
+  const rows = tbl.children[1].children;
+  return {{ tbl, ths, rows }};
+}}
+
+let t = getTable();
+const expectedCols = [
+  'Variante', 'Escala', 'Linhas', 'Rodadas', 'Aprovadas', 'Reprovadas', 'Infra',
+  'Acerto (válidas)', 'Iterações', 'Tokens entrada', 'Tokens saída',
+  'Custo por rodada', 'Custo por acerto', 'Pico de contexto', 'Estado',
+];
+if (t.ths.length !== expectedCols.length) {{
+  throw new Error('expected ' + expectedCols.length + ' columns, got ' + t.ths.length);
+}}
+t.ths.forEach((th, i) => {{
+  const txt = collectText(th);
+  if (!txt.includes(expectedCols[i])) {{
+    throw new Error('col ' + i + ' expected ' + expectedCols[i] + ', got ' + txt);
+  }}
+  if (th.getAttribute('aria-sort') !== 'none') {{
+    throw new Error('expected initial aria-sort=none on col ' + i);
+  }}
+}});
+
+if (t.rows.length !== 4) throw new Error('expected 4 rows, got ' + t.rows.length);
+
+// Check cell contents of second row (repl, 600, incompleta)
+const r1Cells = t.rows[1].children.map((td) => collectText(td));
+if (
+  !r1Cells[0].includes('REPL') ||
+  r1Cells[1] !== '10x' ||
+  r1Cells[2] !== '600' ||
+  r1Cells[3] !== '9/10' ||
+  r1Cells[4] !== '9' ||
+  r1Cells[5] !== '0' ||
+  r1Cells[6] !== '1' ||
+  r1Cells[7] !== '100,0%' ||
+  r1Cells[8] !== '3,00' ||
+  r1Cells[9] !== '12.000' ||
+  r1Cells[10] !== '450' ||
+  r1Cells[11] !== '2,00 mUS$' ||
+  r1Cells[12] !== '2,22 mUS$' ||
+  r1Cells[13] !== '7.500' ||
+  r1Cells[14] !== 'Incompleta'
+) {{
+  throw new Error('unexpected row 1 cells: ' + JSON.stringify(r1Cells));
+}}
+if (t.rows[1].children[14].getAttribute('title') !== 'teto de orçamento') {{
+  throw new Error('missing title on incomplete cell');
+}}
+if (t.rows[0].children[14].getAttribute('title') !== null) {{
+  throw new Error('complete row should not have incomplete title');
+}}
+
+// Click 'Escala' (index 1) -> ascending, stable: (REPL 60, JSON 60, REPL 600, JSON 600)
+t.ths[1].dispatchEvent({{ type: 'click' }});
+t = getTable();
+if (t.ths[1].getAttribute('aria-sort') !== 'ascending') {{
+  throw new Error('expected aria-sort=ascending on Escala');
+}}
+const ascOrder = t.rows.map((r) => collectText(r.children[0]) + '@' + collectText(r.children[1]));
+if (
+  !ascOrder[0].includes('REPL') || !ascOrder[0].endsWith('@1x') ||
+  !ascOrder[1].includes('JSON') || !ascOrder[1].endsWith('@1x') ||
+  !ascOrder[2].includes('REPL') || !ascOrder[2].endsWith('@10x') ||
+  !ascOrder[3].includes('JSON') || !ascOrder[3].endsWith('@10x')
+) {{
+  throw new Error('stable ascending sort failed: ' + JSON.stringify(ascOrder));
+}}
+
+// Click 'Escala' again -> descending, still stable on ties: (REPL 600, JSON 600, REPL 60, JSON 60)
+t.ths[1].dispatchEvent({{ type: 'click' }});
+t = getTable();
+if (t.ths[1].getAttribute('aria-sort') !== 'descending') {{
+  throw new Error('expected aria-sort=descending on Escala');
+}}
+const descOrder = t.rows.map((r) => collectText(r.children[0]) + '@' + collectText(r.children[1]));
+if (
+  !descOrder[0].includes('REPL') || !descOrder[0].endsWith('@10x') ||
+  !descOrder[1].includes('JSON') || !descOrder[1].endsWith('@10x') ||
+  !descOrder[2].includes('REPL') || !descOrder[2].endsWith('@1x') ||
+  !descOrder[3].includes('JSON') || !descOrder[3].endsWith('@1x')
+) {{
+  throw new Error('stable descending sort failed: ' + JSON.stringify(descOrder));
+}}
+
+// Keyboard Enter on 'Custo por acerto' (index 12) -> ascending with null last
+let prevented = false;
+t.ths[12].dispatchEvent({{
+  type: 'keydown',
+  key: 'Enter',
+  preventDefault() {{ prevented = true; }}
+}});
+if (!prevented) throw new Error('expected preventDefault on Enter');
+t = getTable();
+if (t.ths[12].getAttribute('aria-sort') !== 'ascending') {{
+  throw new Error('expected aria-sort=ascending on Custo por acerto');
+}}
+if (t.ths[1].getAttribute('aria-sort') !== 'none') {{
+  throw new Error('expected previous sort column reset to none');
+}}
+if (collectText(t.rows[3].children[12]) !== 'sem dado') {{
+  throw new Error('expected null custo_acerto sorted last');
+}}
+
+// Filter by variant chip: uncheck REPL (index 0) -> affects both chart and table
+const grupoVars = controles.children[2];
+const chipRepl = grupoVars.children[0];
+const cbRepl = chipRepl.children[0];
+cbRepl.checked = false;
+cbRepl.dispatchEvent({{ type: 'change' }});
+if (chipRepl.getAttribute('data-ativa') !== '0') {{
+  throw new Error('expected chip data-ativa=0 when unchecked');
+}}
+t = getTable();
+if (t.rows.length !== 2) {{
+  throw new Error('expected 2 rows after filtering REPL, got ' + t.rows.length);
+}}
+t.rows.forEach((r) => {{
+  if (collectText(r.children[0]).includes('REPL')) {{
+    throw new Error('filtered variant still present in table');
+  }}
+}});
+const polylines = areaSvg.children[0].children.filter((c) => c.tagName === 'POLYLINE');
+if (polylines.length !== 1) {{
+  throw new Error('expected 1 polyline in chart after filtering, got ' + polylines.length);
+}}
+"""
+    js_path = tmp_path / "test_tabela.js"
+    js_path.write_text(harness_js, encoding="utf-8")
+    proc = subprocess.run(["node", str(js_path)], capture_output=True, text=True, check=False)
+    assert proc.returncode == 0, f"Falha no teste de tabela JS: {proc.stderr}\n{proc.stdout}"
