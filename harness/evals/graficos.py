@@ -949,16 +949,10 @@ def _eh_oco(execucao: Execucao) -> bool:
 
 def _dica(texto: str, execucao: Execucao) -> str:
     """Tooltip de uma execução. Marcador vazado acrescenta a nota e/ou o motivo de incompletude."""
-    partes: list[str] = []
-    if execucao.ponto_fraco:
-        nota = execucao.nota.strip()
-        partes.append(nota or "poucas rodadas válidas")
-    if execucao.incompleta:
-        motivo = execucao.motivo_incompleta.strip()
-        partes.append(motivo or "execução incompleta")
-    if not partes:
+    ressalva = _motivos_ressalva(execucao)
+    if not ressalva:
         return texto
-    return f"{texto}. Marcador vazado: {'; '.join(partes)}"
+    return f"{texto}. Marcador vazado: {ressalva}"
 
 
 def _fmt_taxa(valor: float) -> str:
@@ -2073,6 +2067,13 @@ h3 { font-size: 15px; font-weight: 600; margin: 24px 0 4px; }
   font-weight: 600; }
 .painel-cel-infra { background: #f1f3f4; color: #52514e; border-color: #d2d5d9; font-weight: 600; }
 .painel-cel-vazia { color: #898781; }
+.painel-ressalvas { margin-top: 14px; padding: 12px 14px; border: 1px solid #e1e0d9;
+  border-radius: 8px; background: #fafaf8; font-size: 12.5px; line-height: 1.5; }
+.painel-ressalvas h3 { margin: 0 0 6px; font-size: 14px; font-weight: 600; color: #0b0b0b; }
+.painel-ressalvas p { margin: 0 0 8px; color: #52514e; }
+.painel-ressalvas p:last-child { margin-bottom: 0; }
+.painel-ressalvas ul { margin: 6px 0 0; padding-left: 18px; color: #0b0b0b; }
+.painel-ressalvas li { margin: 2px 0; }
 """
 
 _SCRIPT_PAINEL: Final = """\
@@ -3202,6 +3203,50 @@ def _dados_painel_escala(dados: DadosEvolucao) -> dict[str, object]:
     }
 
 
+def _motivos_ressalva(execucao: Execucao) -> str:
+    """Descreve os motivos de ressalva (poucas rodadas válidas e/ou execução incompleta)."""
+    motivos: list[str] = []
+    if execucao.ponto_fraco:
+        nota = execucao.nota.strip()
+        motivos.append(nota or "poucas rodadas válidas")
+    if execucao.incompleta:
+        motivo = execucao.motivo_incompleta.strip()
+        motivos.append(motivo or "execução incompleta")
+    return "; ".join(motivos)
+
+
+def _caixa_ressalvas_html(dados: DadosEvolucao) -> str:
+    """Caixa HTML 'Como ler e ressalvas' com execuções incompletas/fracas e regra de leitura."""
+    variantes, escalas, ultimas = _ultimas_por_escala(dados.execucoes)
+    itens: list[str] = []
+    for variante in variantes:
+        for escala in escalas:
+            execucao = ultimas.get((variante, escala))
+            if execucao is None or not _eh_oco(execucao):
+                continue
+            rotulo = (
+                f"{_rotulo_variante(variante)}, {_inteiro_br(escala)} linhas "
+                f"(execução {execucao.numero})"
+            )
+            motivo = _motivos_ressalva(execucao)
+            itens.append(f"<li><strong>{_esc(rotulo)}</strong>: {_esc(motivo)}</li>")
+    lista_html = (
+        "<ul>\n" + "\n".join(itens) + "\n</ul>"
+        if itens
+        else "<p>Nenhuma execução incompleta ou com poucas rodadas válidas.</p>"
+    )
+    return "\n".join(
+        [
+            '<div class="painel-ressalvas">',
+            "<h3>Como ler e ressalvas</h3>",
+            "<p><code>erro_infra</code> = chamada ao modelo passou do prazo; "
+            "taxa de acerto conta só rodadas válidas.</p>",
+            lista_html,
+            "</div>",
+        ]
+    )
+
+
 def _painel_interativo_html(dados: DadosEvolucao) -> str:
     """Seção HTML do painel interativo no modo escala, com JSON embutido e JS puro."""
     json_dados = _json_seguro_html(_dados_painel_escala(dados))
@@ -3211,6 +3256,7 @@ def _painel_interativo_html(dados: DadosEvolucao) -> str:
         '<p class="leitura">Filtre variantes, alterne métricas e clique em um ponto ou linha '
         "da tabela para inspecionar a execução.</p>",
         '<div id="painel-raiz"></div>',
+        _caixa_ressalvas_html(dados),
         f'<script type="application/json" id="dados-painel">{json_dados}</script>',
         f"<script>\n{_SCRIPT_PAINEL}</script>",
         "</section>",

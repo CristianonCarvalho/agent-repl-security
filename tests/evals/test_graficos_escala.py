@@ -2204,3 +2204,48 @@ if (m.bodyRows.length !== 2) {{
     js_path.write_text(harness_js, encoding="utf-8")
     proc = subprocess.run(["node", str(js_path)], capture_output=True, text=True, check=False)
     assert proc.returncode == 0, f"Falha no teste de matriz JS: {proc.stderr}\n{proc.stdout}"
+
+
+def test_caixa_como_ler_e_ressalvas_lista_incompletas_e_fracas() -> None:
+    dados = DadosEvolucao(
+        versao=1,
+        execucoes=(
+            _exec(1, "repl", 60),
+            _exec(
+                2,
+                "repl",
+                600,
+                ponto_fraco=True,
+                nota="r2.json: 2 de 10 rodadas válidas",
+                incompleta=True,
+                motivo_incompleta="teto de gasto <estourado>",
+            ),
+            _exec(1, "json", 60, ponto_fraco=True, nota=""),
+            _exec(2, "json", 600),
+        ),
+    )
+    html = gerar_pagina_html(dados)
+
+    assert 'class="painel-ressalvas"' in html
+    assert "<h3>Como ler e ressalvas</h3>" in html
+    assert (
+        "<code>erro_infra</code> = chamada ao modelo passou do prazo; "
+        "taxa de acerto conta só rodadas válidas."
+    ) in html
+
+    bloco = html.split('<div class="painel-ressalvas">', 1)[1].split("</div>", 1)[0]
+    assert "REPL (Code Mode), 600 linhas (execução 2)" in bloco
+    assert "r2.json: 2 de 10 rodadas válidas; teto de gasto &lt;estourado&gt;" in bloco
+    assert "Tool calling em JSON, 60 linhas (execução 1)" in bloco
+    assert "poucas rodadas válidas" in bloco
+    assert "REPL (Code Mode), 60 linhas (execução 1)" not in bloco
+    assert "Tool calling em JSON, 600 linhas (execução 2)" not in bloco
+
+
+def test_caixa_como_ler_e_ressalvas_sem_execucoes_com_ressalva() -> None:
+    html = gerar_pagina_html(_dados_escala())
+    bloco = html.split('<div class="painel-ressalvas">', 1)[1].split("</div>", 1)[0]
+    assert "<h3>Como ler e ressalvas</h3>" in bloco
+    assert "<code>erro_infra</code> = chamada ao modelo passou do prazo" in bloco
+    assert "Nenhuma execução incompleta ou com poucas rodadas válidas." in bloco
+    assert "<ul>" not in bloco
