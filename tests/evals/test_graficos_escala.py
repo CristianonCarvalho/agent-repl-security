@@ -2255,3 +2255,26 @@ def test_caixa_como_ler_e_ressalvas_sem_execucoes_com_ressalva() -> None:
     assert "<code>erro_infra</code> = chamada ao modelo passou do prazo" in bloco
     assert "Nenhuma execução incompleta ou com poucas rodadas válidas." in bloco
     assert "<ul>" not in bloco
+
+
+def test_css_painel_prefers_reduced_motion_e_focus_visible() -> None:
+    html = gerar_pagina_html(_dados_escala())
+    estilo = html.split("<style>", 1)[1].split("</style>", 1)[0]
+
+    assert "@media (prefers-reduced-motion: reduce)" in estilo
+    bloco_rm = estilo.split("@media (prefers-reduced-motion: reduce)", 1)[1]
+    assert "transition: none !important;" in bloco_rm
+    assert "animation: none !important;" in bloco_rm
+
+    assert "outline: 2px solid #0b0b0b;" in estilo
+    assert "outline-offset: 2px;" in estilo
+    for seletor in (
+        ".painel-btn:focus-visible",
+        '.painel-btn[role="tab"]:focus-visible',
+        ".painel-var:has(input:focus-visible)",
+        ".painel-var input:focus-visible",
+        ".painel-tabela th[aria-sort]:focus-visible",
+        ".painel-grafico svg:focus-visible",
+        ".painel-grafico [tabindex]:focus-visible",
+    ):
+        assert seletor in estilo
