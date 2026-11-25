@@ -864,6 +864,7 @@ def test_painel_presenca_dos_elementos_e_ordem_no_modo_escala() -> None:
     assert "painel-tabela" in html
     assert "painel-detalhe" in html
     assert "Eixo X logar\\u00edtmico" in html or "Eixo X logarítmico" in html
+    assert "Eixo Y: come\\u00e7ar em zero" in html or "Eixo Y: começar em zero" in html
     assert SECAO_ESCALA_PAINEIS[0] in html
 
 
@@ -1042,11 +1043,16 @@ const jsonText = {json.dumps(m_json.group(1))};
 function makeNode(tag, ns) {{
   const attrs = {{}};
   const listeners = {{}};
+  let _text = '';
   const node = {{
     tagName: tag.toUpperCase(),
     namespaceURI: ns || null,
     className: '',
-    textContent: '',
+    get textContent() {{ return _text; }},
+    set textContent(v) {{
+      _text = String(v);
+      if (_text === '') this.children = [];
+    }},
     style: {{}},
     children: [],
     focused: false,
@@ -1113,3 +1119,130 @@ if (tabs[0].getAttribute('aria-selected') !== 'true') throw new Error('Home fail
     js_path.write_text(harness_js, encoding="utf-8")
     proc = subprocess.run(["node", str(js_path)], capture_output=True, text=True, check=False)
     assert proc.returncode == 0, f"Falha no teste de abas JS: {proc.stderr}\n{proc.stdout}"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="node não disponível no PATH")
+def test_painel_controles_eixo_x_log_linear_e_eixo_y_zero_propria(tmp_path: Path) -> None:
+    html = gerar_pagina_html(_dados_escala())
+    m_json = re.search(
+        r'<script type="application/json" id="dados-painel">(.*?)</script>',
+        html,
+        flags=re.DOTALL,
+    )
+    assert m_json is not None
+    scripts = re.findall(
+        r"<script(?![^>]*application/json)[^>]*>(.*?)</script>",
+        html,
+        flags=re.DOTALL,
+    )
+    assert len(scripts) == 2
+
+    harness_js = f"""
+const jsonText = {json.dumps(m_json.group(1))};
+function makeNode(tag, ns) {{
+  const attrs = {{}};
+  const listeners = {{}};
+  let _text = '';
+  const node = {{
+    tagName: tag.toUpperCase(),
+    namespaceURI: ns || null,
+    className: '',
+    get textContent() {{ return _text; }},
+    set textContent(v) {{
+      _text = String(v);
+      if (_text === '') this.children = [];
+    }},
+    style: {{}},
+    children: [],
+    setAttribute(k, v) {{ attrs[k] = String(v); }},
+    getAttribute(k) {{ return k in attrs ? attrs[k] : null; }},
+    appendChild(c) {{ this.children.push(c); return c; }},
+    addEventListener(ev, fn) {{ (listeners[ev] = listeners[ev] || []).push(fn); }},
+    dispatchEvent(ev) {{
+      (listeners[ev.type] || []).forEach((fn) => fn(ev));
+    }},
+  }};
+  return node;
+}}
+const raiz = makeNode('div');
+const elDados = {{ textContent: jsonText }};
+global.document = {{
+  getElementById(id) {{
+    if (id === 'dados-painel') return elDados;
+    if (id === 'painel-raiz') return raiz;
+    return null;
+  }},
+  createElement(tag) {{ return makeNode(tag); }},
+  createElementNS(ns, tag) {{ return makeNode(tag, ns); }},
+  createTextNode(t) {{ return {{ nodeType: 3, textContent: String(t) }}; }},
+}};
+{scripts[0]}
+const caixa = raiz.children[0];
+const controles = caixa.children[0];
+const grupoEixos = controles.children[1];
+const btnX = grupoEixos.children[0];
+const btnY = grupoEixos.children[1];
+
+if (btnX.getAttribute('aria-pressed') !== 'true') throw new Error('btnX initial aria-pressed');
+if (btnX.textContent !== 'Eixo X logarítmico') {{
+  throw new Error('btnX initial text: ' + btnX.textContent);
+}}
+if (btnY.getAttribute('aria-pressed') !== 'true') throw new Error('btnY initial aria-pressed');
+if (btnY.textContent !== 'Eixo Y: começar em zero') {{
+  throw new Error('btnY initial text: ' + btnY.textContent);
+}}
+
+const areaSvg = caixa.children[1];
+function yTicks() {{
+  const svg = areaSvg.children[0];
+  return svg.children
+    .filter((c) => c.tagName === 'TEXT' && c.getAttribute('text-anchor') === 'end')
+    .map((c) => c.textContent);
+}}
+function xTicks() {{
+  const svg = areaSvg.children[0];
+  return svg.children
+    .filter((c) => c.tagName === 'TEXT' && c.getAttribute('text-anchor') === 'middle')
+    .map((c) => Number(c.getAttribute('x')));
+}}
+
+const xsLog = xTicks();
+const passoLog1 = xsLog[1] - xsLog[0];
+const passoLog2 = xsLog[2] - xsLog[1];
+if (Math.abs(passoLog1 - passoLog2) > 0.5) throw new Error('expected equal log spacing');
+
+btnX.dispatchEvent({{ type: 'click' }});
+if (btnX.getAttribute('aria-pressed') !== 'false') throw new Error('btnX toggled aria-pressed');
+if (btnX.textContent !== 'Eixo X linear') throw new Error('btnX linear text');
+const xsLin = xTicks();
+if (!(xsLin[2] - xsLin[1] > (xsLin[1] - xsLin[0]) * 5)) throw new Error('expected linear spacing');
+
+controles.children[0].children[3].dispatchEvent({{ type: 'click' }});
+const ticksZero = yTicks();
+if (ticksZero[0] !== '0,0') {{
+  throw new Error('expected 0,0 first tick when yZero=true, got ' + ticksZero[0]);
+}}
+if (ticksZero[4] !== '100,0') {{
+  throw new Error('expected 100,0 top tick when yZero=true, got ' + ticksZero[4]);
+}}
+
+btnY.dispatchEvent({{ type: 'click' }});
+if (btnY.getAttribute('aria-pressed') !== 'false') throw new Error('btnY toggled aria-pressed');
+if (btnY.textContent !== 'Eixo Y: escala própria') {{
+  throw new Error('btnY propria text: ' + btnY.textContent);
+}}
+const ticksPropria = yTicks();
+if (ticksPropria[0] === '0,0') throw new Error('expected non-zero first tick when yZero=false');
+if (ticksPropria[4] === '100,0') {{
+  throw new Error('expected zoomed top tick when yZero=false, got ' + ticksPropria[4]);
+}}
+
+btnY.dispatchEvent({{ type: 'click' }});
+if (btnY.getAttribute('aria-pressed') !== 'true') throw new Error('btnY restored aria-pressed');
+if (btnY.textContent !== 'Eixo Y: começar em zero') throw new Error('btnY restored text');
+if (yTicks()[0] !== '0,0') throw new Error('expected 0,0 restored');
+"""
+    js_path = tmp_path / "test_eixos.js"
+    js_path.write_text(harness_js, encoding="utf-8")
+    proc = subprocess.run(["node", str(js_path)], capture_output=True, text=True, check=False)
+    assert proc.returncode == 0, f"Falha no teste de controles X/Y JS: {proc.stderr}\n{proc.stdout}"
