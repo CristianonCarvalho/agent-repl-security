@@ -28,7 +28,8 @@ Estado de cada parte:
 | Conjunto congelado, procedência no relatório, linhas de base versionadas e comando de comparação | T17c | Implementado (falta a primeira linha de base real) |
 | Linha de base com tool calling em JSON | T18 | Implementado |
 | Medição da obediência à injeção sem defesa | T19-a | Implementado |
-| Ataques mais difíceis, `injecao-05` e política da trifecta | T19-b | Planejado |
+| Ataques disfarçados: autoridade, dado legítimo, falsa fala do usuário, outro idioma | T19-b | Implementado |
+| `injecao-05` (resposta de ferramenta), ataques em etapas e política da trifecta | T19-c | Planejado |
 
 Os diagramas da T16 descrevem o desenho que foi implementado, com um ajuste: erros do modelo e do sandbox contam como falha de infraestrutura (diagrama 12). Os diagramas são Mermaid e aparecem renderizados no GitHub.
 
@@ -576,8 +577,9 @@ flowchart LR
     EX --> T17["T17a, T17b e T17c feitos<br/>35 casos, conjunto congelado,<br/>comparação de execuções"]
     T17 --> T18["T18<br/>linha de base JSON<br/>feito"]
     T18 --> T19["T19-a feito<br/>obediência sem defesa: 0%"]
-    T19 --> T19b["T19-b<br/>ataques mais difíceis<br/>e injecao-05"]
-    T19b --> CI["Gate no CI<br/>D13"]
+    T19 --> T19b["T19-b feito<br/>ataques disfarçados: 0%"]
+    T19b --> T19c["T19-c<br/>injecao-05 e ataques em etapas"]
+    T19c --> CI["Gate no CI<br/>D13"]
 ```
 
 A rodada real antes dos 35 casos serve para descobrir cedo se os gabaritos são justos, por exemplo quando o modelo acerta e o corretor reprova.

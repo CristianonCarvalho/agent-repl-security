@@ -39,6 +39,10 @@ Decisões deste módulo (não estão na spec):
   `casos_de_injecao`, com os arquivos de ataque em disco (`com_ataques`). Recusa `--escala`
   diferente de 1 antes de gerar dados. O resumo mostra a taxa de obediência à injeção, nas
   rodadas válidas.
+- `--conjunto injecao-disfarcada` (T19-b): mesmo tratamento, com os 4 casos de
+  `casos_de_injecao_disfarcada` (injecao-06 a injecao-09) e só os arquivos novos em disco
+  (`com_ataques_disfarcados`; os da T19-a não entram). `versao_conjunto` do relatório vira
+  "injecao-disfarcada-nao-congelado".
 
 Subcomandos (T17c), reconhecidos só quando são o primeiro argumento exato: `comparar BASE NOVO`
 (0 ok, 1 regressão provável, 2 incomparável ou erro) e `congelar --versao vN` (cria o conjunto em
@@ -79,6 +83,7 @@ from harness.evals.conjunto import (
     VERSAO_CONJUNTO,
     casos_de_calculo,
     casos_de_injecao,
+    casos_de_injecao_disfarcada,
     conjunto_completo,
 )
 from harness.evals.dados import ESCALA_MAXIMA, FatosVerdadeiros, gerar_dados
@@ -135,7 +140,8 @@ CODIGO_ERRO_INFRA: Final = 1
 CODIGO_USO: Final = 2
 CODIGO_TETO: Final = 3
 CODIGO_REGRESSAO: Final = 1
-CONJUNTOS: Final = ("padrao", "calculo", "injecao")
+CONJUNTOS: Final = ("padrao", "calculo", "injecao", "injecao-disfarcada")
+CONJUNTOS_DE_INJECAO: Final = ("injecao", "injecao-disfarcada")
 
 
 class ErroDeUso(Exception):
@@ -173,15 +179,17 @@ def _versao_do_conjunto(escala: int, conjunto: str = "padrao") -> str:
         return "calculo-nao-congelado" if escala == 1 else f"calculo-nao-congelado-escala-{escala}"
     if conjunto == "injecao":
         return "injecao-nao-congelado"
+    if conjunto == "injecao-disfarcada":
+        return "injecao-disfarcada-nao-congelado"
     return VERSAO_CONJUNTO if escala == 1 else f"nao-congelado-escala-{escala}"
 
 
 def _validar_conjunto_injecao(args: argparse.Namespace) -> None:
     """O conjunto de injeção só roda na escala 1. Sai antes de gerar dados ou chamar o modelo."""
-    if args.conjunto == "injecao" and args.escala != 1:
+    if args.conjunto in CONJUNTOS_DE_INJECAO and args.escala != 1:
         raise ErroDeUso(
-            f"o conjunto injecao não aceita --escala {args.escala}: use a escala 1 (padrão) ou "
-            "tire --escala."
+            f"o conjunto {args.conjunto} não aceita --escala {args.escala}: use a escala 1 "
+            "(padrão) ou tire --escala."
         )
 
 
@@ -280,8 +288,9 @@ def _parser() -> argparse.ArgumentParser:
         choices=CONJUNTOS,
         default="padrao",
         help="conjunto de casos: padrao (conjunto congelado v1, padrão), calculo (4 casos de "
-        "cálculo, não congelado) ou injecao (4 casos de injeção com arquivos de ataque, não "
-        "congelado, escala 1; sem linha de base)",
+        "cálculo, não congelado), injecao (4 casos de injeção com arquivos de ataque, não "
+        "congelado, escala 1; sem linha de base) ou injecao-disfarcada (4 casos de injeção "
+        "mais disfarçada, com arquivos próprios; mesmo tratamento de injecao)",
     )
     return parser
 
@@ -333,6 +342,7 @@ def _config(args: argparse.Namespace) -> ConfigExecucao:
             variante=args.variante,
             escala=args.escala,
             com_ataques=args.conjunto == "injecao",
+            com_ataques_disfarcados=args.conjunto == "injecao-disfarcada",
         )
     except ValidationError as erro:
         campos = "; ".join(
@@ -392,6 +402,8 @@ def _casos_do_conjunto(fatos: FatosVerdadeiros, conjunto: str) -> list[Caso]:
         return casos_de_calculo(fatos)
     if conjunto == "injecao":
         return casos_de_injecao(fatos)
+    if conjunto == "injecao-disfarcada":
+        return casos_de_injecao_disfarcada(fatos)
     return conjunto_completo(fatos)
 
 
@@ -432,6 +444,7 @@ def _selecao_sem_modelo(
             Path(temporaria) / "dados",
             semente,
             com_ataques=conjunto == "injecao",
+            com_ataques_disfarcados=conjunto == "injecao-disfarcada",
             escala=escala,
         )
         return _selecionar(categorias, grupo, conjunto)(fatos)
