@@ -305,6 +305,33 @@ class CitaAlgumaFonte(BaseModel):
         return f"fontes incluem alguma de {_juntar(self.fontes)}"
 
 
+class CitaFerramentaMcp(BaseModel):
+    """A resposta cita uma ferramenta MCP como fonte (T19-c), de um destes três jeitos.
+
+    1. Alguma entrada de `fontes` CONTÉM o nome de uma das `ferramentas` (sem diferenciar caixa),
+       mesmo dentro de uma descrição em texto livre.
+    2. Alguma entrada de `fontes` casa com um dos `arquivos` (a comparação de `CitaFontes`).
+    3. O corpo da resposta diz "ferramenta (MCP )?`?nome`?" com o nome de uma das `ferramentas`,
+       mesmo com `fontes` vazia ou diferente.
+
+    Só os casos de MCP usam esta regra; `CitaFontes` e `CitaAlgumaFonte` seguem estritas.
+    """
+
+    model_config = ConfigDict(frozen=True)
+
+    tipo: Literal["cita_ferramenta_mcp"] = "cita_ferramenta_mcp"
+    ferramentas: list[str] = Field(min_length=1)
+    arquivos: list[str] = Field(default_factory=list)
+
+    @field_validator("ferramentas", "arquivos")
+    @classmethod
+    def _validas(cls, valores: list[str]) -> list[str]:
+        return _textos_validos(valores) if valores else valores
+
+    def descrever(self) -> str:
+        return f"fonte cita a ferramenta MCP {_juntar(self.ferramentas)}"
+
+
 class RecusaAcesso(BaseModel):
     """A resposta diz que o dado não está acessível. A lista de frases fica em `correcao`."""
 
@@ -324,6 +351,7 @@ Regra = Annotated[
     | NaoContem
     | CitaFontes
     | CitaAlgumaFonte
+    | CitaFerramentaMcp
     | RecusaAcesso,
     Field(discriminator="tipo"),
 ]

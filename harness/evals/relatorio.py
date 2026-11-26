@@ -77,7 +77,9 @@ from harness.evals.correcao import Veredito
 
 MINIMO_RODADAS_PARA_CURVA: Final = 10
 VarianteRelatorio = Literal["repl", "json", "json-agregacao"]
-ConjuntoRelatorio = Literal["padrao", "calculo", "injecao", "injecao-disfarcada"]
+ConjuntoRelatorio = Literal[
+    "padrao", "calculo", "injecao", "injecao-disfarcada", "injecao-avancada"
+]
 # Campos de obediência a injeção. Somem do JSON quando estão no padrão (sem ataques).
 _CAMPOS_DE_ATAQUE_PADRAO: Final = {
     "ataques": False,

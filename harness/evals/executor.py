@@ -44,6 +44,13 @@ eventos: `tokens_entrada_por_turno` e `pico_contexto` (de `turno_modelo`) e
 `caracteres_observacao` (soma do texto das observações enviadas ao modelo; ver
 `_ColetorDeContexto`). Só contam as rodadas que o orquestrador chegou a iniciar.
 
+T19-c (injeção avançada): com `com_ataques_avancados`, o executor grava os fatos do servidor MCP de
+teste `contas` na pasta temporária (fora dos dados) e, nos casos de `CASOS_COM_MCP`, sobe o
+servidor antes do pedido e o encerra sempre depois, nas duas variantes (REPL e JSON). Falha ao
+iniciá-lo é `erro_infra` da rodada. O perfil da rodada ganha só as concessões de leitura do
+servidor, e o relatório JSON registra o conjunto de ferramentas com o sufixo `+mcp-contas` e o hash
+dos esquemas com as ferramentas do servidor (sem o servidor no ar, o hash fica vazio).
+
 T18c-a (escala): `ConfigExecucao.escala` vai para `gerar_dados`, e o relatório registra `escala`
 e `linhas_pedidos`. A escala não muda nada além dos dados: os casos são os mesmos, e os valores
 esperados vêm dos fatos da geração com a escala escolhida.
@@ -61,10 +68,18 @@ from typing import Any, Final, Literal, Protocol
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from harness.evals.casos import Caso, validar_conjunto
+from harness.evals.conjunto import CASOS_COM_MCP
 from harness.evals.correcao import corrigir_resultado
 from harness.evals.dados import ESCALA_MAXIMA, FatosVerdadeiros, gerar_dados
 from harness.evals.ferramentas_json import nome_do_conjunto, perfil_json, registro_json
+from harness.evals.mcp_avaliacao import (
+    SUFIXO_CONJUNTO_MCP,
+    config_mcp_de_contas,
+    gravar_fatos_de_contas,
+    servidor_de_contas,
+)
 from harness.evals.relatorio import Classificacao, Relatorio, RodadaCaso, agregar
+from harness.host.mcp.config import ConfigMcp
 from harness.host.perfil import montagens_do_perfil, perfil_por_nome
 from harness.host.registry import Registro
 from harness.host.tools import registrar_todas
@@ -148,6 +163,9 @@ class ConfigExecucao(BaseModel):
     # Gera os quatro arquivos de ataque disfarçado (T19-b), só eles, para o conjunto
     # `injecao-disfarcada`. Independe de `com_ataques`.
     com_ataques_disfarcados: bool = False
+    # Gera os dois arquivos da cadeia em etapas (T19-c) e liga o servidor MCP de teste `contas`
+    # nos casos que o usam, para o conjunto `injecao-avancada`. Independe das outras duas.
+    com_ataques_avancados: bool = False
 
     @field_validator("teto_usd")
     @classmethod
@@ -461,6 +479,7 @@ def _executar_rodada(
     relogio: Callable[[], float],
     vistos: _Vistos,
     fabrica_telemetria: Callable[[], TelemetriaDeRodada | None] | None = None,
+    config_mcp: ConfigMcp | None = None,
 ) -> tuple[RodadaCaso, int]:
     """Uma rodada completa. Nunca levanta exceção: falha vira `erro_infra`.
 
@@ -475,42 +494,55 @@ def _executar_rodada(
     try:
         contabil = ModeloContabil(fabrica_modelo())
         perfil = perfil_por_nome(caso.perfil)
-        if config.variante == "repl":
-            registro = Registro()
-            registrar_todas(registro, raiz)
-            sandbox = fabrica_sandbox(montagens_do_perfil(perfil, raiz))
-            try:
-                sandbox.start()
+        usa_mcp = config_mcp is not None and caso.id in CASOS_COM_MCP
+        # O servidor MCP, se houver, é encerrado ao sair do bloco, com ou sem erro.
+        with contextlib.ExitStack() as pilha:
+            if config.variante == "repl":
+                registro = Registro()
+                registrar_todas(registro, raiz)
+                if usa_mcp and config_mcp is not None:
+                    perfil = pilha.enter_context(servidor_de_contas(registro, perfil, config_mcp))
+                sandbox = fabrica_sandbox(montagens_do_perfil(perfil, raiz))
+                try:
+                    sandbox.start()
+                    trace = (
+                        TraceJsonl(config.pasta_trace) if config.pasta_trace is not None else None
+                    )
+                    caminho_trace = str(trace.caminho) if trace is not None else None
+                    orquestrador = Orquestrador(
+                        contabil,
+                        sandbox,
+                        registro,
+                        perfil,
+                        orcamento=config.orcamento,
+                        relogio=relogio,
+                        eventos=_consumidor(trace, telemetria, coletor),
+                    )
+                except BaseException:
+                    # Sem Orquestrador, ninguém fecharia o sandbox: fecha aqui e repassa o erro.
+                    _fechar(sandbox)
+                    raise
+                resultado = orquestrador.executar_pedido(caso.pedido)
+            else:
+                # Variante JSON (T18a): sem sandbox. O registro e o perfil são da variante.
+                registro_j = registro_json(raiz, config.variante)
+                perfil_j = perfil_json(perfil, config.variante)
+                if usa_mcp and config_mcp is not None:
+                    perfil_j = pilha.enter_context(
+                        servidor_de_contas(registro_j, perfil_j, config_mcp)
+                    )
                 trace = TraceJsonl(config.pasta_trace) if config.pasta_trace is not None else None
                 caminho_trace = str(trace.caminho) if trace is not None else None
-                orquestrador = Orquestrador(
+                orquestrador_json = OrquestradorJson(
                     contabil,
-                    sandbox,
-                    registro,
-                    perfil,
+                    registro_j,
+                    perfil_j,
                     orcamento=config.orcamento,
                     relogio=relogio,
                     eventos=_consumidor(trace, telemetria, coletor),
+                    variante=config.variante,
                 )
-            except BaseException:
-                # Sem Orquestrador, ninguém fecharia o sandbox: fecha aqui e repassa o erro.
-                _fechar(sandbox)
-                raise
-            resultado = orquestrador.executar_pedido(caso.pedido)
-        else:
-            # Variante JSON (T18a): sem sandbox. O registro e o perfil são da variante.
-            trace = TraceJsonl(config.pasta_trace) if config.pasta_trace is not None else None
-            caminho_trace = str(trace.caminho) if trace is not None else None
-            orquestrador_json = OrquestradorJson(
-                contabil,
-                registro_json(raiz, config.variante),
-                perfil_json(perfil, config.variante),
-                orcamento=config.orcamento,
-                relogio=relogio,
-                eventos=_consumidor(trace, telemetria, coletor),
-                variante=config.variante,
-            )
-            resultado = orquestrador_json.executar_pedido(caso.pedido)
+                resultado = orquestrador_json.executar_pedido(caso.pedido)
     except Exception as erro:
         rodada = _rodada_de_excecao(numero, erro, contabil, relogio() - inicio, caminho_trace)
         falhas = _exportar_rodada(telemetria, caso, config, rodada, contabil, caminho_trace)
@@ -557,6 +589,7 @@ def _executar_casos(
     fabrica_telemetria: Callable[[], TelemetriaDeRodada | None] | None = None,
     dormir: Callable[[float], None] = time.sleep,
     linhas_pedidos: int | None = None,
+    config_mcp: ConfigMcp | None = None,
 ) -> Relatorio:
     rodadas: dict[str, list[RodadaCaso]] = {}
     vistos = _Vistos()
@@ -591,6 +624,7 @@ def _executar_casos(
                     relogio,
                     vistos,
                     fabrica_telemetria,
+                    config_mcp,
                 )
                 falhas_telemetria += falhas
                 tokens_acumulados += rodada.tokens_entrada + rodada.tokens_saida
@@ -612,19 +646,42 @@ def _executar_casos(
         teto_motivo=teto_motivo,
         falhas_telemetria=falhas_telemetria if fabrica_telemetria is not None else None,
         orcamento=orcamento_usado(config),
-        ferramentas_json=nome_do_conjunto(config.variante) if variante_json else None,
-        hash_ferramentas=_hash_das_ferramentas(config.variante, raiz) if variante_json else None,
+        ferramentas_json=(
+            nome_do_conjunto(config.variante)
+            + (SUFIXO_CONJUNTO_MCP if config_mcp is not None else "")
+            if variante_json
+            else None
+        ),
+        hash_ferramentas=(
+            _hash_das_ferramentas(config.variante, raiz, config_mcp) if variante_json else None
+        ),
         escala=config.escala,
         linhas_pedidos=linhas_pedidos,
-        ataques=config.com_ataques or config.com_ataques_disfarcados,
+        ataques=config.com_ataques
+        or config.com_ataques_disfarcados
+        or config.com_ataques_avancados,
     )
 
 
-def _hash_das_ferramentas(variante: str, raiz: Path) -> str:
+def _hash_das_ferramentas(
+    variante: str, raiz: Path, config_mcp: ConfigMcp | None = None
+) -> str | None:
     """SHA-256 dos esquemas que a variante JSON envia ao modelo. Os perfis concedem o mesmo
-    conjunto, então o perfil usado aqui não muda o resultado."""
+    conjunto, então o perfil usado aqui não muda o resultado.
+
+    Com `config_mcp`, o hash inclui as ferramentas do servidor de teste (nome, descrição e
+    parâmetros, na ordem do registro), que sobe só para isso. Se ele não subir, devolve None: o
+    relatório sai sem hash, e a rodada em si segue o próprio caminho de erro de infraestrutura.
+    """
     perfil = perfil_json(perfil_por_nome("Direção"), variante)
-    return hash_dos_esquemas(esquemas_do_registro(registro_json(raiz, variante), perfil))
+    registro = registro_json(raiz, variante)
+    if config_mcp is None:
+        return hash_dos_esquemas(esquemas_do_registro(registro, perfil))
+    try:
+        with servidor_de_contas(registro, perfil, config_mcp) as perfil_mcp:
+            return hash_dos_esquemas(esquemas_do_registro(registro, perfil_mcp))
+    except Exception:
+        return None
 
 
 def executar_avaliacao(
@@ -653,10 +710,16 @@ def executar_avaliacao(
             config.semente,
             com_ataques=config.com_ataques,
             com_ataques_disfarcados=config.com_ataques_disfarcados,
+            com_ataques_avancados=config.com_ataques_avancados,
             escala=config.escala,
         )
         lista = list(casos(fatos))
         validar_conjunto(lista)
+        config_mcp = (
+            config_mcp_de_contas(gravar_fatos_de_contas(fatos, Path(temporaria) / "mcp"))
+            if config.com_ataques_avancados
+            else None
+        )
 
         def criar_docker(montagens: dict[str, Path]) -> SandboxIniciavel:
             return DockerSandbox(imagem=config.imagem, dados=montagens)
@@ -673,4 +736,5 @@ def executar_avaliacao(
             fabrica_telemetria,
             dormir,
             linhas_pedidos=fatos.numero_pedidos,
+            config_mcp=config_mcp,
         )

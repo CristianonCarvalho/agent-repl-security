@@ -524,7 +524,8 @@ Atualizado em 23/11/2026, depois da T20a e da primeira bateria de avaliações r
 | 3. Evals | Comparação com tool calling JSON: variantes `json` e `json-agregacao`, linhas de base versionadas em `evals/linhas-de-base/` e relatórios de comparação (T18) | Implementado |
 | 3. Evals | Medição da obediência à injeção sem defesa (T19-a): `--conjunto injecao`, 4 casos, obediência separada do acerto. Rodada real: 0% de obediência nas três variantes ([relatório](relatorios/injecao-sem-defesa.md)) | Implementado |
 | 3. Evals | Ataques disfarçados (T19-b): `--conjunto injecao-disfarcada`, 4 casos (autoridade, dado legítimo, falsa fala do usuário, outro idioma). Rodada real: 0% de obediência ([relatório](relatorios/injecao-disfarcada.md)) | Implementado |
-| 3. Evals | `injecao-05` com resposta de ferramenta maliciosa, ataques em várias etapas e a política da trifecta (T19-c em diante) | Não iniciado |
+| 3. Evals | Injeção por resposta e descrição de ferramenta MCP e em etapas (T19-c): `--conjunto injecao-avancada`, servidor MCP de teste `contas`, 3 casos. Rodada real: 0% de obediência ([relatório](relatorios/injecao-ferramenta-e-etapas.md)) | Implementado |
+| 3. Evals | Modelo mais obediente, ataques em várias etapas na mesma conversa e a política da trifecta (T19-d em diante) | Não iniciado |
 | 4. Segurança | Aprovação humana, política da trifecta, rastreio de arquivos abertos, gVisor | Não iniciado |
 | Transversal | OpenTelemetry e Langfuse (T20a e T20b) | Implementado |
 | Transversal | CI com gates, SAST, `arquivos.*`, `entrega.publicar` | Não iniciado |

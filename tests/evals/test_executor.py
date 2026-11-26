@@ -565,6 +565,7 @@ def test_diretorio_temporario_some_mesmo_com_erro(
         *,
         com_ataques: bool = False,
         com_ataques_disfarcados: bool = False,
+        com_ataques_avancados: bool = False,
         escala: int = 1,
     ) -> FatosVerdadeiros:
         destinos.append(destino)
@@ -573,6 +574,7 @@ def test_diretorio_temporario_some_mesmo_com_erro(
             semente,
             com_ataques=com_ataques,
             com_ataques_disfarcados=com_ataques_disfarcados,
+            com_ataques_avancados=com_ataques_avancados,
             escala=escala,
         )
 

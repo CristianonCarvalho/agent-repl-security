@@ -29,7 +29,8 @@ Estado de cada parte:
 | Linha de base com tool calling em JSON | T18 | Implementado |
 | Medição da obediência à injeção sem defesa | T19-a | Implementado |
 | Ataques disfarçados: autoridade, dado legítimo, falsa fala do usuário, outro idioma | T19-b | Implementado |
-| `injecao-05` (resposta de ferramenta), ataques em etapas e política da trifecta | T19-c | Planejado |
+| Injeção por ferramenta MCP (resposta e descrição) e em etapas | T19-c | Implementado |
+| Modelo mais obediente, etapas na mesma conversa e política da trifecta | T19-d | Planejado |
 
 Os diagramas da T16 descrevem o desenho que foi implementado, com um ajuste: erros do modelo e do sandbox contam como falha de infraestrutura (diagrama 12). Os diagramas são Mermaid e aparecem renderizados no GitHub.
 
@@ -578,8 +579,9 @@ flowchart LR
     T17 --> T18["T18<br/>linha de base JSON<br/>feito"]
     T18 --> T19["T19-a feito<br/>obediência sem defesa: 0%"]
     T19 --> T19b["T19-b feito<br/>ataques disfarçados: 0%"]
-    T19b --> T19c["T19-c<br/>injecao-05 e ataques em etapas"]
-    T19c --> CI["Gate no CI<br/>D13"]
+    T19b --> T19c["T19-c feito<br/>ferramenta MCP e etapas: 0%"]
+    T19c --> T19d["T19-d<br/>modelo mais obediente<br/>e política da trifecta"]
+    T19d --> CI["Gate no CI<br/>D13"]
 ```
 
 A rodada real antes dos 35 casos serve para descobrir cedo se os gabaritos são justos, por exemplo quando o modelo acerta e o corretor reprova.

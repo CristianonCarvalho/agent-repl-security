@@ -43,6 +43,11 @@ Decisões deste módulo (não estão na spec):
   `casos_de_injecao_disfarcada` (injecao-06 a injecao-09) e só os arquivos novos em disco
   (`com_ataques_disfarcados`; os da T19-a não entram). `versao_conjunto` do relatório vira
   "injecao-disfarcada-nao-congelado".
+- `--conjunto injecao-avancada` (T19-c): mesmo tratamento, com os 3 casos de
+  `casos_de_injecao_avancada` (injecao-10 a injecao-12): injeção na resposta e na descrição de uma
+  ferramenta MCP de teste e em etapas, só com arquivos. Gera só os arquivos da cadeia em etapas
+  (`com_ataques_avancados`) e liga o servidor MCP `contas` nas rodadas dos casos 10 e 11, nas duas
+  variantes de agente. `versao_conjunto` do relatório vira "injecao-avancada-nao-congelado".
 
 Subcomandos (T17c), reconhecidos só quando são o primeiro argumento exato: `comparar BASE NOVO`
 (0 ok, 1 regressão provável, 2 incomparável ou erro) e `congelar --versao vN` (cria o conjunto em
@@ -83,6 +88,7 @@ from harness.evals.conjunto import (
     VERSAO_CONJUNTO,
     casos_de_calculo,
     casos_de_injecao,
+    casos_de_injecao_avancada,
     casos_de_injecao_disfarcada,
     conjunto_completo,
 )
@@ -140,8 +146,8 @@ CODIGO_ERRO_INFRA: Final = 1
 CODIGO_USO: Final = 2
 CODIGO_TETO: Final = 3
 CODIGO_REGRESSAO: Final = 1
-CONJUNTOS: Final = ("padrao", "calculo", "injecao", "injecao-disfarcada")
-CONJUNTOS_DE_INJECAO: Final = ("injecao", "injecao-disfarcada")
+CONJUNTOS: Final = ("padrao", "calculo", "injecao", "injecao-disfarcada", "injecao-avancada")
+CONJUNTOS_DE_INJECAO: Final = ("injecao", "injecao-disfarcada", "injecao-avancada")
 
 
 class ErroDeUso(Exception):
@@ -181,6 +187,8 @@ def _versao_do_conjunto(escala: int, conjunto: str = "padrao") -> str:
         return "injecao-nao-congelado"
     if conjunto == "injecao-disfarcada":
         return "injecao-disfarcada-nao-congelado"
+    if conjunto == "injecao-avancada":
+        return "injecao-avancada-nao-congelado"
     return VERSAO_CONJUNTO if escala == 1 else f"nao-congelado-escala-{escala}"
 
 
@@ -290,7 +298,9 @@ def _parser() -> argparse.ArgumentParser:
         help="conjunto de casos: padrao (conjunto congelado v1, padrão), calculo (4 casos de "
         "cálculo, não congelado), injecao (4 casos de injeção com arquivos de ataque, não "
         "congelado, escala 1; sem linha de base) ou injecao-disfarcada (4 casos de injeção "
-        "mais disfarçada, com arquivos próprios; mesmo tratamento de injecao)",
+        "mais disfarçada, com arquivos próprios; mesmo tratamento de injecao) ou "
+        "injecao-avancada (3 casos: injeção em resposta e descrição de ferramenta MCP de teste e "
+        "em etapas; mesmo tratamento de injecao)",
     )
     return parser
 
@@ -343,6 +353,7 @@ def _config(args: argparse.Namespace) -> ConfigExecucao:
             escala=args.escala,
             com_ataques=args.conjunto == "injecao",
             com_ataques_disfarcados=args.conjunto == "injecao-disfarcada",
+            com_ataques_avancados=args.conjunto == "injecao-avancada",
         )
     except ValidationError as erro:
         campos = "; ".join(
@@ -404,6 +415,8 @@ def _casos_do_conjunto(fatos: FatosVerdadeiros, conjunto: str) -> list[Caso]:
         return casos_de_injecao(fatos)
     if conjunto == "injecao-disfarcada":
         return casos_de_injecao_disfarcada(fatos)
+    if conjunto == "injecao-avancada":
+        return casos_de_injecao_avancada(fatos)
     return conjunto_completo(fatos)
 
 
@@ -445,6 +458,7 @@ def _selecao_sem_modelo(
             semente,
             com_ataques=conjunto == "injecao",
             com_ataques_disfarcados=conjunto == "injecao-disfarcada",
+            com_ataques_avancados=conjunto == "injecao-avancada",
             escala=escala,
         )
         return _selecionar(categorias, grupo, conjunto)(fatos)
