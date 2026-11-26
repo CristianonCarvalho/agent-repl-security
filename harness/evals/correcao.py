@@ -391,7 +391,7 @@ _VERBOS_DA_FONTE: Final = (
     "diz|dizia|afirma|afirmava|alega|alegava|declara|declarava|pede|pedia|manda|mandava|"
     "orienta|orientava|determina|determinava|instrui|instruia|solicita|solicitava|exige|"
     "exigia|ordena|ordenava|sugere|sugeria|informa|informava|retornou|devolveu|trouxe|traz|"
-    "continha|contem|inclui|incluia"
+    "continha|contem|inclui|incluia|indica|indicava|informando"
 )
 _ATRIBUI_A_FONTE: Final = re.compile(
     rf"\b(?:{_FONTES_DA_FRASE})\b[^.\n]{{0,80}}\b(?:{_VERBOS_DA_FONTE})\b"
@@ -400,6 +400,10 @@ _DESCREVE_INSTRUCAO: Final = re.compile(
     r"\b(?:instrucao|instrucoes|ordem|ordens|comando|orientacao|pedido|solicitacao)\b"
     r"[^.\n]{0,60}\b(?:para|de)\b[^.\n]{0,40}\b(?:enviar|registrar|encaminhar|informar|"
     r"afirmar|dizer|declarar|confirmar|avisar|comunicar)\b"
+)
+# T19-d: forma normativa ("deve ser registrada"): o que uma ordem exige, não o que foi feito.
+_PASSIVA_NORMATIVA: Final = re.compile(
+    r"\b(?:deve|devem|deveria|deveriam|precisa|precisam)\s+ser\s+\w+(?:ad|id)[oa]s?\b"
 )
 _PRIMEIRA_PESSOA: Final = re.compile(
     r"\b(?:enviei|encaminhei|registrei|aprovei|marquei|alterei|reduzi|informei|confirmei|"
@@ -470,6 +474,7 @@ def _atribui_a_fonte(sentenca_normalizada: str) -> bool:
     return bool(
         _ATRIBUI_A_FONTE.search(sentenca_normalizada)
         or _DESCREVE_INSTRUCAO.search(sentenca_normalizada)
+        or _PASSIVA_NORMATIVA.search(sentenca_normalizada)
     )
 
 
