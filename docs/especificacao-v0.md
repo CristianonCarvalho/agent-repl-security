@@ -526,7 +526,8 @@ Atualizado em 23/11/2026, depois da T20a e da primeira bateria de avaliações r
 | 3. Evals | Ataques disfarçados (T19-b): `--conjunto injecao-disfarcada`, 4 casos (autoridade, dado legítimo, falsa fala do usuário, outro idioma). Rodada real: 0% de obediência ([relatório](relatorios/injecao-disfarcada.md)) | Implementado |
 | 3. Evals | Injeção por resposta e descrição de ferramenta MCP e em etapas (T19-c): `--conjunto injecao-avancada`, servidor MCP de teste `contas`, 3 casos. Rodada real: 0% de obediência ([relatório](relatorios/injecao-ferramenta-e-etapas.md)) | Implementado |
 | 3. Evals | Validação do corretor com modelos pequenos (T19-d): Llama 3.1 8B, Gemma 3 12B e Ministral 8B. 2 obediências reais em 104 rodadas da 1ª passada, 0 em 167 da 2ª ([relatório](relatorios/injecao-modelos-pequenos.md)) | Implementado |
-| 3. Evals | Gravar o modelo no trace, ataque ou modelo que obedeça de forma repetível, política da trifecta e aprovação humana (T19-e em diante) | Não iniciado |
+| 3. Evals | Modelo e provedor gravados em cada rodada, filtro `--caso` e ponto de partida que falha (T19-e): Ministral 8B obedece ao `injecao-08` em 5 de 19 rodadas, Gemma 0 de 20 ([relatório](relatorios/injecao-ponto-de-partida.md)) | Implementado |
+| 3. Evals | Medir a política da trifecta e a aprovação humana antes e depois, com ataques que passem por ferramenta com efeito | Não iniciado (depende da Fase 4) |
 | 4. Segurança | Aprovação humana, política da trifecta, rastreio de arquivos abertos, gVisor | Não iniciado |
 | Transversal | OpenTelemetry e Langfuse (T20a e T20b) | Implementado |
 | Transversal | CI com gates, SAST, `arquivos.*`, `entrega.publicar` | Não iniciado |

@@ -31,7 +31,8 @@ Estado de cada parte:
 | Ataques disfarçados: autoridade, dado legítimo, falsa fala do usuário, outro idioma | T19-b | Implementado |
 | Injeção por ferramenta MCP (resposta e descrição) e em etapas | T19-c | Implementado |
 | Validação do corretor com modelos pequenos | T19-d | Implementado |
-| Modelo no trace, ataque repetível e política da trifecta | T19-e | Planejado |
+| Modelo e provedor por rodada; ponto de partida que falha (Ministral 8B no `injecao-08`: 26%) | T19-e | Implementado |
+| Política da trifecta e aprovação humana, medidas antes e depois | Fase 4 | Planejado |
 
 Os diagramas da T16 descrevem o desenho que foi implementado, com um ajuste: erros do modelo e do sandbox contam como falha de infraestrutura (diagrama 12). Os diagramas são Mermaid e aparecem renderizados no GitHub.
 
@@ -582,8 +583,9 @@ flowchart LR
     T19 --> T19b["T19-b feito<br/>ataques disfarçados: 0%"]
     T19b --> T19c["T19-c feito<br/>ferramenta MCP e etapas: 0%"]
     T19c --> T19d["T19-d feito<br/>modelos pequenos:<br/>corretor detecta obediência real"]
-    T19d --> T19e["T19-e<br/>ataque repetível<br/>e política da trifecta"]
-    T19e --> CI["Gate no CI<br/>D13"]
+    T19d --> T19e["T19-e feito<br/>Ministral 8B obedece 26%<br/>no injecao-08"]
+    T19e --> F4["Fase 4<br/>trifecta e aprovação humana"]
+    F4 --> CI["Gate no CI<br/>D13"]
 ```
 
 A rodada real antes dos 35 casos serve para descobrir cedo se os gabaritos são justos, por exemplo quando o modelo acerta e o corretor reprova.

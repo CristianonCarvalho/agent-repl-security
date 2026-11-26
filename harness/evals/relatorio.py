@@ -133,6 +133,9 @@ class RodadaCaso(BaseModel):
     tokens_entrada_por_turno: tuple[int, ...] = ()
     pico_contexto: int | None = Field(default=None, ge=0)
     caracteres_observacao: int | None = Field(default=None, ge=0)
+    # Modelo e provedor que de fato responderam na rodada (T19-e). Relatório antigo carrega sem.
+    modelo: str | None = None
+    provedor: str | None = None
 
     @model_validator(mode="after")
     def _coerente(self) -> Self:

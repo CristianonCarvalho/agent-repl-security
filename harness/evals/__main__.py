@@ -215,6 +215,12 @@ def _parser() -> argparse.ArgumentParser:
         help="roda só esta categoria (pode repetir); padrão: todas",
     )
     parser.add_argument(
+        "--caso",
+        action="append",
+        default=[],
+        help="roda só este caso, por id (pode repetir); padrão: todos. Não vale para linha de base",
+    )
+    parser.add_argument(
         "--grupo",
         choices=(*GRUPOS_DE_CASOS, "todos"),
         default="todos",
@@ -421,7 +427,10 @@ def _casos_do_conjunto(fatos: FatosVerdadeiros, conjunto: str) -> list[Caso]:
 
 
 def _selecionar(
-    categorias: frozenset[Categoria], grupo: str, conjunto: str = "padrao"
+    categorias: frozenset[Categoria],
+    grupo: str,
+    conjunto: str = "padrao",
+    ids: frozenset[str] = frozenset(),
 ) -> Callable[[FatosVerdadeiros], list[Caso]]:
     """Função de casos para o executor: conjunto padrão, de cálculo ou de injeção, por categoria e
     grupo.
@@ -435,6 +444,8 @@ def _selecionar(
             casos = [caso for caso in casos if caso.categoria in categorias]
         if grupo != "todos":
             casos = [caso for caso in casos if caso.grupo == grupo]
+        if ids:
+            casos = [caso for caso in casos if caso.id in ids]
         return casos
 
     return selecionar
@@ -446,6 +457,7 @@ def _selecao_sem_modelo(
     semente: int,
     escala: int = 1,
     conjunto: str = "padrao",
+    ids: frozenset[str] = frozenset(),
 ) -> list[Caso]:
     """A seleção inteira, para decidir antes de qualquer configuração se há caso ativo.
 
@@ -461,7 +473,7 @@ def _selecao_sem_modelo(
             com_ataques_avancados=conjunto == "injecao-avancada",
             escala=escala,
         )
-        return _selecionar(categorias, grupo, conjunto)(fatos)
+        return _selecionar(categorias, grupo, conjunto, ids)(fatos)
 
 
 def _sem_casos_ativos(
@@ -758,8 +770,10 @@ def _validar_linha_de_base(
             f"linha de base exige a escala 1 (o conjunto congelado), e a escala pedida é "
             f"{args.escala}. Use --escala 1 ou não use --salvar-linha-de-base."
         )
-    if categorias or args.grupo != "todos":
-        raise ErroDeUso("linha de base exige o conjunto completo: não use --categoria nem --grupo")
+    if categorias or args.grupo != "todos" or args.caso:
+        raise ErroDeUso(
+            "linha de base exige o conjunto completo: não use --categoria, --grupo nem --caso"
+        )
     if args.rodadas < 3:
         raise ErroDeUso(
             "linha de base exige pelo menos 3 rodadas por caso (use --rodadas 3 ou mais)"
@@ -823,6 +837,7 @@ def main(
     procedencia: tuple[str | None, bool | None] | None = None
     try:
         categorias = _categorias(args.categoria)
+        ids = frozenset(args.caso)
         config = _config(args)
         _validar_conjunto_injecao(args)
         provedor_arg = _provedor_argumento(args.provedor)
@@ -835,7 +850,9 @@ def main(
 
     # Sem caso ativo na seleção, nada roda: não lê o `.env`, não confere a chave e não chama o
     # modelo. Só lista os pendentes, cada um com o que o destrava, e sai com zero.
-    selecao = _selecao_sem_modelo(categorias, args.grupo, args.semente, args.escala, args.conjunto)
+    selecao = _selecao_sem_modelo(
+        categorias, args.grupo, args.semente, args.escala, args.conjunto, ids
+    )
     if not any(caso.situacao.ativo for caso in selecao):
         _sem_casos_ativos(saida, selecao, categorias, args.grupo)
         return CODIGO_OK
@@ -871,7 +888,7 @@ def main(
         extra["fabrica_telemetria"] = fabrica_telemetria
     try:
         relatorio = executor(
-            _selecionar(categorias, args.grupo, args.conjunto),
+            _selecionar(categorias, args.grupo, args.conjunto, ids),
             fabrica_modelo,
             config,
             aoprogresso=progresso,

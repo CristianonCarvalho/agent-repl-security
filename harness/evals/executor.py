@@ -327,6 +327,8 @@ def _rodada_de_resultado(
         "duracao_s": duracao_s,
         "caminho_trace": caminho_trace,
         "hash_prompt": resultado.hash_prompt or None,
+        "modelo": ", ".join(sorted(contabil.modelos)) or None,
+        "provedor": ", ".join(sorted(contabil.provedores)) or None,
         **(coletor.metricas() if coletor is not None else {}),
     }
     if resultado.motivo in _MOTIVOS_DE_INFRA:
@@ -363,6 +365,8 @@ def _rodada_de_excecao(
         custo=contabil.custo_total if contabil else None,
         duracao_s=duracao_s,
         caminho_trace=caminho_trace,
+        modelo=(", ".join(sorted(contabil.modelos)) or None) if contabil else None,
+        provedor=(", ".join(sorted(contabil.provedores)) or None) if contabil else None,
     )
 
 
