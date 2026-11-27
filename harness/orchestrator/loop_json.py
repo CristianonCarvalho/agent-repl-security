@@ -196,6 +196,8 @@ class OrquestradorJson:
         """
         estado = _Estado()
         try:
+            self._registro.exposicao.zerar()
+            self._registro.observar_politica(self._emitir_politica)
             if contexto is not None:
                 return self._encerrar(estado, MotivoTermino.ERRO_IRRECUPERAVEL, "", ())
             return self._laco(pedido, estado)
@@ -528,6 +530,9 @@ class OrquestradorJson:
             )
         except Exception:
             pass
+
+    def _emitir_politica(self, dados: dict[str, Any]) -> None:
+        self._emitir("politica_decisao", **dados)
 
     def _emitir(self, tipo: str, **dados: Any) -> None:
         """Entrega um evento ao consumidor. Falha do consumidor nunca derruba o laço."""

@@ -238,6 +238,7 @@ class Orquestrador:
         orcamento: Orcamento | None = None,
         relogio: Callable[[], float] = time.monotonic,
         eventos: Callable[[Evento], None] | None = None,
+        rastreador: Callable[[str], str | None] | None = None,
     ) -> None:
         self._modelo = modelo
         self._sandbox = sandbox
@@ -246,6 +247,7 @@ class Orquestrador:
         self._orcamento = orcamento if orcamento is not None else Orcamento()
         self._relogio = relogio
         self._eventos = eventos
+        self._rastreador = rastreador
 
     def executar_pedido(
         self, pedido: str, contexto: ValorContexto | None = None
@@ -281,6 +283,9 @@ class Orquestrador:
         estado.nomes_ferramentas = frozenset(f.nome for f in self._registro.visiveis(self._perfil))
         despachante = self._registro.despachante(self._perfil)
         estado.despachante = self._instrumentar(despachante) if despachante is not None else None
+        # Pedido novo, exposição nova; cada decisão da política vira evento de trace.
+        self._registro.exposicao.zerar()
+        self._registro.observar_politica(self._emitir_politica)
         self._emitir(
             "pedido_iniciado",
             hash_prompt=prompt.hash_sha256,
@@ -376,8 +381,11 @@ class Orquestrador:
         cell_id = estado.ultima_celula
         timeout = min(self._orcamento.timeout_celula_s, restante)
         try:
+            opcoes: dict[str, Any] = {}
+            if self._rastreador is not None:
+                opcoes["ao_abrir"] = self._rastreador
             execucao = self._sandbox.executar_detalhado(
-                cell_id, codigo, timeout_s=timeout, despachante=estado.despachante
+                cell_id, codigo, timeout_s=timeout, despachante=estado.despachante, **opcoes
             )
         except SandboxErro as erro:
             return self._recuperar_sandbox(estado, cell_id, raciocinio, codigo, erro)
@@ -629,6 +637,9 @@ class Orquestrador:
             )
         except Exception:
             pass
+
+    def _emitir_politica(self, dados: dict[str, Any]) -> None:
+        self._emitir("politica_decisao", **dados)
 
     def _emitir(self, tipo: str, **dados: Any) -> None:
         """Entrega um evento ao consumidor. Falha do consumidor nunca derruba o loop."""
