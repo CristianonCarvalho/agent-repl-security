@@ -10,11 +10,14 @@ host fora da imagem do sandbox.
 """
 
 import json
+import time
+from collections.abc import Callable
 from typing import Any, Final, TextIO
 
 from harness.sandbox.protocol import (
     LIMITE_CHAMADAS_POR_CELULA,
     ArquivoAberto,
+    EsperaHumana,
     ProtocolError,
     ToolCall,
     ToolResult,
@@ -39,25 +42,36 @@ class Ponte:
     roda numa thread enquanto o laço principal espera, as duas leituras nunca se sobrepõem.
     """
 
-    def __init__(self, entrada: TextIO, saida: TextIO) -> None:
+    def __init__(
+        self,
+        entrada: TextIO,
+        saida: TextIO,
+        relogio: Callable[[], float] = time.monotonic,
+    ) -> None:
         self._entrada = entrada
         self._saida = saida
+        self._relogio = relogio
         # Contador que gera call_id únicos ao longo de toda a sessão do REPL.
         self._emitidas = 0
         # Chamadas feitas na célula em curso; zerado por nova_celula().
         self._na_celula = 0
-        # Soma dos espera_s recebidos na célula em curso; zerado por nova_celula().
+        # Crédito fechado de espera humana e instante de início da espera aberta (se houver).
         self._credito_s = 0.0
+        self._espera_desde: float | None = None
 
     @property
     def credito_s(self) -> float:
         """Segundos de espera humana acumulados na célula em curso."""
-        return self._credito_s
+        desde = self._espera_desde
+        if desde is None:
+            return self._credito_s
+        return self._credito_s + (self._relogio() - desde)
 
     def nova_celula(self) -> None:
         """Zera o limite de chamadas e o crédito de espera no início de cada célula."""
         self._na_celula = 0
         self._credito_s = 0.0
+        self._espera_desde = None
 
     def chamar(self, nome: str, args: dict[str, Any]) -> Any:
         """Envia uma chamada ao host e devolve `data`, ou levanta ToolError se `ok` for falso."""
@@ -114,13 +128,23 @@ class Ponte:
             if linha == "":
                 raise ToolError(f"o host fechou o canal antes de responder à ferramenta '{nome}'")
             mensagem = decode(linha)
+            if isinstance(mensagem, EsperaHumana):
+                if mensagem.ativa:
+                    if self._espera_desde is None:
+                        self._espera_desde = self._relogio()
+                elif self._espera_desde is not None:
+                    self._credito_s += self._relogio() - self._espera_desde
+                    self._espera_desde = None
+                continue
             if isinstance(mensagem, ToolResult):
                 if mensagem.call_id != call_id:
                     raise ProtocolError(
                         f"resposta da chamada '{mensagem.call_id}', mas a célula espera "
                         f"a chamada '{call_id}'"
                     )
-                self._credito_s += mensagem.espera_s or 0.0
+                if self._espera_desde is not None:
+                    self._credito_s += self._relogio() - self._espera_desde
+                    self._espera_desde = None
                 if mensagem.ok:
                     return mensagem.data
                 raise ToolError(mensagem.error or "erro desconhecido do host")

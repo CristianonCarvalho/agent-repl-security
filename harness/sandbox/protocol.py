@@ -143,8 +143,21 @@ class ArquivoAberto(_Mensagem):
     caminho: str
 
 
+class EsperaHumana(_Mensagem):
+    """host → sandbox: a chamada de ferramenta em curso espera uma aprovação humana.
+
+    `ativa=True` marca o início da espera e `ativa=False` o fim. Enquanto está ativa, o
+    prazo da célula não corre.
+    """
+
+    method: Literal["espera_humana"] = "espera_humana"
+    ativa: StrictBool
+
+
 # União discriminada pelo campo `method`: cada método tem exatamente um modelo.
-Mensagem = Exec | ToolCall | ToolResult | ExecDone | Contexto | ContextoOk | ArquivoAberto
+Mensagem = (
+    Exec | ToolCall | ToolResult | ExecDone | Contexto | ContextoOk | ArquivoAberto | EsperaHumana
+)
 
 _ADAPTADOR: TypeAdapter[Mensagem] = TypeAdapter(Annotated[Mensagem, Field(discriminator="method")])
 
