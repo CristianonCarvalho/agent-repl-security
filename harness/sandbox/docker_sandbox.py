@@ -29,11 +29,13 @@ Heurísticas do host (decisões deste módulo, não da spec):
   Um valor fora do teto nunca chega ao contêiner, e a mensagem de erro não traz o conteúdo.
 """
 
+import io
 import queue
 import re
+import tarfile
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
@@ -96,6 +98,7 @@ class ResultadoExecucao:
     done: ExecDone
     ferramentas: dict[str, int]
     reiniciado: bool = False
+    espera_aprovacao_s: float = 0.0
 
 
 class SandboxErro(Exception):
@@ -301,6 +304,7 @@ class DockerSandbox:
         leitor = self._leitor
         chamadas_feitas = 0
         ferramentas: dict[str, int] = {}
+        espera_total = 0.0
         while True:
             restante = prazo - time.monotonic()
             if restante <= 0:
@@ -320,6 +324,9 @@ class DockerSandbox:
                 chamadas_feitas += 1
                 ferramentas[msg.name] = ferramentas.get(msg.name, 0) + 1
                 resposta = _resposta_a_ferramenta(msg, despachante, chamadas_feitas)
+                if resposta.espera_s:
+                    prazo += resposta.espera_s
+                    espera_total += resposta.espera_s
                 self._enviar(encode(resposta).encode("utf-8"))
                 continue
             if isinstance(msg, ArquivoAberto):
@@ -332,12 +339,29 @@ class DockerSandbox:
                     continue
                 if msg.reiniciar:
                     self.reiniciar()
-                    return ResultadoExecucao(done=msg, ferramentas=ferramentas, reiniciado=True)
-                return ResultadoExecucao(done=msg, ferramentas=ferramentas)
+                    return ResultadoExecucao(
+                        done=msg,
+                        ferramentas=ferramentas,
+                        reiniciado=True,
+                        espera_aprovacao_s=espera_total,
+                    )
+                return ResultadoExecucao(
+                    done=msg, ferramentas=ferramentas, espera_aprovacao_s=espera_total
+                )
             self._descartar()
             raise SandboxErro(
                 f"mensagem '{msg.method}' inesperada do sandbox nesta etapa; contêiner descartado"
             )
+
+    def ler_saida(self, nome: str, limite_bytes: int) -> bytes:
+        """Lê um arquivo regular de `/saida/<nome>` no contêiner, respeitando `limite_bytes`."""
+        if self._conteiner is None:
+            raise SandboxErro("o sandbox não está ativo: chame start() ou reiniciar()")
+        try:
+            fluxo, _ = self._conteiner.get_archive(f"/saida/{nome}")
+        except (DockerException, OSError) as erro:
+            raise SandboxErro("arquivo de saída não encontrado ou ilegível") from erro
+        return _extrair_arquivo_unico(fluxo, nome, limite_bytes)
 
     def _enviar_contexto(self, valor: ValorContexto) -> None:
         """Envia `contexto`, espera o `contexto_ok` e confere tipo e tamanho com o host."""
@@ -566,3 +590,37 @@ def _preparar_dados(dados: dict[str, Path]) -> list[Mount]:
             Mount(target=f"/dados/{nome}", source=str(origem), type="bind", read_only=True)
         )
     return montagens
+
+
+_FOLGA_TAR_BYTES: Final = 1024 * 1024
+
+
+def _extrair_arquivo_unico(fluxo: Iterable[bytes], nome: str, limite_bytes: int) -> bytes:
+    """Extrai um único arquivo regular `nome` de um fluxo tar, limitado a `limite_bytes`."""
+    teto_tar = limite_bytes + _FOLGA_TAR_BYTES
+    bruto = bytearray()
+    for pedaco in fluxo:
+        if len(bruto) + len(pedaco) > teto_tar:
+            raise SandboxErro("arquivo de saída acima do limite")
+        bruto.extend(pedaco)
+    try:
+        with tarfile.open(fileobj=io.BytesIO(bruto), mode="r:*") as tar:
+            membros = tar.getmembers()
+            if len(membros) != 1:
+                raise SandboxErro("arquivo de saída deve conter exatamente um membro")
+            membro = membros[0]
+            if not membro.isfile():
+                raise SandboxErro("saída não é um arquivo regular")
+            if membro.name != nome:
+                raise SandboxErro("nome do arquivo de saída não confere")
+            if membro.size > limite_bytes:
+                raise SandboxErro("arquivo de saída acima do limite")
+            extraido = tar.extractfile(membro)
+            if extraido is None:
+                raise SandboxErro("arquivo de saída ilegível")
+            dados = extraido.read()
+    except tarfile.TarError as erro:
+        raise SandboxErro("arquivo de saída inválido") from erro
+    if len(dados) > limite_bytes:
+        raise SandboxErro("arquivo de saída acima do limite")
+    return dados
