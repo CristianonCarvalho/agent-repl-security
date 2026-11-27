@@ -45,6 +45,7 @@ from typing import TYPE_CHECKING, Final, Protocol, TextIO
 from harness.host.mcp.adaptador import GerenteMcp, registrar_servidores_mcp, verificar_nomes_mcp
 from harness.host.mcp.config import ConfigMcp, ErroConfigMcp, carregar_config_mcp
 from harness.host.perfil import PERFIS, montagens_do_perfil, perfil_por_nome
+from harness.host.politica import RastreadorDeArquivos
 from harness.host.registry import Nivel, Registro
 from harness.host.tools import registrar_todas
 from harness.llm.base import ModeloLLM
@@ -201,6 +202,11 @@ def _parser() -> argparse.ArgumentParser:
         default=None,
         help="arquivo JSON com os servidores MCP (stdio) cujas ferramentas ficam disponíveis",
     )
+    parser.add_argument(
+        "--politica-trifecta",
+        action="store_true",
+        help="liga a política da trifecta e o rastreio de arquivos",
+    )
     return parser
 
 
@@ -334,7 +340,7 @@ def main(
             saida.write(f"{erro}\n")
             return CODIGO_USO
 
-    registro = Registro()
+    registro = Registro(politica=args.politica_trifecta)
     registrar_todas(registro, args.dados)
     if mcp_config is not None:
         try:
@@ -345,7 +351,12 @@ def main(
     fabrica: Callable[..., SandboxIniciavel] = (
         fabrica_sandbox if fabrica_sandbox is not None else DockerSandbox
     )
-    sandbox = fabrica(args.imagem, dados=montagens_do_perfil(perfil, args.dados))
+    if args.politica_trifecta:
+        sandbox = fabrica(
+            args.imagem, dados=montagens_do_perfil(perfil, args.dados), rastrear_arquivos=True
+        )
+    else:
+        sandbox = fabrica(args.imagem, dados=montagens_do_perfil(perfil, args.dados))
     try:
         sandbox.start()
     except Exception:
@@ -391,7 +402,17 @@ def main(
     try:
         # O Orquestrador fecha o sandbox ao fim do pedido, inclusive em erro.
         resultado = Orquestrador(
-            modelo, sandbox, registro, perfil, orcamento=orcamento, eventos=coletor
+            modelo,
+            sandbox,
+            registro,
+            perfil,
+            orcamento=orcamento,
+            eventos=coletor,
+            rastreador=(
+                RastreadorDeArquivos(args.dados, registro.exposicao)
+                if args.politica_trifecta
+                else None
+            ),
         ).executar_pedido(args.pedido, contexto=contexto)
         _imprimir(saida, resultado, coletor, trace.caminho)
         if telemetria is not None:

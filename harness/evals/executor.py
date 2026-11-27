@@ -81,6 +81,7 @@ from harness.evals.mcp_avaliacao import (
 from harness.evals.relatorio import Classificacao, Relatorio, RodadaCaso, agregar
 from harness.host.mcp.config import ConfigMcp
 from harness.host.perfil import montagens_do_perfil, perfil_por_nome
+from harness.host.politica import RastreadorDeArquivos
 from harness.host.registry import Registro
 from harness.host.tools import registrar_todas
 from harness.llm.base import Mensagem, ModeloLLM, RespostaLLM
@@ -166,6 +167,10 @@ class ConfigExecucao(BaseModel):
     # Gera os dois arquivos da cadeia em etapas (T19-c) e liga o servidor MCP de teste `contas`
     # nos casos que o usam, para o conjunto `injecao-avancada`. Independe das outras duas.
     com_ataques_avancados: bool = False
+    # Liga a política da trifecta (Fase 4): recusa ferramenta com canal externo depois de a
+    # sessão ver dado privado e conteúdo não confiável, e liga o rastreio de arquivos no REPL.
+    # A execução não é comparável a linhas de base existentes.
+    politica_trifecta: bool = False
 
     @field_validator("teto_usd")
     @classmethod
@@ -502,7 +507,7 @@ def _executar_rodada(
         # O servidor MCP, se houver, é encerrado ao sair do bloco, com ou sem erro.
         with contextlib.ExitStack() as pilha:
             if config.variante == "repl":
-                registro = Registro()
+                registro = Registro(politica=config.politica_trifecta)
                 registrar_todas(registro, raiz)
                 if usa_mcp and config_mcp is not None:
                     perfil = pilha.enter_context(servidor_de_contas(registro, perfil, config_mcp))
@@ -521,6 +526,11 @@ def _executar_rodada(
                         orcamento=config.orcamento,
                         relogio=relogio,
                         eventos=_consumidor(trace, telemetria, coletor),
+                        rastreador=(
+                            RastreadorDeArquivos(raiz, registro.exposicao)
+                            if config.politica_trifecta
+                            else None
+                        ),
                     )
                 except BaseException:
                     # Sem Orquestrador, ninguém fecharia o sandbox: fecha aqui e repassa o erro.
@@ -529,7 +539,7 @@ def _executar_rodada(
                 resultado = orquestrador.executar_pedido(caso.pedido)
             else:
                 # Variante JSON (T18a): sem sandbox. O registro e o perfil são da variante.
-                registro_j = registro_json(raiz, config.variante)
+                registro_j = registro_json(raiz, config.variante, politica=config.politica_trifecta)
                 perfil_j = perfil_json(perfil, config.variante)
                 if usa_mcp and config_mcp is not None:
                     perfil_j = pilha.enter_context(
@@ -664,6 +674,7 @@ def _executar_casos(
         ataques=config.com_ataques
         or config.com_ataques_disfarcados
         or config.com_ataques_avancados,
+        politica_trifecta=config.politica_trifecta,
     )
 
 
@@ -726,7 +737,11 @@ def executar_avaliacao(
         )
 
         def criar_docker(montagens: dict[str, Path]) -> SandboxIniciavel:
-            return DockerSandbox(imagem=config.imagem, dados=montagens)
+            return DockerSandbox(
+                imagem=config.imagem,
+                dados=montagens,
+                rastrear_arquivos=config.politica_trifecta,
+            )
 
         fabrica = fabrica_sandbox if fabrica_sandbox is not None else criar_docker
         return _executar_casos(
