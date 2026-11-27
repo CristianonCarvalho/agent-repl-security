@@ -232,6 +232,26 @@ flowchart TB
     T -.-> PLAN
 ```
 
+Fluxo do rastreio de arquivos abertos e da política da trifecta em execução:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Código no REPL (sandbox)
+    participant G as Gancho de auditoria (rastreio.py)
+    participant H as Host (RastreadorDeArquivos)
+    participant E as Exposição e Política
+    participant R as Registro / Ferramenta externa
+
+    C->>G: open("/dados/vendas/externo.txt")
+    G->>H: notifica abertura do caminho em /dados
+    H->>E: consulta manifesto.json e marca viu_nao_confiavel = true
+    C->>R: tools.teste.enviar() (canal_externo = true)
+    R->>E: avalia política da trifecta
+    E-->>R: recusa (sessão já exposta a conteúdo não confiável)
+    R-->>C: ToolError: recusado pela política
+```
+
 ## 8. Onde vivem os segredos
 
 A chave do OpenRouter existe só no processo do host, dentro do cliente LLM. Nenhum outro componente a recebe.
