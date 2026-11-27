@@ -157,9 +157,23 @@ with open("/saida/grande.txt", "wb") as f:
     resultado = sandbox.executar_detalhado(1, codigo, 30.0)
     assert resultado.done.exception is None
 
-    with pytest.raises(SandboxErro):
+    with pytest.raises(SandboxErro, match="não é um arquivo regular"):
         sandbox.ler_saida("l", 1024)
     with pytest.raises(SandboxErro):
         sandbox.ler_saida("d", 1024)
     with pytest.raises(SandboxErro):
         sandbox.ler_saida("grande.txt", 100)
+
+
+def test_ler_saida_devolve_conteudo_exato(
+    raiz: Path, criar_sandbox: Callable[..., DockerSandbox]
+) -> None:
+    perfil = perfil_por_nome("Financeiro")
+    sandbox = criar_sandbox(dados=montagens_do_perfil(perfil, raiz))
+    codigo = f"""
+with open("/saida/ok.csv", "wb") as f:
+    f.write({CONTEUDO_CSV.encode("utf-8")!r})
+"""
+    resultado = sandbox.executar_detalhado(1, codigo, 30.0)
+    assert resultado.done.exception is None
+    assert sandbox.ler_saida("ok.csv", 1000) == CONTEUDO_CSV.encode("utf-8")
