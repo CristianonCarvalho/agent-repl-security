@@ -8,6 +8,7 @@ Nesta etapa as propriedades da trifecta são só declaradas: a política que as 
 
 import json
 import re
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
@@ -15,6 +16,7 @@ from typing import Any, Final
 
 from pydantic import BaseModel, ValidationError
 
+from harness.host.aprovacao import Aprovador, PedidoDeAprovacao, RespostaDeAprovacao
 from harness.host.perfil import Perfil
 from harness.host.politica import Decisao, Exposicao, avaliar
 from harness.sandbox.protocol import ToolCall, ToolResult
@@ -67,6 +69,7 @@ class Ferramenta:
     # JSON Schema original (inputSchema) de uma ferramenta MCP. Nas ferramentas do host é None,
     # e `descoberta.descrever` usa o modelo pydantic. Quando existe, ele é a fonte da assinatura.
     esquema: dict[str, Any] | None = None
+    montar_pedido: Callable[[Any, Perfil], tuple[tuple[str, str], ...]] | None = None
 
 
 def _resultado_de_erro(call_id: str, mensagem: str) -> ToolResult:
@@ -87,10 +90,6 @@ def _mensagem_de_validacao(erro: ValidationError) -> str:
     return "; ".join(partes) if partes else "argumentos inválidos"
 
 
-def _nunca_aprova(chamada: ToolCall, ferramenta: "Ferramenta") -> bool:
-    return False
-
-
 class Registro:
     """Conjunto de ferramentas de uma sessão, com despacho que nunca levanta exceção."""
 
@@ -99,7 +98,8 @@ class Registro:
         limite_resultado_bytes: int = LIMITE_RESULTADO_PADRAO,
         *,
         politica: bool = False,
-        aprovador: Callable[[ToolCall, "Ferramenta"], bool] | None = None,
+        aprovador: Aprovador | None = None,
+        prazo_aprovacao_s: float = 120.0,
     ) -> None:
         # bool é subclasse de int; um True/False aqui seria um erro de quem chama.
         if (
@@ -111,10 +111,11 @@ class Registro:
         self._limite_resultado = limite_resultado_bytes
         self._ferramentas: dict[str, Ferramenta] = {}
         self._politica = politica
-        # Sem aprovação humana ainda, "pedir aprovação" equivale a recusar.
-        self._aprovador = aprovador if aprovador is not None else _nunca_aprova
+        self._aprovador = aprovador
+        self._prazo_aprovacao_s = prazo_aprovacao_s
         self.exposicao = Exposicao()
         self._ao_decidir: Callable[[dict[str, Any]], None] | None = None
+        self._ao_aprovar: Callable[[str, dict[str, Any]], None] | None = None
 
     @property
     def politica_ligada(self) -> bool:
@@ -124,6 +125,19 @@ class Registro:
     def observar_politica(self, ao_decidir: Callable[[dict[str, Any]], None] | None) -> None:
         """Registra o callback que recebe cada decisão da política (para o trace)."""
         self._ao_decidir = ao_decidir
+
+    def observar_aprovacao(self, ao_evento: Callable[[str, dict[str, Any]], None] | None) -> None:
+        """Registra o callback que recebe eventos de aprovação (para o trace)."""
+        self._ao_aprovar = ao_evento
+
+    def _notificar_aprovacao(self, tipo: str, dados: dict[str, Any]) -> None:
+        if self._ao_aprovar is None:
+            return
+        try:
+            self._ao_aprovar(tipo, dados)
+        except Exception:
+            # Falha do consumidor nunca muda o resultado da chamada.
+            pass
 
     def _notificar(self, nome: str, decisao: Decisao) -> None:
         if self._ao_decidir is None:
@@ -153,6 +167,7 @@ class Registro:
         canal_externo: bool = False,
         exemplo: str = "",
         esquema: dict[str, Any] | None = None,
+        montar_pedido: Callable[[Any, Perfil], tuple[tuple[str, str], ...]] | None = None,
     ) -> Callable[[Funcao], Funcao]:
         """Decorador que registra uma função como ferramenta `grupo.nome`.
 
@@ -176,6 +191,7 @@ class Registro:
                 canal_externo=canal_externo,
                 exemplo=exemplo,
                 esquema=esquema,
+                montar_pedido=montar_pedido,
             )
             return funcao
 
@@ -225,30 +241,86 @@ class Registro:
             return _resultado_de_erro(
                 chamada.call_id, f"argumentos inválidos: {_mensagem_de_validacao(erro)}"
             )
+
+        motivos: list[str] = []
         if ferramenta.nivel is not Nivel.LEITURA:
-            return _resultado_de_erro(
-                chamada.call_id,
-                f"a ferramenta '{nome}' é de nível {ferramenta.nivel.value} e exige aprovação "
-                "humana; a aprovação ainda não existe, então a chamada foi recusada",
-            )
+            motivos.append("nivel")
         if self._politica:
             decisao = avaliar(self.exposicao, ferramenta)
             self._notificar(nome, decisao)
             if decisao is not Decisao.PERMITIR:
-                liberada = decisao is Decisao.PEDIR_APROVACAO and self._aprovador(
-                    chamada, ferramenta
-                )
-                if not liberada:
-                    return _resultado_de_erro(chamada.call_id, MENSAGEM_POLITICA)
+                motivos.append("trifecta")
+
+        espera: float | None = None
+        if motivos:
+            if self._aprovador is None:
+                if ferramenta.nivel is not Nivel.LEITURA:
+                    return _resultado_de_erro(
+                        chamada.call_id,
+                        f"a ferramenta '{nome}' é de nível {ferramenta.nivel.value} e exige "
+                        "aprovação humana; a aprovação ainda não existe, então a chamada foi "
+                        "recusada",
+                    )
+                return _resultado_de_erro(chamada.call_id, MENSAGEM_POLITICA)
+
+            if ferramenta.montar_pedido is not None:
+                try:
+                    linhas = ferramenta.montar_pedido(argumentos, perfil)
+                except ErroFerramenta as erro:
+                    return _resultado_de_erro(chamada.call_id, str(erro))
+                except PermissionError as erro:
+                    return _resultado_de_erro(chamada.call_id, f"acesso negado: {erro}")
+                except Exception:
+                    return _resultado_de_erro(
+                        chamada.call_id, f"falha ao executar a ferramenta '{nome}'"
+                    )
+            else:
+                linhas = (("Ferramenta", nome),)
+
+            motivo = "+".join(motivos)
+            pedido = PedidoDeAprovacao(ferramenta=nome, motivo=motivo, linhas=linhas)
+            self._notificar_aprovacao("aprovacao_pedida", {"ferramenta": nome, "motivo": motivo})
+            inicio = time.monotonic()
+            try:
+                resposta = self._aprovador(pedido, self._prazo_aprovacao_s)
+            except Exception:
+                resposta = RespostaDeAprovacao.RECUSADO
+            espera = min(max(0.0, time.monotonic() - inicio), self._prazo_aprovacao_s)
+            self._notificar_aprovacao(
+                "aprovacao_resposta",
+                {"ferramenta": nome, "resposta": resposta.value, "espera_s": espera},
+            )
+            if resposta is RespostaDeAprovacao.RECUSADO:
+                return _resultado_de_erro(
+                    chamada.call_id, "a chamada foi recusada pela pessoa responsável"
+                ).model_copy(update={"espera_s": espera})
+            if resposta is RespostaDeAprovacao.EXPIRADO:
+                return _resultado_de_erro(
+                    chamada.call_id, "a aprovação não chegou a tempo"
+                ).model_copy(update={"espera_s": espera})
+
+        resultado = self._executar_ferramenta(chamada.call_id, nome, ferramenta, argumentos, perfil)
+        if espera is not None:
+            return resultado.model_copy(update={"espera_s": espera})
+        return resultado
+
+    def _executar_ferramenta(
+        self,
+        call_id: str,
+        nome: str,
+        ferramenta: Ferramenta,
+        argumentos: Any,
+        perfil: Perfil,
+    ) -> ToolResult:
         try:
             resultado = ferramenta.funcao(argumentos, perfil)
         except ErroFerramenta as erro:
-            return _resultado_de_erro(chamada.call_id, str(erro))
+            return _resultado_de_erro(call_id, str(erro))
         except PermissionError as erro:
-            return _resultado_de_erro(chamada.call_id, f"acesso negado: {erro}")
+            return _resultado_de_erro(call_id, f"acesso negado: {erro}")
         except Exception:
             # Detalhes da exceção ficam de fora da mensagem: podem conter caminhos do host.
-            return _resultado_de_erro(chamada.call_id, f"falha ao executar a ferramenta '{nome}'")
+            return _resultado_de_erro(call_id, f"falha ao executar a ferramenta '{nome}'")
         finally:
             if self._politica:
                 self.exposicao.marcar_ferramenta(ferramenta)
@@ -259,15 +331,15 @@ class Registro:
             )
         except (TypeError, ValueError):
             return _resultado_de_erro(
-                chamada.call_id, f"o resultado de '{nome}' não pode ser convertido em JSON"
+                call_id, f"o resultado de '{nome}' não pode ser convertido em JSON"
             )
         if tamanho > self._limite_resultado:
             # A mensagem não traz o conteúdo nem o tamanho real: só o limite configurado.
             return _resultado_de_erro(
-                chamada.call_id,
+                call_id,
                 f"resultado da ferramenta excede o limite de {self._limite_resultado} bytes",
             )
-        return ToolResult(call_id=chamada.call_id, ok=True, data=resultado)
+        return ToolResult(call_id=call_id, ok=True, data=resultado)
 
     def despachante(self, perfil: Perfil) -> Callable[[ToolCall], ToolResult]:
         """Devolve a função que o DockerSandbox chama para cada `tool_call`, já ligada ao perfil."""

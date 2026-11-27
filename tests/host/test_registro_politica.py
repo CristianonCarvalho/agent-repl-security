@@ -4,6 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from harness.host.aprovacao import sempre_aprova
 from harness.host.perfil import Perfil, perfil_por_nome
 from harness.host.registry import MENSAGEM_POLITICA, Nivel, Registro
 from harness.sandbox.protocol import ToolCall
@@ -96,7 +97,7 @@ def test_mensagem_de_recusa_nao_vaza_detalhe() -> None:
 
 
 def test_aprovador_pode_liberar_a_chamada() -> None:
-    registro, chamadas = _registro(politica=True, aprovador=lambda chamada, ferramenta: True)
+    registro, chamadas = _registro(politica=True, aprovador=sempre_aprova())
     _chamar(registro, "teste.privado")
     _chamar(registro, "teste.suja")
     assert _chamar(registro, "teste.externa").ok
