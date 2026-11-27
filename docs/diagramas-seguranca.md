@@ -373,6 +373,30 @@ flowchart LR
     FEITO -.-> FALTA
 ```
 
+## 12. Fluxo de uma entrega
+
+Fluxo de `entrega.publicar` com validação no host, aprovação humana no terminal e crédito de prazo na célula (D12):
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant C as Código no REPL (sandbox)
+    participant S as Sandbox (/saida)
+    participant R as Registro (host)
+    participant A as Pessoa no terminal
+    participant E as Pasta de entregas (host)
+
+    C->>S: grava arquivo em /saida/
+    C->>R: tools.entrega.publicar(caminho, destinatario)
+    R->>S: ler_saida(nome, limite_bytes)
+    R->>R: valida extensão, tamanho e ausência de macros
+    R->>R: monta PedidoDeAprovacao só com fatos medidos
+    R->>A: exibe pedido e aguarda confirmação [s/N]
+    A-->>R: aprova
+    R->>E: grava arquivo aprovado e registra em registro.jsonl
+    R-->>C: devolve resultado com espera_s (crédito de prazo da célula)
+```
+
 ## Onde cada parte está no código
 
 | Assunto | Arquivo |

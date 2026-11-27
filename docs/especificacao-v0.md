@@ -114,7 +114,7 @@ Riscos conhecidos: `openpyxl` não recalcula fórmulas e pode descartar recursos
 | `arquivos.historico(arquivo)` | Leitura | Versões anteriores, autor e justificativa de cada uma |
 | `arquivos.propor_alteracao(original, nova_versao, justificativa)` | Escrita com aprovação | Registra uma nova versão para diff, validação e aprovação humana |
 | `arquivos.reverter(arquivo, versao)` | Escrita com aprovação | Restaura uma versão anterior |
-| `entrega.publicar(caminho, destinatario)` | Escrita externa | Entrega um arquivo de `/saida/` a um departamento; exige aprovação humana |
+| `entrega.publicar(caminho, destinatario)` | Escrita externa | Entrega um arquivo de `/saida/` a um departamento; exige aprovação humana (implementada na peça 2 da Fase 4) |
 | `descoberta.buscar(query, limit=5)` | Leitura | Busca ferramentas visíveis ao perfil por nome, descrição e parâmetros (T10); é o `search_tools` do REPL |
 | `descoberta.descrever(name)` | Leitura | Parâmetros, tipos, nível e exemplo de uma ferramenta visível ao perfil (T10); é o `describe_tool` do REPL |
 
@@ -529,9 +529,10 @@ Atualizado em 23/11/2026, depois da T20a e da primeira bateria de avaliações r
 | 3. Evals | Modelo e provedor gravados em cada rodada, filtro `--caso` e ponto de partida que falha (T19-e): Ministral 8B obedece ao `injecao-08` em 5 de 19 rodadas, Gemma 0 de 20 ([relatório](relatorios/injecao-ponto-de-partida.md)) | Implementado |
 | 3. Evals | Medir a política da trifecta e a aprovação humana antes e depois, com ataques que passem por ferramenta com efeito | Não iniciado (depende da Fase 4) |
 | 4. Segurança | Rastreio de arquivos abertos e política da trifecta (spec de 27/11/2026) | Implementado |
-| 4. Segurança | Aprovação humana, gVisor | Não iniciado |
+| 4. Segurança | Aprovação humana por terminal e `entrega.publicar` (spec de 27/11/2026, peça 2) | Implementado |
+| 4. Segurança | Aprovação por painel web ou fila, `propor_alteracao`, gVisor | Não iniciado |
 | Transversal | OpenTelemetry e Langfuse (T20a e T20b) | Implementado |
-| Transversal | CI com gates, SAST, `arquivos.*`, `entrega.publicar` | Não iniciado |
+| Transversal | CI com gates, SAST, `arquivos.*` | Não iniciado |
 | Transversal | `catalogo.dicionario` | No [backlog](backlog.md) (B1) |
 
 **Desvios em relação ao texto original da v0**
@@ -543,7 +544,7 @@ Atualizado em 23/11/2026, depois da T20a e da primeira bateria de avaliações r
 - **Verificação estática.** Além da lista da spec, `builtins` e `sys` são imports proibidos. Ela é feedback rápido ao modelo, não fronteira de segurança: quem barra de verdade é o contêiner.
 - **Avaliações calibradas em rodadas reais.** O corretor, os gabaritos, o prompt e o cliente do modelo foram ajustados depois de sete execuções reais (ver o relatório). Entre os ajustes: o prompt proíbe chamadas de função nativas e pede poucas iterações, e o cliente repete respostas vazias.
 - **Conjunto de avaliação em partes.** Em vez de 35 casos medidos de uma vez, são 20 casos ativos (T17a) e 15 pendentes que dependem da Fase 4 (T17b): ficam escritos, com o que os destrava, mas fora da taxa. O conjunto de 35 está congelado em `evals/conjuntos/` e as execuções se comparam por `python -m harness.evals comparar`.
-- **Espera por aprovação (D12).** O timeout do tempo bloqueado esperando aprovação humana só pode ser implementado com a aprovação, na Fase 4.
+- **Espera por aprovação (D12).** Implementada: a espera vira crédito de prazo da célula e sai do orçamento do pedido.
 
 ## Fontes
 
