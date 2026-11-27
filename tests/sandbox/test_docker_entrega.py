@@ -63,6 +63,7 @@ def _executar_entrega(
     sandbox, registro, perfil = _preparar(
         raiz, pasta_entregas, criar_sandbox, aprovador, prazo_aprovacao_s=prazo_aprovacao_s
     )
+    registro.observar_espera(sandbox.avisar_espera)
     return sandbox.executar_detalhado(
         1, codigo, timeout_s, despachante=registro.despachante(perfil)
     )

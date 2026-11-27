@@ -50,6 +50,7 @@ from harness.sandbox.protocol import (
     ArquivoAberto,
     Contexto,
     ContextoOk,
+    EsperaHumana,
     Exec,
     ExecDone,
     Mensagem,
@@ -258,6 +259,12 @@ class DockerSandbox:
         self.close()
 
     # --- execução ---------------------------------------------------------------
+
+    def avisar_espera(self, ativa: bool) -> None:
+        """Avisa o contêiner que uma aprovação humana começou (`True`) ou terminou (`False`)."""
+        if self._conteiner is None or self._canal is None:
+            return
+        self._enviar(encode(EsperaHumana(ativa=ativa)).encode("utf-8"))
 
     def executar(
         self,

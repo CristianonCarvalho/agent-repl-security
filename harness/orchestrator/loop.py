@@ -287,6 +287,8 @@ class Orquestrador:
         self._registro.exposicao.zerar()
         self._registro.observar_politica(self._emitir_politica)
         self._registro.observar_aprovacao(self._emitir_aprovacao)
+        avisar = getattr(self._sandbox, "avisar_espera", None)
+        self._registro.observar_espera(avisar if callable(avisar) else None)
         self._emitir(
             "pedido_iniciado",
             hash_prompt=prompt.hash_sha256,

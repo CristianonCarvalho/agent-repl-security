@@ -48,6 +48,17 @@ def _assert_eventos_aprovacao(eventos: list[Evento]) -> None:
         assert "conteudo" not in evento.dados
 
 
+class _SandboxComEspera(_SandboxComRastreador):
+    """Sandbox falso que também registra avisos de espera humana."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        super().__init__(*args, **kwargs)  # type: ignore[arg-type]
+        self.esperas: list[bool] = []
+
+    def avisar_espera(self, ativa: bool) -> None:
+        self.esperas.append(ativa)
+
+
 def test_orquestrador_emite_eventos_de_aprovacao() -> None:
     registro = Registro(aprovador=sempre_aprova())
     _registrar_ferramenta_escrita(registro)
@@ -61,7 +72,34 @@ def test_orquestrador_emite_eventos_de_aprovacao() -> None:
         ]
     ]
     eventos: list[Evento] = []
+    sandbox = _SandboxComEspera(chamadas_por_celula=chamadas)
+    Orquestrador(
+        LLMFalso(["```python\nFINAL('ok', ['a'])\n```"]),
+        sandbox,
+        registro,
+        PERFIL_COM_TESTES,
+        eventos=eventos.append,
+    ).executar_pedido("qualquer pedido")
+
+    _assert_eventos_aprovacao(eventos)
+    assert sandbox.esperas == [True, False]
+
+
+def test_orquestrador_funciona_com_sandbox_sem_avisar_espera() -> None:
+    registro = Registro(aprovador=sempre_aprova())
+    _registrar_ferramenta_escrita(registro)
+    chamadas = [
+        [
+            ToolCall(
+                call_id="1",
+                name="teste.escrita",
+                args={"caminho": _CAMINHO_SECRETO, "conteudo": _CONTEUDO_SECRETO},
+            )
+        ]
+    ]
+    eventos: list[Evento] = []
     sandbox = _SandboxComRastreador(chamadas_por_celula=chamadas)
+    assert not hasattr(sandbox, "avisar_espera")
     Orquestrador(
         LLMFalso(["```python\nFINAL('ok', ['a'])\n```"]),
         sandbox,
