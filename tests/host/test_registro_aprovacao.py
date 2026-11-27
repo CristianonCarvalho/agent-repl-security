@@ -50,6 +50,16 @@ def _registro(**opcoes: Any) -> tuple[Registro, list[str]]:
         chamadas.append("invalida")
         return "ok"
 
+    @registro.ferramenta(
+        nome="teste.le",
+        nivel=Nivel.LEITURA,
+        descricao="x",
+        args=Vazio,
+    )
+    def le(args: Vazio, perfil: Perfil) -> Any:
+        chamadas.append("leu")
+        return "ok"
+
     return registro, chamadas
 
 
@@ -139,3 +149,55 @@ def test_observador_recebe_pedida_e_resposta() -> None:
     _chamar(registro)
     assert [tipo for tipo, _ in eventos] == ["aprovacao_pedida", "aprovacao_resposta"]
     assert eventos[1][1]["resposta"] == "aprovado"
+
+
+def test_observar_espera_recebe_true_e_false_em_volta_do_aprovador() -> None:
+    ordem: list[bool | str] = []
+
+    def aprovador(pedido: PedidoDeAprovacao, prazo: float) -> RespostaDeAprovacao:
+        ordem.append("aprovador")
+        return RespostaDeAprovacao.APROVADO
+
+    registro, chamadas = _registro(aprovador=aprovador)
+    esperas: list[bool] = []
+
+    def ao_esperar(ativa: bool) -> None:
+        esperas.append(ativa)
+        ordem.append(ativa)
+
+    registro.observar_espera(ao_esperar)
+    resultado = _chamar(registro)
+    assert resultado.ok is True and chamadas == ["escreveu"]
+    assert esperas == [True, False]
+    assert ordem == [True, "aprovador", False]
+
+
+def test_observar_espera_recebe_false_mesmo_se_aprovador_levantar() -> None:
+    def quebra(pedido: PedidoDeAprovacao, prazo: float) -> RespostaDeAprovacao:
+        raise RuntimeError("falha no aprovador")
+
+    registro, chamadas = _registro(aprovador=quebra)
+    esperas: list[bool] = []
+    registro.observar_espera(esperas.append)
+    resultado = _chamar(registro)
+    assert resultado.ok is False and chamadas == []
+    assert esperas == [True, False]
+
+
+def test_observar_espera_callback_que_levanta_nao_derruba_despacho() -> None:
+    def ao_esperar(ativa: bool) -> None:
+        raise RuntimeError("falha no consumidor")
+
+    registro, chamadas = _registro(aprovador=sempre_aprova())
+    registro.observar_espera(ao_esperar)
+    resultado = _chamar(registro)
+    assert resultado.ok is True and chamadas == ["escreveu"]
+
+
+def test_observar_espera_nao_e_chamado_em_leitura() -> None:
+    registro, chamadas = _registro(aprovador=sempre_aprova())
+    esperas: list[bool] = []
+    registro.observar_espera(esperas.append)
+    resultado = _chamar(registro, "teste.le")
+    assert resultado.ok is True and chamadas == ["leu"]
+    assert esperas == []

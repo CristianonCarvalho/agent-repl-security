@@ -116,6 +116,7 @@ class Registro:
         self.exposicao = Exposicao()
         self._ao_decidir: Callable[[dict[str, Any]], None] | None = None
         self._ao_aprovar: Callable[[str, dict[str, Any]], None] | None = None
+        self._ao_esperar: Callable[[bool], None] | None = None
 
     @property
     def politica_ligada(self) -> bool:
@@ -129,6 +130,19 @@ class Registro:
     def observar_aprovacao(self, ao_evento: Callable[[str, dict[str, Any]], None] | None) -> None:
         """Registra o callback que recebe eventos de aprovação (para o trace)."""
         self._ao_aprovar = ao_evento
+
+    def observar_espera(self, ao_esperar: Callable[[bool], None] | None) -> None:
+        """Registra o callback avisado quando uma aprovação humana começa ou termina."""
+        self._ao_esperar = ao_esperar
+
+    def _avisar_espera(self, ativa: bool) -> None:
+        if self._ao_esperar is None:
+            return
+        try:
+            self._ao_esperar(ativa)
+        except Exception:
+            # Falha do consumidor nunca muda o resultado da chamada.
+            pass
 
     def _notificar_aprovacao(self, tipo: str, dados: dict[str, Any]) -> None:
         if self._ao_aprovar is None:
@@ -281,10 +295,13 @@ class Registro:
             pedido = PedidoDeAprovacao(ferramenta=nome, motivo=motivo, linhas=linhas)
             self._notificar_aprovacao("aprovacao_pedida", {"ferramenta": nome, "motivo": motivo})
             inicio = time.monotonic()
+            self._avisar_espera(True)
             try:
                 resposta = self._aprovador(pedido, self._prazo_aprovacao_s)
             except Exception:
                 resposta = RespostaDeAprovacao.RECUSADO
+            finally:
+                self._avisar_espera(False)
             espera = min(max(0.0, time.monotonic() - inicio), self._prazo_aprovacao_s)
             self._notificar_aprovacao(
                 "aprovacao_resposta",
