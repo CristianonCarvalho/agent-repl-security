@@ -130,8 +130,20 @@ class ContextoOk(_Mensagem):
     tamanho: Annotated[StrictInt, Field(ge=0)]
 
 
+class ArquivoAberto(_Mensagem):
+    """sandbox → host: o código vai abrir um arquivo de /dados e espera a liberação.
+
+    O host responde com um `tool_result` de mesmo `call_id`: `ok=True` libera a abertura;
+    `ok=False` (com `error`) a bloqueia.
+    """
+
+    method: Literal["arquivo_aberto"] = "arquivo_aberto"
+    call_id: str
+    caminho: str
+
+
 # União discriminada pelo campo `method`: cada método tem exatamente um modelo.
-Mensagem = Exec | ToolCall | ToolResult | ExecDone | Contexto | ContextoOk
+Mensagem = Exec | ToolCall | ToolResult | ExecDone | Contexto | ContextoOk | ArquivoAberto
 
 _ADAPTADOR: TypeAdapter[Mensagem] = TypeAdapter(Annotated[Mensagem, Field(discriminator="method")])
 

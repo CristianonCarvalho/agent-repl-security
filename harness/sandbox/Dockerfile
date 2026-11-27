@@ -34,7 +34,7 @@ WORKDIR /app
 # perfis executam no host e não entram na imagem.
 COPY harness/__init__.py /app/harness/__init__.py
 COPY harness/sandbox/__init__.py /app/harness/sandbox/__init__.py
-COPY harness/sandbox/protocol.py harness/sandbox/runner.py harness/sandbox/tools_client.py harness/sandbox/contexto.py /app/harness/sandbox/
+COPY harness/sandbox/protocol.py harness/sandbox/runner.py harness/sandbox/tools_client.py harness/sandbox/contexto.py harness/sandbox/rastreio.py /app/harness/sandbox/
 
 # Diretórios de montagem. /dados recebe bind somente leitura; /saida e /tmp são tmpfs
 # montados pelo host. Os arquivos ficam como root, então o usuário sem privilégio não

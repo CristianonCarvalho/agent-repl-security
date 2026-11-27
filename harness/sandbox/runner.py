@@ -36,6 +36,7 @@ from harness.sandbox.protocol import (
     decode,
     encode,
 )
+from harness.sandbox.rastreio import instalar_gancho
 from harness.sandbox.tools_client import Ferramentas, Ponte, ToolError
 
 
@@ -319,16 +320,20 @@ class Repl:
             pass
 
 
-def serve(entrada: TextIO, saida: TextIO, repl: Repl | None = None) -> None:
+def serve(entrada: TextIO, saida: TextIO, repl: Repl | None = None, rastrear: bool = False) -> None:
     """Lê mensagens do host linha a linha e responde cada `exec` com um `exec_done`.
 
     Termina quando `entrada` chega ao fim. No nível de topo só `exec` e `contexto` são
     aceitos; qualquer outra mensagem levanta ProtocolError. Como a leitura é sequencial, um
     `contexto` é processado antes de qualquer `exec` que venha depois dele. Dentro de uma
     célula, `tool_call` e `tool_result` passam pela ponte que a `serve` cria sobre `entrada`
-    e `saida`, a menos que um `repl` já ligado a uma ponte seja passado.
+    e `saida`, a menos que um `repl` já ligado a uma ponte seja passado. Com `rastrear`,
+    instala o gancho de auditoria de /dados.
     """
-    ambiente = repl if repl is not None else Repl(Ponte(entrada, saida))
+    ponte = Ponte(entrada, saida)
+    ambiente = repl if repl is not None else Repl(ponte)
+    if rastrear:
+        instalar_gancho(ponte)
     while True:
         linha = entrada.readline()
         if linha == "":
@@ -350,7 +355,7 @@ def serve(entrada: TextIO, saida: TextIO, repl: Repl | None = None) -> None:
         saida.flush()
 
 
-def _serve_por_stdio() -> None:
+def _serve_por_stdio(rastrear: bool = False) -> None:
     """Modo --stdio: o protocolo usa stdin e stdout, mas o código do modelo não os alcança.
 
     O Docker só entrega stdin, stdout e stderr ao cliente, não descritores extras. Por isso
@@ -375,7 +380,7 @@ def _serve_por_stdio() -> None:
         os.fdopen(entrada_fd, "r", encoding="utf-8") as entrada,
         os.fdopen(saida_fd, "w", encoding="utf-8") as saida,
     ):
-        serve(entrada, saida)
+        serve(entrada, saida, rastrear=rastrear)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -391,11 +396,16 @@ def main(argv: list[str] | None = None) -> None:
     analisador.add_argument(
         "--stdio", action="store_true", help="usa stdin e stdout como canal (modo contêiner)"
     )
+    analisador.add_argument(
+        "--rastrear-arquivos",
+        action="store_true",
+        help="instala o gancho que avisa o host antes de abrir arquivos de /dados",
+    )
     args = analisador.parse_args(argv)
     if args.stdio:
         if args.fd_in is not None or args.fd_out is not None:
             analisador.error("--stdio não combina com --fd-in e --fd-out")
-        _serve_por_stdio()
+        _serve_por_stdio(rastrear=args.rastrear_arquivos)
         return
     if args.fd_in is None or args.fd_out is None:
         analisador.error("informe --fd-in e --fd-out, ou --stdio")
@@ -403,7 +413,7 @@ def main(argv: list[str] | None = None) -> None:
         os.fdopen(args.fd_in, "r", encoding="utf-8") as entrada,
         os.fdopen(args.fd_out, "w", encoding="utf-8") as saida,
     ):
-        serve(entrada, saida)
+        serve(entrada, saida, rastrear=args.rastrear_arquivos)
 
 
 if __name__ == "__main__":
