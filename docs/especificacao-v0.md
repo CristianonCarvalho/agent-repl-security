@@ -284,7 +284,7 @@ Tabela baseada em [Fly.io (out/2026)](https://fly.io/learn/run-llm-generated-pyt
 
 1. **Sem rede no sandbox.** Toda saída para fora passa pela ponte e pelas ferramentas do host.
 2. **Credenciais só no host.** O sandbox nunca recebe chaves de API, tokens ou senhas.
-3. **Quebrar a lethal trifecta.** Nenhuma sessão combina dado privado, conteúdo não confiável e ferramenta com canal externo; o registro de ferramentas declara essas propriedades e a política recusa a combinação (ou exige aprovação humana). Como os arquivos são lidos como código no sandbox, cada arquivo tem uma flag de confiança no catálogo e o host registra quais arquivos a sessão abriu; abrir um arquivo `externo` marca a sessão como exposta a conteúdo não confiável (D10). *Estado: o registro já declara as propriedades e o catálogo já traz a flag de confiança (arquivo opcional `manifesto.json`); o rastreio de arquivos abertos e a política que recusa a combinação são da Fase 4.*
+3. **Quebrar a lethal trifecta.** Nenhuma sessão combina dado privado, conteúdo não confiável e ferramenta com canal externo; o registro de ferramentas declara essas propriedades e a política recusa a combinação (ou exige aprovação humana). Como os arquivos são lidos como código no sandbox, cada arquivo tem uma flag de confiança no catálogo e o host registra quais arquivos a sessão abriu; abrir um arquivo `externo` marca a sessão como exposta a conteúdo não confiável (D10). *Estado: o rastreio por gancho de auditoria e a política (`--politica-trifecta`, desligada por padrão) estão implementados; a decisão `pedir_aprovacao` vale como recusa até a aprovação humana (Fase 4, peça 2).*
 4. **Ferramentas classificadas.** Cada ferramenta tem nível: leitura, escrita local, escrita externa. Escrita externa exige aprovação humana por chamada.
 5. **Resultados de ferramenta são dados.** Texto vindo de ferramenta nunca é concatenado ao prompt de sistema; é marcado como conteúdo não confiável.
 6. ~~Sub-chamadas não herdam ferramentas.~~ Removida da v0 junto com `llm_query` (D11); volta na v1.
@@ -528,7 +528,8 @@ Atualizado em 23/11/2026, depois da T20a e da primeira bateria de avaliações r
 | 3. Evals | Validação do corretor com modelos pequenos (T19-d): Llama 3.1 8B, Gemma 3 12B e Ministral 8B. 2 obediências reais em 104 rodadas da 1ª passada, 0 em 167 da 2ª ([relatório](relatorios/injecao-modelos-pequenos.md)) | Implementado |
 | 3. Evals | Modelo e provedor gravados em cada rodada, filtro `--caso` e ponto de partida que falha (T19-e): Ministral 8B obedece ao `injecao-08` em 5 de 19 rodadas, Gemma 0 de 20 ([relatório](relatorios/injecao-ponto-de-partida.md)) | Implementado |
 | 3. Evals | Medir a política da trifecta e a aprovação humana antes e depois, com ataques que passem por ferramenta com efeito | Não iniciado (depende da Fase 4) |
-| 4. Segurança | Aprovação humana, política da trifecta, rastreio de arquivos abertos, gVisor | Não iniciado |
+| 4. Segurança | Rastreio de arquivos abertos e política da trifecta (spec de 27/11/2026) | Implementado |
+| 4. Segurança | Aprovação humana, gVisor | Não iniciado |
 | Transversal | OpenTelemetry e Langfuse (T20a e T20b) | Implementado |
 | Transversal | CI com gates, SAST, `arquivos.*`, `entrega.publicar` | Não iniciado |
 | Transversal | `catalogo.dicionario` | No [backlog](backlog.md) (B1) |
