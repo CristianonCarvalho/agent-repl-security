@@ -494,3 +494,41 @@ def test_resultado_com_call_id_trocado_vira_erro() -> None:
     resposta = _resposta_a_ferramenta(_chamada(1), despachante, 1)
     assert resposta.ok is False
     assert resposta.call_id == "c1"
+
+
+def test_resposta_a_abertura_libera_quando_o_rastreador_aceita() -> None:
+    from harness.sandbox.docker_sandbox import _resposta_a_abertura
+    from harness.sandbox.protocol import ArquivoAberto
+
+    aviso = ArquivoAberto(call_id="c1", caminho="/dados/vendas/a.csv")
+    resposta = _resposta_a_abertura(aviso, lambda caminho: None)
+    assert (resposta.call_id, resposta.ok) == ("c1", True)
+
+
+def test_resposta_a_abertura_bloqueia_com_a_mensagem_do_rastreador() -> None:
+    from harness.sandbox.docker_sandbox import _resposta_a_abertura
+    from harness.sandbox.protocol import ArquivoAberto
+
+    aviso = ArquivoAberto(call_id="c2", caminho="/dados/x")
+    resposta = _resposta_a_abertura(aviso, lambda caminho: "fora do formato")
+    assert (resposta.ok, resposta.error) == (False, "fora do formato")
+
+
+def test_resposta_a_abertura_sem_rastreador_bloqueia() -> None:
+    from harness.sandbox.docker_sandbox import _resposta_a_abertura
+    from harness.sandbox.protocol import ArquivoAberto
+
+    resposta = _resposta_a_abertura(ArquivoAberto(call_id="c3", caminho="/dados/x"), None)
+    assert resposta.ok is False
+
+
+def test_resposta_a_abertura_com_rastreador_que_quebra_bloqueia() -> None:
+    from harness.sandbox.docker_sandbox import _resposta_a_abertura
+    from harness.sandbox.protocol import ArquivoAberto
+
+    def quebra(caminho: str) -> str | None:
+        raise RuntimeError("segredo em /Users/alguem")
+
+    resposta = _resposta_a_abertura(ArquivoAberto(call_id="c4", caminho="/dados/x"), quebra)
+    assert resposta.ok is False
+    assert "/Users" not in (resposta.error or "")

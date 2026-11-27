@@ -130,6 +130,7 @@ class SandboxLike(Protocol):
         code: str,
         timeout_s: float,
         despachante: Callable[[ToolCall], ToolResult] | None = None,
+        ao_abrir: Callable[[str], str | None] | None = None,
     ) -> ResultadoExecucao:
         """Executa uma célula e devolve o resultado com a contagem de ferramentas."""
         ...

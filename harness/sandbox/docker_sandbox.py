@@ -47,6 +47,7 @@ from docker.utils.socket import STDERR, STDOUT, frames_iter
 from harness.sandbox.contexto import ValorContexto, bytes_do_contexto, descrever_contexto
 from harness.sandbox.protocol import (
     LIMITE_CHAMADAS_POR_CELULA,
+    ArquivoAberto,
     Contexto,
     ContextoOk,
     Exec,
@@ -171,11 +172,13 @@ class DockerSandbox:
         memoria: str = "512m",
         tmp_mb: int = 64,
         saida_mb: int = 64,
+        rastrear_arquivos: bool = False,
     ) -> None:
         self._imagem = imagem
         self._memoria = memoria
         self._tmp_mb = tmp_mb
         self._saida_mb = saida_mb
+        self._rastrear = rastrear_arquivos
         self._montagens = _preparar_dados(dados or {})
         self._cliente: Any = None
         self._conteiner: Any = None
@@ -274,6 +277,7 @@ class DockerSandbox:
         code: str,
         timeout_s: float,
         despachante: Callable[[ToolCall], ToolResult] | None = None,
+        ao_abrir: Callable[[str], str | None] | None = None,
     ) -> ResultadoExecucao:
         """Envia uma célula, espera o `exec_done` com o mesmo `cell_id` e conta as ferramentas.
 
@@ -317,6 +321,10 @@ class DockerSandbox:
                 ferramentas[msg.name] = ferramentas.get(msg.name, 0) + 1
                 resposta = _resposta_a_ferramenta(msg, despachante, chamadas_feitas)
                 self._enviar(encode(resposta).encode("utf-8"))
+                continue
+            if isinstance(msg, ArquivoAberto):
+                resposta_abertura = _resposta_a_abertura(msg, ao_abrir)
+                self._enviar(encode(resposta_abertura).encode("utf-8"))
                 continue
             if isinstance(msg, ExecDone):
                 if msg.cell_id != cell_id:
@@ -393,6 +401,7 @@ class DockerSandbox:
         try:
             conteiner = self._cliente.containers.create(
                 self._imagem,
+                command=["--rastrear-arquivos"] if self._rastrear else None,
                 detach=True,
                 stdin_open=True,
                 init=True,
@@ -519,6 +528,29 @@ def _resposta_a_ferramenta(
             error="falha interna do host: resposta de outra chamada",
         )
     return resultado
+
+
+def _resposta_a_abertura(
+    aviso: ArquivoAberto, ao_abrir: Callable[[str], str | None] | None
+) -> ToolResult:
+    """Resposta do host ao aviso de abertura de arquivo. Falha fechada em qualquer dúvida.
+
+    Sem rastreador, ou se ele levantar exceção, a abertura é bloqueada. Só `None` do
+    rastreador libera. A mensagem de bloqueio nunca carrega detalhe de exceção.
+    """
+    if ao_abrir is None:
+        return ToolResult(
+            call_id=aviso.call_id, ok=False, error="o rastreio de arquivos não está ligado"
+        )
+    try:
+        erro = ao_abrir(aviso.caminho)
+    except Exception:
+        return ToolResult(
+            call_id=aviso.call_id, ok=False, error="falha ao registrar a abertura do arquivo"
+        )
+    if erro is not None:
+        return ToolResult(call_id=aviso.call_id, ok=False, error=erro)
+    return ToolResult(call_id=aviso.call_id, ok=True)
 
 
 def _preparar_dados(dados: dict[str, Path]) -> list[Mount]:
