@@ -29,13 +29,11 @@ Heurísticas do host (decisões deste módulo, não da spec):
   Um valor fora do teto nunca chega ao contêiner, e a mensagem de erro não traz o conteúdo.
 """
 
-import io
 import queue
 import re
-import tarfile
 import threading
 import time
-from collections.abc import Callable, Iterable
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from types import TracebackType
@@ -357,11 +355,16 @@ class DockerSandbox:
         """Lê um arquivo regular de `/saida/<nome>` no contêiner, respeitando `limite_bytes`."""
         if self._conteiner is None:
             raise SandboxErro("o sandbox não está ativo: chame start() ou reiniciar()")
+        if not re.fullmatch(r"[A-Za-z0-9._-]+", nome):
+            raise SandboxErro("nome de arquivo de saída inválido")
         try:
-            fluxo, _ = self._conteiner.get_archive(f"/saida/{nome}")
+            resultado = self._conteiner.exec_run(
+                ["python", "-c", _LEITOR_DE_SAIDA, f"/saida/{nome}", str(limite_bytes)],
+                demux=False,
+            )
         except (DockerException, OSError) as erro:
-            raise SandboxErro("arquivo de saída não encontrado ou ilegível") from erro
-        return _extrair_arquivo_unico(fluxo, nome, limite_bytes)
+            raise SandboxErro("arquivo de saída ilegível") from erro
+        return _interpretar_leitura(resultado.exit_code, resultado.output or b"", limite_bytes)
 
     def _enviar_contexto(self, valor: ValorContexto) -> None:
         """Envia `contexto`, espera o `contexto_ok` e confere tipo e tamanho com o host."""
@@ -592,35 +595,40 @@ def _preparar_dados(dados: dict[str, Path]) -> list[Mount]:
     return montagens
 
 
-_FOLGA_TAR_BYTES: Final = 1024 * 1024
+_LEITOR_DE_SAIDA: Final = (
+    "import os, stat, sys\n"
+    "caminho, limite = sys.argv[1], int(sys.argv[2])\n"
+    "try:\n"
+    "    fd = os.open(caminho, os.O_RDONLY | os.O_NOFOLLOW)\n"
+    "except FileNotFoundError:\n"
+    "    sys.exit(2)\n"
+    "except OSError:\n"
+    "    sys.exit(3)\n"
+    "info = os.fstat(fd)\n"
+    "if not stat.S_ISREG(info.st_mode):\n"
+    "    sys.exit(3)\n"
+    "if info.st_size > limite:\n"
+    "    sys.exit(4)\n"
+    "restante = info.st_size\n"
+    "while restante > 0:\n"
+    "    bloco = os.read(fd, min(restante, 65536))\n"
+    "    if not bloco:\n"
+    "        break\n"
+    "    sys.stdout.buffer.write(bloco)\n"
+    "    restante -= len(bloco)\n"
+)
 
 
-def _extrair_arquivo_unico(fluxo: Iterable[bytes], nome: str, limite_bytes: int) -> bytes:
-    """Extrai um único arquivo regular `nome` de um fluxo tar, limitado a `limite_bytes`."""
-    teto_tar = limite_bytes + _FOLGA_TAR_BYTES
-    bruto = bytearray()
-    for pedaco in fluxo:
-        if len(bruto) + len(pedaco) > teto_tar:
+def _interpretar_leitura(codigo: int, saida: bytes, limite_bytes: int) -> bytes:
+    """Interpreta o código de saída e os bytes retornados por `_LEITOR_DE_SAIDA`."""
+    if codigo == 0:
+        if len(saida) > limite_bytes:
             raise SandboxErro("arquivo de saída acima do limite")
-        bruto.extend(pedaco)
-    try:
-        with tarfile.open(fileobj=io.BytesIO(bruto), mode="r:*") as tar:
-            membros = tar.getmembers()
-            if len(membros) != 1:
-                raise SandboxErro("arquivo de saída deve conter exatamente um membro")
-            membro = membros[0]
-            if not membro.isfile():
-                raise SandboxErro("saída não é um arquivo regular")
-            if membro.name != nome:
-                raise SandboxErro("nome do arquivo de saída não confere")
-            if membro.size > limite_bytes:
-                raise SandboxErro("arquivo de saída acima do limite")
-            extraido = tar.extractfile(membro)
-            if extraido is None:
-                raise SandboxErro("arquivo de saída ilegível")
-            dados = extraido.read()
-    except tarfile.TarError as erro:
-        raise SandboxErro("arquivo de saída inválido") from erro
-    if len(dados) > limite_bytes:
+        return saida
+    if codigo == 2:
+        raise SandboxErro("arquivo de saída não encontrado")
+    if codigo == 3:
+        raise SandboxErro("o arquivo de saída não é um arquivo regular")
+    if codigo == 4:
         raise SandboxErro("arquivo de saída acima do limite")
-    return dados
+    raise SandboxErro("arquivo de saída ilegível")
