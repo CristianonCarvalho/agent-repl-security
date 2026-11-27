@@ -8,7 +8,6 @@ arquivo é `confiavel`; qualquer valor que não seja `confiavel` no manifesto vi
 """
 
 import hashlib
-import json
 import os
 from datetime import UTC, datetime
 from pathlib import Path
@@ -16,12 +15,19 @@ from typing import Any, Final
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from harness.host.confianca import (
+    CONFIAVEL,
+    EXTERNO,
+    NOME_MANIFESTO,
+    ErroManifesto,
+    confianca_de,
+    ler_manifesto,
+)
 from harness.host.perfil import Perfil
 from harness.host.registry import ErroFerramenta, Nivel, Registro
 
-NOME_MANIFESTO: Final = "manifesto.json"
-CONFIAVEL: Final = "confiavel"
-EXTERNO: Final = "externo"
+__all__ = ["CONFIAVEL", "EXTERNO", "NOME_MANIFESTO"]
+
 # Tamanho do bloco de leitura para calcular o hash sem carregar o arquivo inteiro.
 _TAMANHO_BLOCO: Final = 1024 * 1024
 
@@ -35,24 +41,14 @@ class ListarArgs(BaseModel):
 
 
 def _ler_manifesto(raiz: Path) -> dict[str, Any]:
-    """Lê o manifesto da raiz. Ausente vira dicionário vazio; malformado falha fechado."""
-    caminho = raiz / NOME_MANIFESTO
-    if not caminho.is_file():
-        return {}
+    """Lê o manifesto; manifesto inválido vira erro de ferramenta, com mensagem para o modelo."""
     try:
-        dados = json.loads(caminho.read_text(encoding="utf-8"))
-    except (OSError, ValueError) as erro:
-        raise ErroFerramenta("o manifesto.json da raiz de dados é inválido") from erro
-    if not isinstance(dados, dict):
-        raise ErroFerramenta("o manifesto.json da raiz de dados é inválido")
-    return dados
+        return ler_manifesto(raiz)
+    except ErroManifesto as erro:
+        raise ErroFerramenta(str(erro)) from erro
 
 
-def _confianca(manifesto: dict[str, Any], arquivo: str) -> str:
-    """`confiavel` só se o manifesto disser isso; qualquer outra coisa vira `externo` (D10)."""
-    if arquivo not in manifesto:
-        return CONFIAVEL
-    return CONFIAVEL if manifesto[arquivo] == CONFIAVEL else EXTERNO
+_confianca = confianca_de
 
 
 def _sha256(caminho: Path) -> str:
