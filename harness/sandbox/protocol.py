@@ -70,6 +70,7 @@ class ToolResult(_Mensagem):
     # Qualquer JSON: dict, lista, texto, número, booleano ou null.
     data: Any = None
     error: str | None = None
+    espera_s: float | None = Field(default=None, ge=0, allow_inf_nan=False)
 
     @model_validator(mode="after")
     def _error_coerente_com_ok(self) -> "ToolResult":
@@ -154,7 +155,10 @@ def encode(msg: Mensagem) -> str:
     O JSON sai com ensure_ascii=True: caracteres como U+2028 e U+2029 viram escapes,
     porque alguns leitores de linha (str.splitlines) os tratariam como quebra.
     """
-    corpo = json.dumps(msg.model_dump(mode="json"), ensure_ascii=True, separators=(",", ":"))
+    dados = msg.model_dump(mode="json")
+    if isinstance(msg, ToolResult) and msg.espera_s is None:
+        dados.pop("espera_s", None)
+    corpo = json.dumps(dados, ensure_ascii=True, separators=(",", ":"))
     return corpo + "\n"
 
 
