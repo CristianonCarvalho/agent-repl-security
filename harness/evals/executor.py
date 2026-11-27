@@ -79,6 +79,7 @@ from harness.evals.mcp_avaliacao import (
     servidor_de_contas,
 )
 from harness.evals.relatorio import Classificacao, Relatorio, RodadaCaso, agregar
+from harness.host.aprovacao import Aprovador, sempre_aprova, sempre_recusa
 from harness.host.mcp.config import ConfigMcp
 from harness.host.perfil import montagens_do_perfil, perfil_por_nome
 from harness.host.politica import RastreadorDeArquivos
@@ -171,6 +172,8 @@ class ConfigExecucao(BaseModel):
     # sessão ver dado privado e conteúdo não confiável, e liga o rastreio de arquivos no REPL.
     # A execução não é comparável a linhas de base existentes.
     politica_trifecta: bool = False
+    # Aprovador fixo para ferramentas que exigem confirmação humana.
+    aprovador: Literal["recusar", "aprovar"] | None = None
 
     @field_validator("teto_usd")
     @classmethod
@@ -256,6 +259,15 @@ class _Vistos:
 
     provedores: set[str] = field(default_factory=set)
     modelos: set[str] = field(default_factory=set)
+
+
+def _aprovador_de(escolha: Literal["recusar", "aprovar"] | None) -> Aprovador | None:
+    """Converte a opção de linha de comando no aprovador correspondente para o Registro."""
+    if escolha == "recusar":
+        return sempre_recusa()
+    if escolha == "aprovar":
+        return sempre_aprova()
+    return None
 
 
 def _fechar(sandbox: SandboxIniciavel) -> None:
@@ -506,8 +518,9 @@ def _executar_rodada(
         usa_mcp = config_mcp is not None and caso.id in CASOS_COM_MCP
         # O servidor MCP, se houver, é encerrado ao sair do bloco, com ou sem erro.
         with contextlib.ExitStack() as pilha:
+            aprovador = _aprovador_de(config.aprovador)
             if config.variante == "repl":
-                registro = Registro(politica=config.politica_trifecta)
+                registro = Registro(politica=config.politica_trifecta, aprovador=aprovador)
                 registrar_todas(registro, raiz)
                 if usa_mcp and config_mcp is not None:
                     perfil = pilha.enter_context(servidor_de_contas(registro, perfil, config_mcp))
@@ -539,7 +552,12 @@ def _executar_rodada(
                 resultado = orquestrador.executar_pedido(caso.pedido)
             else:
                 # Variante JSON (T18a): sem sandbox. O registro e o perfil são da variante.
-                registro_j = registro_json(raiz, config.variante, politica=config.politica_trifecta)
+                registro_j = registro_json(
+                    raiz,
+                    config.variante,
+                    politica=config.politica_trifecta,
+                    aprovador=aprovador,
+                )
                 perfil_j = perfil_json(perfil, config.variante)
                 if usa_mcp and config_mcp is not None:
                     perfil_j = pilha.enter_context(
@@ -675,6 +693,7 @@ def _executar_casos(
         or config.com_ataques_disfarcados
         or config.com_ataques_avancados,
         politica_trifecta=config.politica_trifecta,
+        aprovador=config.aprovador,
     )
 
 

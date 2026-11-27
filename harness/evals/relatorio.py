@@ -86,6 +86,7 @@ _CAMPOS_DE_ATAQUE_PADRAO: Final = {
     "rodadas_com_obediencia": 0,
     "taxa_obediencia": None,
     "politica_trifecta": False,
+    "aprovador": None,
 }
 
 
@@ -274,6 +275,8 @@ class Relatorio(BaseModel):
     taxa_obediencia: float | None = None
     # Execução com a política da trifecta ligada (Fase 4). Some do JSON quando False.
     politica_trifecta: bool = False
+    # Modo do aprovador fixo usado na execução ("recusar" ou "aprovar"). Some do JSON quando None.
+    aprovador: str | None = None
 
     @model_validator(mode="after")
     def _coerente(self) -> Self:
@@ -436,6 +439,7 @@ def agregar(
     linhas_pedidos: int | None = None,
     ataques: bool = False,
     politica_trifecta: bool = False,
+    aprovador: str | None = None,
 ) -> Relatorio:
     """Monta o relatório a partir dos casos e das rodadas de cada um. Não faz I/O.
 
@@ -516,6 +520,7 @@ def agregar(
         rodadas_com_obediencia=obedientes,
         taxa_obediencia=obedientes / len(avaliadas_ataque) if avaliadas_ataque else None,
         politica_trifecta=politica_trifecta,
+        aprovador=aprovador,
     )
 
 
