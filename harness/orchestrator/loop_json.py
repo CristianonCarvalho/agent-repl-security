@@ -151,6 +151,7 @@ class _Estado:
     """Tudo o que um pedido acumula. Fica fora da pilha de chamadas para sobreviver a erros."""
 
     inicio: float = 0.0
+    espera_s: float = 0.0
     mensagens: list[Mensagem] = field(default_factory=list)
     hash_prompt: str = ""
     iteracoes: int = 0
@@ -285,7 +286,8 @@ class OrquestradorJson:
                 nome = NOME_FINALIZAR
                 self._emitir("observacao", cell_id=None, texto=conteudo)
             else:
-                valida, conteudo, nome = self._processar_chamada(chamada)
+                valida, conteudo, nome, espera_s = self._processar_chamada(chamada)
+                estado.espera_s += espera_s
             validas += 1 if valida else 0
             respostas.append((chamada, conteudo))
             observacoes.append(conteudo)
@@ -314,8 +316,11 @@ class OrquestradorJson:
             return self._encerrar(estado, MotivoTermino.ERRO_IRRECUPERAVEL, "", ())
         return None
 
-    def _processar_chamada(self, chamada: ChamadaFerramenta) -> tuple[bool, str, str]:
-        """Executa uma chamada que não é `finalizar`. Devolve (válida, conteúdo, nome no passo)."""
+    def _processar_chamada(self, chamada: ChamadaFerramenta) -> tuple[bool, str, str, float]:
+        """Executa uma chamada que não é `finalizar`.
+
+        Devolve (válida, conteúdo, nome no passo, espera_s).
+        """
         nome_registro = nome_do_registro(chamada.nome)
         nome = nome_registro if nome_registro is not None else chamada.nome
         argumentos = _ler_argumentos(chamada.argumentos_brutos)
@@ -346,7 +351,7 @@ class OrquestradorJson:
             texto = f"erro: {resultado.error}"
         conteudo = envelopar_resultado(texto, self._limite)
         self._emitir("observacao", cell_id=None, texto=conteudo)
-        return valida, conteudo, nome[:TAMANHO_NOME_NO_PASSO]
+        return valida, conteudo, nome[:TAMANHO_NOME_NO_PASSO], resultado.espera_s or 0.0
 
     def _casa_com_a_ferramenta(self, nome: str, argumentos: dict[str, Any]) -> bool:
         """Verdadeiro se a ferramenta existe para o perfil e os argumentos casam com o modelo."""
@@ -459,7 +464,7 @@ class OrquestradorJson:
 
     def _restante(self, estado: _Estado) -> float:
         """Segundos que ainda restam ao pedido."""
-        return self._orcamento.max_segundos - (self._relogio() - estado.inicio)
+        return self._orcamento.max_segundos - (self._relogio() - estado.inicio - estado.espera_s)
 
     # --- saída ----------------------------------------------------------------------------
 

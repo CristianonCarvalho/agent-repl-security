@@ -211,6 +211,7 @@ class _Estado:
     """Tudo o que um pedido acumula. Fica fora da pilha de chamadas para sobreviver a erros."""
 
     inicio: float = 0.0
+    espera_s: float = 0.0
     mensagens: list[Mensagem] = field(default_factory=list)
     hash_prompt: str = ""
     nomes_ferramentas: frozenset[str] = frozenset()
@@ -399,6 +400,7 @@ class Orquestrador:
             )
             return self._encerrar(estado, MotivoTermino.ERRO_SANDBOX, "", ())
 
+        estado.espera_s += execucao.espera_aprovacao_s
         done = execucao.done
         observacao = formatar_observacao(cell_id, done, execucao.ferramentas)
         if execucao.reiniciado and estado.com_contexto:
@@ -551,7 +553,7 @@ class Orquestrador:
 
     def _restante(self, estado: _Estado) -> float:
         """Segundos que ainda restam ao pedido."""
-        return self._orcamento.max_segundos - (self._relogio() - estado.inicio)
+        return self._orcamento.max_segundos - (self._relogio() - estado.inicio - estado.espera_s)
 
     # --- saída ----------------------------------------------------------------------------
 
