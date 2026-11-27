@@ -16,6 +16,7 @@ from typing import Any, Final
 from pydantic import BaseModel, ValidationError
 
 from harness.host.perfil import Perfil
+from harness.host.politica import Decisao, Exposicao, avaliar
 from harness.sandbox.protocol import ToolCall, ToolResult
 
 
@@ -43,6 +44,10 @@ _NOME_VALIDO: Final = re.compile(r"[a-z_]+\.[a-z_]+")
 _TAMANHO_NOME_NA_MENSAGEM: Final = 80
 # Teto do JSON serializado (utf-8) do resultado de uma ferramenta: 1 MiB por padrão.
 LIMITE_RESULTADO_PADRAO: Final = 1024 * 1024
+MENSAGEM_POLITICA: Final = (
+    "a chamada foi recusada pela política de segurança: a sessão leu conteúdo não confiável "
+    "e esta ferramenta envia informações para fora"
+)
 
 
 @dataclass(frozen=True)
@@ -82,10 +87,20 @@ def _mensagem_de_validacao(erro: ValidationError) -> str:
     return "; ".join(partes) if partes else "argumentos inválidos"
 
 
+def _nunca_aprova(chamada: ToolCall, ferramenta: "Ferramenta") -> bool:
+    return False
+
+
 class Registro:
     """Conjunto de ferramentas de uma sessão, com despacho que nunca levanta exceção."""
 
-    def __init__(self, limite_resultado_bytes: int = LIMITE_RESULTADO_PADRAO) -> None:
+    def __init__(
+        self,
+        limite_resultado_bytes: int = LIMITE_RESULTADO_PADRAO,
+        *,
+        politica: bool = False,
+        aprovador: Callable[[ToolCall, "Ferramenta"], bool] | None = None,
+    ) -> None:
         # bool é subclasse de int; um True/False aqui seria um erro de quem chama.
         if (
             isinstance(limite_resultado_bytes, bool)
@@ -95,6 +110,36 @@ class Registro:
             raise ValueError("limite_resultado_bytes precisa ser um inteiro maior que zero")
         self._limite_resultado = limite_resultado_bytes
         self._ferramentas: dict[str, Ferramenta] = {}
+        self._politica = politica
+        # Sem aprovação humana ainda, "pedir aprovação" equivale a recusar.
+        self._aprovador = aprovador if aprovador is not None else _nunca_aprova
+        self.exposicao = Exposicao()
+        self._ao_decidir: Callable[[dict[str, Any]], None] | None = None
+
+    @property
+    def politica_ligada(self) -> bool:
+        """Verdadeiro quando a política da trifecta vale para este registro."""
+        return self._politica
+
+    def observar_politica(self, ao_decidir: Callable[[dict[str, Any]], None] | None) -> None:
+        """Registra o callback que recebe cada decisão da política (para o trace)."""
+        self._ao_decidir = ao_decidir
+
+    def _notificar(self, nome: str, decisao: Decisao) -> None:
+        if self._ao_decidir is None:
+            return
+        try:
+            self._ao_decidir(
+                {
+                    "ferramenta": nome,
+                    "decisao": decisao.value,
+                    "viu_dado_privado": self.exposicao.viu_dado_privado,
+                    "viu_nao_confiavel": self.exposicao.viu_nao_confiavel,
+                }
+            )
+        except Exception:
+            # Falha do consumidor nunca muda o resultado da chamada.
+            pass
 
     def ferramenta(
         self,
@@ -186,6 +231,15 @@ class Registro:
                 f"a ferramenta '{nome}' é de nível {ferramenta.nivel.value} e exige aprovação "
                 "humana; a aprovação ainda não existe, então a chamada foi recusada",
             )
+        if self._politica:
+            decisao = avaliar(self.exposicao, ferramenta)
+            self._notificar(nome, decisao)
+            if decisao is not Decisao.PERMITIR:
+                liberada = decisao is Decisao.PEDIR_APROVACAO and self._aprovador(
+                    chamada, ferramenta
+                )
+                if not liberada:
+                    return _resultado_de_erro(chamada.call_id, MENSAGEM_POLITICA)
         try:
             resultado = ferramenta.funcao(argumentos, perfil)
         except ErroFerramenta as erro:
@@ -195,6 +249,9 @@ class Registro:
         except Exception:
             # Detalhes da exceção ficam de fora da mensagem: podem conter caminhos do host.
             return _resultado_de_erro(chamada.call_id, f"falha ao executar a ferramenta '{nome}'")
+        finally:
+            if self._politica:
+                self.exposicao.marcar_ferramenta(ferramenta)
         try:
             # Medido em bytes utf-8 do JSON: é o que o resultado ocupa na ponte.
             tamanho = len(
