@@ -40,14 +40,15 @@ import os
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Final, Protocol, TextIO
+from typing import TYPE_CHECKING, Any, Final, Protocol, TextIO
 
+from harness.host.aprovacao import Aprovador, AprovadorDeTerminal, sempre_recusa
 from harness.host.mcp.adaptador import GerenteMcp, registrar_servidores_mcp, verificar_nomes_mcp
 from harness.host.mcp.config import ConfigMcp, ErroConfigMcp, carregar_config_mcp
 from harness.host.perfil import PERFIS, montagens_do_perfil, perfil_por_nome
 from harness.host.politica import RastreadorDeArquivos
 from harness.host.registry import Nivel, Registro
-from harness.host.tools import registrar_todas
+from harness.host.tools import entrega, registrar_todas
 from harness.llm.base import ModeloLLM
 from harness.llm.config import carregar_env, config_de_ambiente
 from harness.llm.openrouter import ClienteOpenRouter
@@ -207,6 +208,18 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="liga a política da trifecta e o rastreio de arquivos",
     )
+    parser.add_argument(
+        "--entregas",
+        type=Path,
+        default=None,
+        help="pasta onde publicar arquivos aprovados pela ferramenta entrega.publicar",
+    )
+    parser.add_argument(
+        "--prazo-aprovacao",
+        type=_inteiro_positivo,
+        default=120,
+        help="prazo em segundos para aprovação humana (padrão: 120)",
+    )
     return parser
 
 
@@ -340,8 +353,23 @@ def main(
             saida.write(f"{erro}\n")
             return CODIGO_USO
 
-    registro = Registro(politica=args.politica_trifecta)
+    aprovador: Aprovador | None = None
+    if args.entregas is not None or args.politica_trifecta:
+        aprovador = AprovadorDeTerminal(sys.stdin, saida) if sys.stdin.isatty() else sempre_recusa()
+    registro = Registro(
+        politica=args.politica_trifecta,
+        aprovador=aprovador,
+        prazo_aprovacao_s=args.prazo_aprovacao,
+    )
     registrar_todas(registro, args.dados)
+    sandbox_ref: list[Any] = []
+    if args.entregas is not None:
+        entrega.registrar(
+            registro,
+            lambda nome, limite: sandbox_ref[0].ler_saida(nome, limite),
+            args.entregas,
+        )
+        perfil = perfil.com_concessoes(["entrega.publicar"])
     if mcp_config is not None:
         try:
             verificar_nomes_mcp(registro, mcp_config)
@@ -357,6 +385,7 @@ def main(
         )
     else:
         sandbox = fabrica(args.imagem, dados=montagens_do_perfil(perfil, args.dados))
+    sandbox_ref.append(sandbox)
     try:
         sandbox.start()
     except Exception:
