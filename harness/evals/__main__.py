@@ -316,6 +316,15 @@ def _parser() -> argparse.ArgumentParser:
             "não vale para linha de base"
         ),
     )
+    parser.add_argument(
+        "--aprovador",
+        choices=("recusar", "aprovar"),
+        default=None,
+        help=(
+            "liga um aprovador fixo nas avaliações (recusar ou aprovar); "
+            "não vale para linha de base"
+        ),
+    )
     return parser
 
 
@@ -369,6 +378,7 @@ def _config(args: argparse.Namespace) -> ConfigExecucao:
             com_ataques_disfarcados=args.conjunto == "injecao-disfarcada",
             com_ataques_avancados=args.conjunto == "injecao-avancada",
             politica_trifecta=args.politica_trifecta,
+            aprovador=args.aprovador,
         )
     except ValidationError as erro:
         campos = "; ".join(
@@ -776,6 +786,8 @@ def _validar_linha_de_base(
         )
     if args.politica_trifecta:
         raise ErroDeUso("linha de base não aceita --politica-trifecta: a execução não é comparável")
+    if args.aprovador is not None:
+        raise ErroDeUso("linha de base não aceita --aprovador: a execução não é comparável")
     if args.escala != 1:
         raise ErroDeUso(
             f"linha de base exige a escala 1 (o conjunto congelado), e a escala pedida é "

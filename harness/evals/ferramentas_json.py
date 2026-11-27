@@ -45,6 +45,7 @@ from pptx import Presentation
 from pptx.enum.shapes import MSO_SHAPE_TYPE
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictFloat, StrictInt, StrictStr
 
+from harness.host.aprovacao import Aprovador
 from harness.host.perfil import Perfil
 from harness.host.registry import ErroFerramenta, Nivel, Registro
 from harness.host.tools import catalogo
@@ -687,7 +688,13 @@ def registrar_arquivos(registro: Registro, raiz: Path, *, agregacao: bool) -> No
         return agregar_planilha(args, perfil, raiz)
 
 
-def registro_json(raiz: Path, variante: str, *, politica: bool = False) -> Registro:
+def registro_json(
+    raiz: Path,
+    variante: str,
+    *,
+    politica: bool = False,
+    aprovador: Aprovador | None = None,
+) -> Registro:
     """Registro próprio de uma variante JSON: `catalogo.listar` e as ferramentas de arquivo.
 
     `variante` é `json` (básicas) ou `json-agregacao` (básicas mais agregação). Outro valor
@@ -695,7 +702,7 @@ def registro_json(raiz: Path, variante: str, *, politica: bool = False) -> Regis
     """
     if variante not in VARIANTES_JSON:
         raise ValueError(f"variante JSON desconhecida: {variante!r}")
-    registro = Registro(politica=politica)
+    registro = Registro(politica=politica, aprovador=aprovador)
     catalogo.registrar(registro, raiz)
     registrar_arquivos(registro, raiz, agregacao=variante == "json-agregacao")
     return registro
