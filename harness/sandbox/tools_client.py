@@ -14,6 +14,7 @@ from typing import Any, Final, TextIO
 
 from harness.sandbox.protocol import (
     LIMITE_CHAMADAS_POR_CELULA,
+    ArquivoAberto,
     ProtocolError,
     ToolCall,
     ToolResult,
@@ -77,6 +78,24 @@ class Ponte:
                 f"o canal com o host está fechado; '{nome}' não foi executada"
             ) from erro
         return self._esperar_resultado(call_id, nome)
+
+    def avisar_abertura(self, caminho: str) -> None:
+        """Avisa o host que o código vai abrir `caminho` e espera a liberação.
+
+        Não conta no limite de chamadas por célula. Levanta ToolError se o host recusar ou o
+        canal falhar: quem chama deve tratar isso como abertura bloqueada.
+        """
+        self._emitidas += 1
+        call_id = f"c{self._emitidas}"
+        quadro = encode(ArquivoAberto(call_id=call_id, caminho=caminho))
+        try:
+            self._saida.write(quadro)
+            self._saida.flush()
+        except (OSError, ValueError) as erro:
+            raise ToolError(
+                "o canal com o host está fechado; a abertura não foi autorizada"
+            ) from erro
+        self._esperar_resultado(call_id, "abertura de arquivo")
 
     def _esperar_resultado(self, call_id: str, nome: str) -> Any:
         while True:

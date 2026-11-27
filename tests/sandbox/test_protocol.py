@@ -27,6 +27,13 @@ def test_ida_e_volta_exec() -> None:
     assert decode(encode(msg)) == msg
 
 
+def test_arquivo_aberto_ida_e_volta() -> None:
+    from harness.sandbox.protocol import ArquivoAberto, decode, encode
+
+    mensagem = ArquivoAberto(call_id="c1", caminho="/dados/vendas/a.csv")
+    assert decode(encode(mensagem)) == mensagem
+
+
 def test_ida_e_volta_tool_call() -> None:
     msg = ToolCall(call_id="c1", name="catalogo.listar", args={"departamento": "Vendas"})
     assert decode(encode(msg)) == msg
