@@ -687,7 +687,7 @@ def registrar_arquivos(registro: Registro, raiz: Path, *, agregacao: bool) -> No
         return agregar_planilha(args, perfil, raiz)
 
 
-def registro_json(raiz: Path, variante: str) -> Registro:
+def registro_json(raiz: Path, variante: str, *, politica: bool = False) -> Registro:
     """Registro próprio de uma variante JSON: `catalogo.listar` e as ferramentas de arquivo.
 
     `variante` é `json` (básicas) ou `json-agregacao` (básicas mais agregação). Outro valor
@@ -695,7 +695,7 @@ def registro_json(raiz: Path, variante: str) -> Registro:
     """
     if variante not in VARIANTES_JSON:
         raise ValueError(f"variante JSON desconhecida: {variante!r}")
-    registro = Registro()
+    registro = Registro(politica=politica)
     catalogo.registrar(registro, raiz)
     registrar_arquivos(registro, raiz, agregacao=variante == "json-agregacao")
     return registro

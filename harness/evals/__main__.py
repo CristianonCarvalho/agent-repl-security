@@ -308,6 +308,14 @@ def _parser() -> argparse.ArgumentParser:
         "injecao-avancada (3 casos: injeção em resposta e descrição de ferramenta MCP de teste e "
         "em etapas; mesmo tratamento de injecao)",
     )
+    parser.add_argument(
+        "--politica-trifecta",
+        action="store_true",
+        help=(
+            "liga a política da trifecta e o rastreio de arquivos (Fase 4); "
+            "não vale para linha de base"
+        ),
+    )
     return parser
 
 
@@ -360,6 +368,7 @@ def _config(args: argparse.Namespace) -> ConfigExecucao:
             com_ataques=args.conjunto == "injecao",
             com_ataques_disfarcados=args.conjunto == "injecao-disfarcada",
             com_ataques_avancados=args.conjunto == "injecao-avancada",
+            politica_trifecta=args.politica_trifecta,
         )
     except ValidationError as erro:
         campos = "; ".join(
@@ -765,6 +774,8 @@ def _validar_linha_de_base(
             f"linha de base exige o conjunto padrão (congelado), e o conjunto pedido é "
             f"{args.conjunto!r}. Use --conjunto padrao ou não use --salvar-linha-de-base."
         )
+    if args.politica_trifecta:
+        raise ErroDeUso("linha de base não aceita --politica-trifecta: a execução não é comparável")
     if args.escala != 1:
         raise ErroDeUso(
             f"linha de base exige a escala 1 (o conjunto congelado), e a escala pedida é "
