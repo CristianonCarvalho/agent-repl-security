@@ -46,10 +46,18 @@ class Ponte:
         self._emitidas = 0
         # Chamadas feitas na célula em curso; zerado por nova_celula().
         self._na_celula = 0
+        # Soma dos espera_s recebidos na célula em curso; zerado por nova_celula().
+        self._credito_s = 0.0
+
+    @property
+    def credito_s(self) -> float:
+        """Segundos de espera humana acumulados na célula em curso."""
+        return self._credito_s
 
     def nova_celula(self) -> None:
-        """Zera o limite de chamadas. O runner chama isto no início de cada célula."""
+        """Zera o limite de chamadas e o crédito de espera no início de cada célula."""
         self._na_celula = 0
+        self._credito_s = 0.0
 
     def chamar(self, nome: str, args: dict[str, Any]) -> Any:
         """Envia uma chamada ao host e devolve `data`, ou levanta ToolError se `ok` for falso."""
@@ -112,6 +120,7 @@ class Ponte:
                         f"resposta da chamada '{mensagem.call_id}', mas a célula espera "
                         f"a chamada '{call_id}'"
                     )
+                self._credito_s += mensagem.espera_s or 0.0
                 if mensagem.ok:
                     return mensagem.data
                 raise ToolError(mensagem.error or "erro desconhecido do host")

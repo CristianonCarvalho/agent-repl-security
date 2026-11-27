@@ -264,7 +264,12 @@ class Repl:
                 daemon=True,
             )
             thread.start()
-            thread.join(timeout_s)
+            while thread.is_alive():
+                credito = self._ponte.credito_s if self._ponte is not None else 0.0
+                restante = inicio + timeout_s + credito - time.monotonic()
+                if restante <= 0:
+                    break
+                thread.join(min(restante, 0.05))
             if thread.is_alive():
                 estourou = True
                 _interromper(thread)
