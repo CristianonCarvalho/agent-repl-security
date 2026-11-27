@@ -283,9 +283,10 @@ class Orquestrador:
         estado.nomes_ferramentas = frozenset(f.nome for f in self._registro.visiveis(self._perfil))
         despachante = self._registro.despachante(self._perfil)
         estado.despachante = self._instrumentar(despachante) if despachante is not None else None
-        # Pedido novo, exposição nova; cada decisão da política vira evento de trace.
+        # Pedido novo, exposição nova; cada decisão da política e aprovação vira evento de trace.
         self._registro.exposicao.zerar()
         self._registro.observar_politica(self._emitir_politica)
+        self._registro.observar_aprovacao(self._emitir_aprovacao)
         self._emitir(
             "pedido_iniciado",
             hash_prompt=prompt.hash_sha256,
@@ -641,6 +642,9 @@ class Orquestrador:
 
     def _emitir_politica(self, dados: dict[str, Any]) -> None:
         self._emitir("politica_decisao", **dados)
+
+    def _emitir_aprovacao(self, tipo: str, dados: dict[str, Any]) -> None:
+        self._emitir(tipo, **dados)
 
     def _emitir(self, tipo: str, **dados: Any) -> None:
         """Entrega um evento ao consumidor. Falha do consumidor nunca derruba o loop."""
